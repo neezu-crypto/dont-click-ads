@@ -537,6 +537,11 @@
     </div>
 
     <div class="dev-row">
+      <label>광고 숨기기</label>
+      <input id="dev-hide-ads-toggle" type="checkbox" class="dev-toggle" onchange="devToggleHideAds(this.checked)" />
+    </div>
+
+    <div class="dev-row">
       <label>광고 속도</label>
       <input id="dev-speed-slider" type="range" min="1" max="10" step="0.5" value="1"
              oninput="devSetSpeed(+this.value); document.getElementById('dev-speed-val').textContent=this.value+'x'" />
@@ -812,9 +817,9 @@ function onStartBtnHover() {
   const img    = document.getElementById('tutorial-ad-img');
   const picked = randomAd('tutorial');
   if (!picked) return;
-  img.src          = picked.imgUrl;
-  ad.dataset.url   = picked.landingUrl;
-  ad.classList.add('show');
+  img.src        = picked.imgUrl;
+  ad.dataset.url = picked.landingUrl;
+  if (!window._DEV?.hideAds) ad.classList.add('show');
 }
 window.onStartBtnHover = onStartBtnHover;
 
@@ -941,6 +946,7 @@ let adPopupRunawayCount = 0;
 let currentAdInLevel1 = false;
 
 function showAdPopup() {
+  if (window._DEV?.hideAds) return;
   const popup = document.getElementById('ad-popup');
   const img   = document.getElementById('ad-popup-img');
   const body  = document.getElementById('ad-popup-body');
@@ -1122,6 +1128,29 @@ function recordAdClick() {
     if (!window._DEV.unlocked) return;
     window._DEV.godMode = val;
     _devToast('무적 모드: ' + (val ? 'ON' : 'OFF'));
+  };
+
+  /* ── 광고 숨기기 ── */
+  window.devToggleHideAds = function (val) {
+    if (!window._DEV.unlocked) return;
+    window._DEV.hideAds = val;
+
+    const adEls = [
+      document.getElementById('ad-popup'),
+      document.getElementById('tutorial-ad'),
+      document.getElementById('opening-cursor-ad'),
+    ];
+
+    if (val) {
+      adEls.forEach(el => { if (el) el.style.setProperty('display', 'none', 'important'); });
+      /* 스폰 루프 일시 중단 */
+      if (adPopupTimer) { clearTimeout(adPopupTimer); adPopupTimer = null; }
+    } else {
+      adEls.forEach(el => { if (el) el.style.removeProperty('display'); });
+      /* level1 진행 중이면 스폰 루프 재개 */
+      if (isLevel1Running && !adPopupTimer) scheduleAdPopup();
+    }
+    _devToast('광고 숨기기: ' + (val ? 'ON' : 'OFF'));
   };
 
   /* ── 광고 속도 ── */
