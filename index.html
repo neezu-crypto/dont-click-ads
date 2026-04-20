@@ -348,6 +348,104 @@
     #opening-cursor-ad.active { display: block; }
     #opening-cursor-ad:hover { box-shadow: 0 0 22px #ff4400cc, 0 0 6px #fff5; }
 
+    /* ─── LEVEL CLEAR OVERLAY ─── */
+    #level-clear-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.88); z-index: 400;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; text-align: center; padding: 24px;
+    }
+    #level-clear-overlay.active { display: flex; }
+    #level-clear-overlay h2 {
+      font-size: 2.4rem; color: #00ffaa;
+      text-shadow: 0 0 24px #00ffaa88;
+    }
+    #level-clear-score-badge {
+      font-size: 1rem; color: #ccc;
+      background: #1a1a1a; padding: 8px 24px;
+      border-radius: 20px; border: 1px solid #333;
+    }
+    #level-clear-next-badge {
+      font-size: 0.9rem; color: #888;
+    }
+
+    /* ─── ENDING SCREEN ─── */
+    #screen-ending {
+      display: none; position: fixed; inset: 0;
+      background: #000; z-index: 500; overflow-y: auto;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 22px; text-align: center; padding: 32px 24px;
+    }
+    #screen-ending.active { display: flex; }
+    #screen-ending h1 {
+      font-size: 2.8rem; color: #ffcc00;
+      text-shadow: 0 0 30px #ffcc0088; letter-spacing: 1px;
+    }
+    #ending-stats {
+      display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+    }
+    .ending-stat {
+      background: #1a1a1a; border: 1px solid #333;
+      border-radius: 14px; padding: 18px 28px; min-width: 120px;
+    }
+    .ending-stat .stat-value {
+      font-size: 2.2rem; font-weight: bold; color: #ffcc00;
+    }
+    .ending-stat .stat-label { font-size: 0.82rem; color: #888; margin-top: 4px; }
+    #ending-rank-badge {
+      font-size: 1.1rem; color: #88aaff; min-height: 1.4em;
+    }
+    #ending-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+    /* ─── RANKING MODAL ─── */
+    #ranking-modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.92); z-index: 600;
+      align-items: center; justify-content: center; padding: 16px;
+    }
+    #ranking-modal.active { display: flex; }
+    #ranking-inner {
+      background: #111; border: 1px solid #2a2a2a;
+      border-radius: 16px; width: 100%; max-width: 560px;
+      max-height: 85vh; display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    #ranking-header {
+      padding: 14px 20px; border-bottom: 1px solid #222;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-shrink: 0;
+    }
+    #ranking-header h3 { font-size: 1.15rem; color: #fff; }
+    #ranking-header button {
+      background: none; border: none; color: #888;
+      cursor: pointer; font-size: 1.2rem; padding: 4px 8px;
+    }
+    #my-rank-badge {
+      margin: 10px 16px 0;
+      padding: 10px 14px;
+      background: #1a1a2e; border: 1px solid #2266ff;
+      border-radius: 8px; font-size: 0.88rem; color: #88aaff;
+      text-align: center; flex-shrink: 0;
+    }
+    #ranking-list-wrap { overflow-y: auto; padding: 12px 16px 16px; flex: 1; }
+    #ranking-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    #ranking-table th {
+      color: #555; font-weight: normal; padding: 8px 10px;
+      border-bottom: 1px solid #222; text-align: left;
+    }
+    #ranking-table td { padding: 11px 10px; border-bottom: 1px solid #1a1a1a; color: #ccc; }
+    #ranking-table tr.my-rank td { background: #1a1a2e; color: #88aaff; font-weight: bold; }
+    #ranking-table .rank-1 td { color: #ffd700; }
+    #ranking-table .rank-2 td { color: #c0c0c0; }
+    #ranking-table .rank-3 td { color: #cd7f32; }
+
+    /* ─── CONFETTI ─── */
+    #confetti-canvas {
+      display: none; position: fixed; inset: 0;
+      pointer-events: none; z-index: 499;
+    }
+    #confetti-canvas.active { display: block; }
+
     /* ─── DEV PANEL ─── */
     #dev-panel {
       display: none;
@@ -482,14 +580,13 @@
 <!-- ════════════════════ LEVEL 1 ════════════════════ -->
 <div id="screen-level1" class="screen">
   <div id="level1-info">
+    <div>레벨: <span id="current-level-display">1</span>/10</div>
     <div>점수: <span id="score-display">0</span></div>
     <div>광고 클릭: <span id="ad-click-display">0</span>회</div>
     <div>남은 시간: <span id="timer-display">30</span>s</div>
   </div>
   <p id="level1-msg">초록 원을 클릭하세요! (광고 함정을 조심하세요)</p>
-  <div id="game-area">
-    <div id="target" onclick="onTargetClick()">클릭!</div>
-  </div>
+  <div id="game-area"></div>
 </div>
 
 <!-- 레벨 1 광고 클릭 결과 오버레이 -->
@@ -515,6 +612,72 @@
 
 <!-- ════════════════════ OPENING CURSOR AD ════════════════════ -->
 <div id="opening-cursor-ad" onclick="onOpeningCursorAdClick()"></div>
+
+<!-- 레벨 플레이스홀더 (admin 레벨 카운터용) -->
+<div id="screen-level2"  class="screen"></div>
+<div id="screen-level3"  class="screen"></div>
+<div id="screen-level4"  class="screen"></div>
+<div id="screen-level5"  class="screen"></div>
+<div id="screen-level6"  class="screen"></div>
+<div id="screen-level7"  class="screen"></div>
+<div id="screen-level8"  class="screen"></div>
+<div id="screen-level9"  class="screen"></div>
+<div id="screen-level10" class="screen"></div>
+
+<!-- ════════════════════ LEVEL CLEAR OVERLAY ════════════════════ -->
+<div id="level-clear-overlay">
+  <h2>✅ 레벨 클리어!</h2>
+  <div id="level-clear-score-badge"></div>
+  <div id="level-clear-next-badge"></div>
+  <button class="btn-primary" onclick="proceedToNextLevel()">다음 레벨 →</button>
+</div>
+
+<!-- ════════════════════ ENDING SCREEN ════════════════════ -->
+<div id="screen-ending">
+  <h1>🎉 게임 클리어!</h1>
+  <p style="color:#aaa;font-size:1rem">10레벨을 모두 통과했습니다!</p>
+  <div id="ending-stats">
+    <div class="ending-stat">
+      <div class="stat-value" id="ending-score">0</div>
+      <div class="stat-label">최종 점수</div>
+    </div>
+    <div class="ending-stat">
+      <div class="stat-value" id="ending-time">0s</div>
+      <div class="stat-label">총 소요 시간</div>
+    </div>
+    <div class="ending-stat">
+      <div class="stat-value" id="ending-ad-clicks">0회</div>
+      <div class="stat-label">광고 클릭 횟수</div>
+    </div>
+  </div>
+  <div id="ending-rank-badge"></div>
+  <div id="ending-actions">
+    <button class="btn-primary" onclick="showRankingModal()">🏆 전체 순위 보기</button>
+    <button class="btn-restart" onclick="restartGame()">🔄 다시 도전하기</button>
+  </div>
+</div>
+
+<!-- ════════════════════ RANKING MODAL ════════════════════ -->
+<div id="ranking-modal">
+  <div id="ranking-inner">
+    <div id="ranking-header">
+      <h3>🏆 전체 랭킹 Top 20</h3>
+      <button onclick="closeRankingModal()">✕</button>
+    </div>
+    <div id="my-rank-badge"></div>
+    <div id="ranking-list-wrap">
+      <table id="ranking-table">
+        <thead>
+          <tr><th>순위</th><th>닉네임</th><th>점수</th><th>시간</th></tr>
+        </thead>
+        <tbody id="ranking-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ CONFETTI ════════════════════ -->
+<canvas id="confetti-canvas"></canvas>
 
 <!-- ════════════════════ DEV PANEL ════════════════════ -->
 <div id="dev-panel">
@@ -564,7 +727,7 @@
 <script type="module">
   import { initializeApp }    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
   import { getAnalytics }     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js';
-  import { getDatabase, ref, get, set, update, onValue, query, orderByChild, limitToFirst }
+  import { getDatabase, ref, get, set, update, onValue, query, orderByChild, limitToFirst, limitToLast }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
   import { getAuth, GoogleAuthProvider, signInWithPopup }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
@@ -600,6 +763,7 @@
   window._dbQuery        = query;
   window._dbOrderByChild = orderByChild;
   window._dbLimitToFirst = limitToFirst;
+  window._dbLimitToLast  = limitToLast;
 
   /* ── 광고 데이터 실시간 동기화 ── */
   onValue(ref(database, 'ads'), snapshot => {
@@ -679,17 +843,336 @@ function randomAd(type) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+/* ── 레벨 설정 ── */
+const LEVEL_CONFIG = [
+  null,
+  { adDelay: [7, 14], closeRunaway: 2 },
+  { adDelay: [6, 12], closeRunaway: 2 },
+  { adDelay: [5, 10], closeRunaway: 3 },
+  { adDelay: [5,  9], closeRunaway: 3 },
+  { adDelay: [4,  8], closeRunaway: 3 },
+  { adDelay: [4,  7], closeRunaway: 4 },
+  { adDelay: [3,  6], closeRunaway: 4 },
+  { adDelay: [3,  5], closeRunaway: 4 },
+  { adDelay: [2,  4], closeRunaway: 5 },
+  { adDelay: [2,  3], closeRunaway: 5 },
+];
+
 /* ── 세션 상태 ── */
 const sessionId       = 'user_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
 let playerNickname    = '';
 let totalAdClicks     = 0;
 let gameScore         = 0;
+let totalScore        = 0;
+let currentLevel      = 1;
+let gameStartTime     = 0;
+let totalGameTime     = 0;
 let tutorialAdClicked = false;
 let tutorialHovered   = false;
 let level1Timer       = null;
 let level1TimeLeft    = 30;
-let adPopupTimer      = null;
-let isLevel1Running   = false;
+let adPopupTimer          = null;
+let isLevel1Running       = false;
+let _activeGameCleanup    = null;
+
+/* ════════ MINI-GAME REGISTRY ════════ */
+const MINI_GAMES = {
+  'circle-click': {
+    label: '초록 원을 클릭하라!',
+    start(area, score) {
+      area.innerHTML = '<div id="target" style="position:absolute;width:72px;height:72px;background:radial-gradient(circle,#00ffaa,#00cc77);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:bold;color:#000;user-select:none;box-shadow:0 0 16px #00ffaa88">클릭!</div>';
+      const tgt = area.querySelector('#target');
+      function move() {
+        tgt.style.left = Math.random() * (area.clientWidth  - 80) + 'px';
+        tgt.style.top  = Math.random() * (area.clientHeight - 80) + 'px';
+      }
+      move();
+      tgt.onclick = () => {
+        if (!isLevel1Running) return;
+        score(10); playSuccessSound(); move();
+        if (Math.random() < 0.2) showAdPopup();
+      };
+      return () => { area.innerHTML = ''; };
+    }
+  },
+
+  'rapid-tap': {
+    label: '사라지기 전에 클릭!',
+    start(area, score) {
+      area.innerHTML = '';
+      let tid;
+      function spawn() {
+        if (!isLevel1Running) return;
+        if (area.querySelectorAll('.g-rt').length >= 3) { tid = setTimeout(spawn, 300); return; }
+        const sz = 44 + Math.random() * 36;
+        const d  = document.createElement('div');
+        d.className = 'g-rt';
+        d.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:radial-gradient(circle,#00ffaa,#008855);left:${Math.random()*(area.clientWidth-sz)}px;top:${Math.random()*(area.clientHeight-sz)}px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:bold;color:#000;transition:transform 1s,opacity 1s;box-shadow:0 0 10px #00ffaa66`;
+        d.textContent = '+15';
+        area.appendChild(d);
+        requestAnimationFrame(() => { d.style.transform = 'scale(0.05)'; d.style.opacity = '0'; });
+        const rm = setTimeout(() => d.remove(), 950);
+        d.onclick = () => {
+          clearTimeout(rm); d.remove();
+          if (!isLevel1Running) return;
+          score(15); playSuccessSound();
+          if (Math.random() < .15) showAdPopup();
+        };
+        tid = setTimeout(spawn, 500 + Math.random() * 500);
+      }
+      spawn();
+      return () => { clearTimeout(tid); area.innerHTML = ''; };
+    }
+  },
+
+  'color-rush': {
+    label: '지정된 색깔만 클릭!',
+    start(area, score) {
+      area.innerHTML = '';
+      const COLS = [{n:'초록',h:'#00ffaa'},{n:'빨강',h:'#ff4444'},{n:'파랑',h:'#4488ff'},{n:'노랑',h:'#ffcc00'}];
+      let target, tid;
+      const banner = document.createElement('div');
+      banner.style.cssText = 'position:absolute;top:8px;left:50%;transform:translateX(-50%);background:#111;border:2px solid #444;border-radius:8px;padding:6px 16px;font-size:.9rem;color:#fff;white-space:nowrap;z-index:5;pointer-events:none';
+      area.appendChild(banner);
+      function refresh() {
+        target = COLS[Math.floor(Math.random() * COLS.length)];
+        banner.innerHTML = `클릭: <span style="color:${target.h};font-weight:bold">${target.n}</span>`;
+        area.querySelectorAll('.g-col').forEach(e => e.remove());
+        for (let i = 0; i < 6; i++) {
+          const c  = COLS[Math.floor(Math.random() * COLS.length)];
+          const sz = 50 + Math.random() * 22;
+          const d  = document.createElement('div');
+          d.className = 'g-col';
+          d.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:${c.h};left:${8+Math.random()*(area.clientWidth-sz-16)}px;top:${44+Math.random()*(area.clientHeight-sz-52)}px;cursor:pointer;box-shadow:0 0 10px ${c.h}66`;
+          d._cn = c.n;
+          area.appendChild(d);
+          d.onclick = () => {
+            if (!isLevel1Running) return;
+            if (d._cn === target.n) { score(10); playSuccessSound(); d.remove(); }
+            else { score(-5); d.style.opacity = '.3'; setTimeout(() => d.remove(), 200); if (Math.random() < .2) showAdPopup(); }
+          };
+        }
+        tid = setTimeout(refresh, 5000);
+      }
+      refresh();
+      return () => { clearTimeout(tid); area.innerHTML = ''; };
+    }
+  },
+
+  'math-tap': {
+    label: '정답을 빨리 클릭!',
+    start(area, score) {
+      area.innerHTML = '';
+      let tid;
+      const qEl   = document.createElement('div');
+      const bWrap = document.createElement('div');
+      qEl.style.cssText   = 'position:absolute;top:28%;left:50%;transform:translate(-50%,-50%);font-size:2.2rem;font-weight:bold;color:#fff;text-align:center;white-space:nowrap;user-select:none';
+      bWrap.style.cssText = 'position:absolute;bottom:36px;left:50%;transform:translateX(-50%);display:flex;gap:14px';
+      area.appendChild(qEl); area.appendChild(bWrap);
+      function next() {
+        const a = 1+Math.floor(Math.random()*20), b = 1+Math.floor(Math.random()*20);
+        const ops = [{s:'+',f:(a,b)=>a+b},{s:'-',f:(a,b)=>a-b},{s:'×',f:(a,b)=>a*b}];
+        const op  = ops[Math.floor(Math.random()*ops.length)];
+        const ans = op.f(a, b);
+        qEl.textContent = `${a} ${op.s} ${b} = ?`;
+        const wrongs = new Set();
+        while (wrongs.size < 2) { const w = ans+(Math.floor(Math.random()*9)-4); if(w!==ans) wrongs.add(w); }
+        bWrap.innerHTML = '';
+        [...wrongs, ans].sort(() => Math.random()-.5).forEach(v => {
+          const btn = document.createElement('button');
+          btn.textContent = v;
+          btn.style.cssText = 'width:72px;height:52px;font-size:1.2rem;border:2px solid #444;background:#1a1a1a;color:#fff;border-radius:10px;cursor:pointer';
+          btn.onmouseenter = () => btn.style.background = '#2a2a2a';
+          btn.onmouseleave = () => btn.style.background = '#1a1a1a';
+          btn.onclick = () => {
+            if (!isLevel1Running) return;
+            if (v === ans) { score(20); playSuccessSound(); if (Math.random()<.15) showAdPopup(); }
+            clearTimeout(tid); next();
+          };
+          bWrap.appendChild(btn);
+        });
+        tid = setTimeout(next, 5000);
+      }
+      next();
+      return () => { clearTimeout(tid); area.innerHTML = ''; };
+    }
+  },
+
+  'sequence-tap': {
+    label: '숫자를 순서대로 클릭! (1→5)',
+    start(area, score) {
+      area.innerHTML = '';
+      let nextNum = 1;
+      function spawn() {
+        area.innerHTML = ''; nextNum = 1;
+        const placed = [];
+        for (let i = 1; i <= 5; i++) {
+          const sz = 56;
+          let x, y, tries = 0;
+          do { x=8+Math.random()*(area.clientWidth-sz-16); y=8+Math.random()*(area.clientHeight-sz-16); tries++; }
+          while (tries<30 && placed.some(p=>Math.hypot(p.x-x,p.y-y)<sz+8));
+          placed.push({x, y});
+          const d = document.createElement('div');
+          d.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:radial-gradient(circle,#4488ff,#2255cc);left:${x}px;top:${y}px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:bold;color:#fff;box-shadow:0 0 12px #4488ff66;user-select:none`;
+          d.textContent = i; d._n = i;
+          area.appendChild(d);
+          d.onclick = () => {
+            if (!isLevel1Running) return;
+            if (d._n === nextNum) {
+              d.style.background = 'radial-gradient(circle,#00ffaa,#008855)';
+              d.style.pointerEvents = 'none';
+              nextNum++;
+              if (nextNum > 5) { score(50); playSuccessSound(); setTimeout(spawn, 350); }
+            } else {
+              d.style.background = 'radial-gradient(circle,#ff4444,#cc0000)';
+              setTimeout(() => { d.style.background = 'radial-gradient(circle,#4488ff,#2255cc)'; }, 300);
+            }
+          };
+        }
+      }
+      spawn();
+      return () => { area.innerHTML = ''; };
+    }
+  },
+
+  'whack-mole': {
+    label: '두더지를 잡아라! 빨간 건 피해!',
+    start(area, score) {
+      area.innerHTML = '';
+      const holes = []; let tid;
+      const grid = document.createElement('div');
+      grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:22px;width:100%;height:100%;box-sizing:border-box';
+      area.appendChild(grid);
+      for (let i = 0; i < 9; i++) {
+        const hole = document.createElement('div');
+        hole.style.cssText = 'border-radius:50%;background:#0a0a1a;border:3px solid #333;position:relative;overflow:hidden';
+        const mole = document.createElement('div');
+        mole.style.cssText = 'position:absolute;bottom:-100%;left:50%;transform:translateX(-50%);width:70%;height:70%;border-radius:50% 50% 40% 40%;transition:bottom .15s;display:flex;align-items:center;justify-content:center;font-size:1.4rem';
+        hole.appendChild(mole); hole._m=mole; hole._active=false; hole._red=false;
+        grid.appendChild(hole); holes.push(hole);
+      }
+      function tick() {
+        if (!isLevel1Running) return;
+        const active = holes.filter(h=>h._active);
+        if (active.length) { const h=active[Math.floor(Math.random()*active.length)]; h._m.style.bottom='-100%'; h._active=false; }
+        const free = holes.filter(h=>!h._active);
+        if (free.length) {
+          const h = free[Math.floor(Math.random()*free.length)];
+          h._red = Math.random() < 0.3;
+          h._m.style.background = h._red ? 'radial-gradient(circle,#ff6666,#cc2222)' : 'radial-gradient(circle,#88cc44,#448800)';
+          h._m.textContent = h._red ? '💀' : '🐹';
+          h._m.style.bottom = '5%'; h._active = true;
+          h.onclick = () => {
+            if (!h._active || !isLevel1Running) return;
+            h._m.style.bottom = '-100%'; h._active = false;
+            if (h._red) { score(-10); }
+            else { score(10); playSuccessSound(); if (Math.random()<.12) showAdPopup(); }
+          };
+        }
+        tid = setTimeout(tick, 700+Math.random()*500);
+      }
+      tick();
+      return () => { clearTimeout(tid); area.innerHTML = ''; };
+    }
+  },
+
+  'reaction-speed': {
+    label: '불이 켜지면 즉시 클릭!',
+    start(area, score) {
+      area.innerHTML = '';
+      let tid, waiting=false, startT=0;
+      const circle = document.createElement('div');
+      circle.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:140px;height:140px;border-radius:50%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#666;cursor:pointer;user-select:none;transition:background .08s,box-shadow .08s';
+      circle.textContent = '대기 중...';
+      const msg = document.createElement('div');
+      msg.style.cssText = 'position:absolute;bottom:18px;left:50%;transform:translateX(-50%);color:#666;font-size:.85rem;white-space:nowrap';
+      area.appendChild(circle); area.appendChild(msg);
+      function arm() {
+        waiting=false; circle.style.background='#1a1a1a'; circle.style.boxShadow='none'; circle.style.color='#666'; circle.textContent='대기 중...';
+        tid = setTimeout(()=>{ circle.style.background='radial-gradient(circle,#00ffaa,#00cc77)'; circle.style.boxShadow='0 0 30px #00ffaa88'; circle.style.color='#000'; circle.textContent='지금!'; startT=Date.now(); waiting=true; }, 1500+Math.random()*2500);
+      }
+      circle.onclick = () => {
+        if (!isLevel1Running) return;
+        if (!waiting) { msg.textContent='너무 빨라요!'; return; }
+        const ms = Date.now()-startT;
+        const pts = Math.max(5, Math.round(200-ms*.5));
+        score(pts); playSuccessSound(); msg.textContent=`${ms}ms  +${pts}점`;
+        clearTimeout(tid); if(Math.random()<.15)showAdPopup(); arm();
+      };
+      arm();
+      return () => { clearTimeout(tid); area.innerHTML=''; };
+    }
+  },
+
+  'size-click': {
+    label: '가장 작은 원을 클릭!',
+    start(area, score) {
+      area.innerHTML = '';
+      function round() {
+        area.innerHTML = '';
+        const szs = [];
+        while (szs.length < 5) { const s=28+Math.floor(Math.random()*60); if(!szs.some(x=>Math.abs(x-s)<10)) szs.push(s); }
+        const minSz = Math.min(...szs);
+        const placed = [];
+        szs.sort(()=>Math.random()-.5).forEach(sz => {
+          let x, y, tries=0;
+          do { x=8+Math.random()*(area.clientWidth-sz-16); y=8+Math.random()*(area.clientHeight-sz-16); tries++; }
+          while (tries<40 && placed.some(p=>Math.hypot(p.x+p.s/2-x-sz/2,p.y+p.s/2-y-sz/2)<(p.s+sz)/2+6));
+          placed.push({x,y,s:sz});
+          const d = document.createElement('div');
+          d.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:radial-gradient(circle,#4488ff,#2255cc);left:${x}px;top:${y}px;cursor:pointer;box-shadow:0 0 10px #4488ff66`;
+          d._min = sz===minSz;
+          d.onclick = () => {
+            if (!isLevel1Running) return;
+            if (d._min) { score(10); playSuccessSound(); round(); }
+            else { d.style.background='radial-gradient(circle,#ff4444,#cc0000)'; setTimeout(round,500); }
+          };
+          area.appendChild(d);
+        });
+      }
+      round();
+      return () => { area.innerHTML=''; };
+    }
+  },
+
+  'odd-one-out': {
+    label: '다른 색깔 하나를 클릭!',
+    start(area, score) {
+      area.innerHTML = '';
+      const PAL = [{h:'#4488ff'},{h:'#ff4444'},{h:'#ffcc00'},{h:'#00ffaa'},{h:'#ff88ff'}];
+      function round() {
+        area.innerHTML = '';
+        const base = PAL[Math.floor(Math.random()*PAL.length)];
+        const diff = PAL.filter(c=>c.h!==base.h)[Math.floor(Math.random()*(PAL.length-1))];
+        const N=6, placed=[], oddIdx=Math.floor(Math.random()*N);
+        for (let i=0; i<N; i++) {
+          const c  = i===oddIdx ? diff : base;
+          const sz = 50+Math.random()*22;
+          let x, y, tries=0;
+          do { x=8+Math.random()*(area.clientWidth-sz-16); y=8+Math.random()*(area.clientHeight-sz-16); tries++; }
+          while (tries<40 && placed.some(p=>Math.hypot(p.x+p.s/2-x-sz/2,p.y+p.s/2-y-sz/2)<(p.s+sz)/2+8));
+          placed.push({x,y,s:sz});
+          const d = document.createElement('div');
+          d.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:${c.h};left:${x}px;top:${y}px;cursor:pointer;box-shadow:0 0 10px ${c.h}66`;
+          d._odd = i===oddIdx;
+          d.onclick = () => {
+            if (!isLevel1Running) return;
+            if (d._odd) { score(10); playSuccessSound(); round(); }
+            else { score(-5); d.style.opacity='.2'; setTimeout(round,400); if(Math.random()<.2)showAdPopup(); }
+          };
+          area.appendChild(d);
+        }
+      }
+      round();
+      return () => { area.innerHTML=''; };
+    }
+  },
+};
+
+function _pickRandomGame() {
+  const pool = Object.keys(MINI_GAMES).filter(k => k !== 'circle-click');
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 /* ════════ Web Audio API ════════ */
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -864,39 +1347,51 @@ function handleResultAction() {
 }
 window.handleResultAction = handleResultAction;
 
-/* ════════ LEVEL 1 ════════ */
-function startLevel1() {
+/* ════════ LEVEL ════════ */
+function startLevel(n) {
+  currentLevel = n;
+  if (n === 1) { totalScore = 0; gameStartTime = Date.now(); }
   clearLevel1Timers();
   document.getElementById('level1-ad-result').classList.remove('active');
+  document.getElementById('level-clear-overlay').classList.remove('active');
   showScreen('screen-level1');
   document.getElementById('stats-bar').classList.add('active');
+  document.getElementById('current-level-display').textContent = n;
 
-  gameScore      = 0;
-  level1TimeLeft = 30;
+  gameScore       = 0;
+  level1TimeLeft  = 30;
   isLevel1Running = true;
   updateLevel1UI();
-  moveTarget();
+
+  const gameId   = n === 1 ? 'circle-click' : _pickRandomGame();
+  const game     = MINI_GAMES[gameId];
+  const gameArea = document.getElementById('game-area');
+  document.getElementById('level1-msg').textContent = `레벨 ${n}: ${game.label}`;
+  _activeGameCleanup = game.start(gameArea, pts => { gameScore += pts; updateLevel1UI(); }) || null;
 
   level1Timer = setInterval(() => {
     if (!isLevel1Running) return;
     level1TimeLeft--;
     document.getElementById('timer-display').textContent = level1TimeLeft;
-    if (level1TimeLeft <= 0) endLevel1();
+    if (level1TimeLeft <= 0) endLevelClear();
   }, 1000);
 
   scheduleAdPopup();
 }
 
+function startLevel1() { startLevel(1); }
+
 function restartLevel1() {
   document.getElementById('level1-ad-result').classList.remove('active');
   hideAdPopup();
-  startLevel1();
+  startLevel(currentLevel);
 }
 window.restartLevel1 = restartLevel1;
 
 function clearLevel1Timers() {
-  if (level1Timer)    { clearInterval(level1Timer);  level1Timer    = null; }
-  if (adPopupTimer)   { clearTimeout(adPopupTimer);  adPopupTimer   = null; }
+  if (level1Timer)  { clearInterval(level1Timer); level1Timer  = null; }
+  if (adPopupTimer) { clearTimeout(adPopupTimer); adPopupTimer = null; }
+  if (_activeGameCleanup) { _activeGameCleanup(); _activeGameCleanup = null; }
   isLevel1Running = false;
 }
 
@@ -906,32 +1401,24 @@ function updateLevel1UI() {
   document.getElementById('my-total-clicks').textContent  = totalAdClicks;
 }
 
-function moveTarget() {
-  const area   = document.getElementById('game-area');
-  const target = document.getElementById('target');
-  target.style.left = Math.random() * (area.clientWidth  - 80) + 'px';
-  target.style.top  = Math.random() * (area.clientHeight - 80) + 'px';
-}
 
-function onTargetClick() {
-  if (!isLevel1Running) return;
-  gameScore += 10;
-  playSuccessSound();
-  moveTarget();
-  updateLevel1UI();
-  if (Math.random() < 0.2) showAdPopup();
-}
-window.onTargetClick = onTargetClick;
-
-function endLevel1() {
+function endLevelClear() {
   clearLevel1Timers();
   hideAdPopup();
-  alert(`레벨 1 클리어!\n점수: ${gameScore}\n광고 클릭: ${totalAdClicks}회`);
+  totalScore += gameScore;
+  if (currentLevel >= 10) {
+    totalGameTime = Date.now() - gameStartTime;
+    showEnding();
+  } else {
+    showLevelClear();
+  }
 }
 
 function scheduleAdPopup() {
   if (!isLevel1Running) return;
-  const base  = (7 + Math.random() * 7) * 1000;
+  const cfg        = LEVEL_CONFIG[currentLevel] || LEVEL_CONFIG[1];
+  const [dMin, dMax] = cfg.adDelay;
+  const base  = (dMin + Math.random() * (dMax - dMin)) * 1000;
   const delay = base / (window._DEV?.speed ?? 1);
   adPopupTimer = setTimeout(() => {
     if (isLevel1Running) {
@@ -963,8 +1450,9 @@ function showAdPopup() {
 
   /* 팝업 위치: game-area 범위 내, 초록 버튼 50% 이상 가림 방지 */
   const gameArea   = document.getElementById('game-area').getBoundingClientRect();
-  const targetBCR  = document.getElementById('target').getBoundingClientRect();
-  const halfTarget = (targetBCR.width * targetBCR.height) / 2;
+  const targetEl   = document.getElementById('target');
+  const targetBCR  = targetEl ? targetEl.getBoundingClientRect() : {left:0,top:0,right:0,bottom:0,width:0,height:0};
+  const halfTarget = targetEl ? (targetBCR.width * targetBCR.height) / 2 : 0;
   const PW = 340, PH = 265;
 
   /* game-area 내에서 팝업이 들어갈 수 있는 범위 (테두리 겹침 허용) */
@@ -1013,13 +1501,15 @@ function hideAdPopup() {
 }
 
 function onCloseAdClick() {
-  if (adPopupRunawayCount < 2) return;
+  const cfg = LEVEL_CONFIG[currentLevel] || LEVEL_CONFIG[1];
+  if (adPopupRunawayCount < cfg.closeRunaway) return;
   hideAdPopup();
 }
 window.onCloseAdClick = onCloseAdClick;
 
 function onCloseBtnHover(e) {
-  if (adPopupRunawayCount >= 2) return;
+  const cfg = LEVEL_CONFIG[currentLevel] || LEVEL_CONFIG[1];
+  if (adPopupRunawayCount >= cfg.closeRunaway) return;
   adPopupRunawayCount++;
   const btn     = e.currentTarget;
   const headerW = btn.parentElement.clientWidth;
@@ -1031,10 +1521,12 @@ function onCloseBtnHover(e) {
 }
 window.onCloseBtnHover = onCloseBtnHover;
 
-/* ── 레벨 1 광고 클릭 결과 ── */
+/* ── 레벨 광고 클릭 결과 ── */
 function showLevel1AdResult() {
   document.getElementById('result-nickname-badge').textContent = playerNickname + ' 님';
   document.getElementById('result-ad-count').textContent       = totalAdClicks + '회';
+  const btn = document.querySelector('#level1-ad-result .btn-restart');
+  if (btn) btn.textContent = `레벨 ${currentLevel} 재시작`;
   document.getElementById('level1-ad-result').classList.add('active');
 }
 
@@ -1054,6 +1546,191 @@ function recordAdClick() {
     updatedAt: Date.now()
   });
 }
+
+/* ════════ LEVEL CLEAR ════════ */
+function showLevelClear() {
+  document.getElementById('level-clear-score-badge').textContent =
+    `레벨 ${currentLevel} 점수: ${gameScore}점  |  누계: ${totalScore}점`;
+  document.getElementById('level-clear-next-badge').textContent =
+    `레벨 ${currentLevel + 1} / 10 로 계속`;
+  document.getElementById('level-clear-overlay').classList.add('active');
+}
+
+function proceedToNextLevel() {
+  document.getElementById('level-clear-overlay').classList.remove('active');
+  startLevel(currentLevel + 1);
+}
+window.proceedToNextLevel = proceedToNextLevel;
+
+/* ════════ ENDING ════════ */
+function showEnding() {
+  launchConfetti();
+  document.getElementById('ending-score').textContent     = totalScore + '점';
+  document.getElementById('ending-time').textContent      = Math.round(totalGameTime / 1000) + 's';
+  document.getElementById('ending-ad-clicks').textContent = totalAdClicks + '회';
+  document.getElementById('ending-rank-badge').textContent = '';
+  document.getElementById('screen-ending').classList.add('active');
+  saveRanking().then(rank => {
+    if (rank !== null)
+      document.getElementById('ending-rank-badge').textContent = `🏅 전체 ${rank}위 달성!`;
+  });
+}
+
+function restartGame() {
+  document.getElementById('screen-ending').classList.remove('active');
+  document.getElementById('level-clear-overlay').classList.remove('active');
+  document.getElementById('tutorial-result').classList.remove('active');
+  document.getElementById('level1-ad-result').classList.remove('active');
+  document.getElementById('stats-bar').classList.remove('active');
+  tutorialAdClicked = false;
+  tutorialHovered   = false;
+  totalAdClicks     = 0;
+  gameScore         = 0;
+  totalScore        = 0;
+  currentLevel      = 1;
+  showScreen('screen-opening');
+}
+window.restartGame = restartGame;
+
+/* ════════ CONFETTI ════════ */
+function launchConfetti() {
+  const canvas  = document.getElementById('confetti-canvas');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.classList.add('active');
+  const ctx    = canvas.getContext('2d');
+  const COLORS = ['#ffcc00','#ff4444','#00ffaa','#4488ff','#ff88ff','#ffffff'];
+  const pieces = Array.from({length: 160}, () => ({
+    x:    Math.random() * canvas.width,
+    y:    -(Math.random() * canvas.height * 0.5),
+    vx:   (Math.random() - 0.5) * 5,
+    vy:   1.5 + Math.random() * 4,
+    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    w:    5 + Math.random() * 9,
+    h:    9 + Math.random() * 7,
+    rot:  Math.random() * Math.PI * 2,
+    drot: (Math.random() - 0.5) * 0.18,
+  }));
+  let frame = 0;
+  (function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.06; p.rot += p.drot;
+      if (p.y > canvas.height + 20) {
+        p.y = -20; p.x = Math.random() * canvas.width; p.vy = 1.5 + Math.random() * 3;
+      }
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = frame > 240 ? Math.max(0, 1 - (frame - 240) / 60) : 1;
+      ctx.fillStyle   = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+    frame++;
+    if (frame < 300) requestAnimationFrame(draw);
+    else { canvas.classList.remove('active'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+  })();
+}
+
+/* ════════ RANKING ════════ */
+function _escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function saveRanking() {
+  if (!window._db) return null;
+  const timeSec = Math.round(totalGameTime / 1000);
+  if (totalScore < 0 || totalScore > 10000) return null;
+  if (timeSec < 290 || !playerNickname)     return null;
+  try {
+    const path     = window._dbRef(window._db, 'rankings/' + sessionId);
+    const existing = await window._dbGet(path);
+    if (!existing.exists() || existing.val().score < totalScore) {
+      await window._dbSet(path, {
+        nickname:  playerNickname,
+        score:     totalScore,
+        totalTime: timeSec,
+        clearedAt: Date.now(),
+      });
+    }
+    return await _calcRank(totalScore);
+  } catch (e) { return null; }
+}
+
+async function _calcRank(score) {
+  try {
+    const snap = await window._dbGet(window._dbRef(window._db, 'rankings'));
+    if (!snap.exists()) return 1;
+    return Object.values(snap.val()).filter(r => (r.score ?? 0) > score).length + 1;
+  } catch (e) { return null; }
+}
+
+async function _loadTopRankings() {
+  if (!window._db || !window._dbLimitToLast) return [];
+  try {
+    const q    = window._dbQuery(
+      window._dbRef(window._db, 'rankings'),
+      window._dbOrderByChild('score'),
+      window._dbLimitToLast(20)
+    );
+    const snap = await window._dbGet(q);
+    if (!snap.exists()) return [];
+    const rows = [];
+    snap.forEach(c => rows.push({ id: c.key, ...c.val() }));
+    return rows.reverse();
+  } catch (e) { return []; }
+}
+
+async function showRankingModal() {
+  document.getElementById('ranking-modal').classList.add('active');
+  const tbody   = document.getElementById('ranking-tbody');
+  const myBadge = document.getElementById('my-rank-badge');
+  tbody.innerHTML  = '<tr><td colspan="4" style="text-align:center;color:#666;padding:20px">불러오는 중...</td></tr>';
+  myBadge.textContent = '';
+  try {
+    const [rows, snap] = await Promise.all([
+      _loadTopRankings(),
+      window._dbGet(window._dbRef(window._db, 'rankings')),
+    ]);
+    const total   = snap.exists() ? Object.keys(snap.val()).length : 0;
+    const myRank  = total > 0 ? await _calcRank(totalScore) : null;
+    if (myRank !== null) {
+      const pct = Math.round((1 - (myRank - 1) / Math.max(total, 1)) * 100);
+      myBadge.textContent = `내 순위: 전체 ${total}명 중 ${myRank}위 (상위 ${pct}%)`;
+    } else {
+      myBadge.textContent = '(게임 클리어 후 순위가 등록됩니다)';
+    }
+    tbody.innerHTML = '';
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#666;padding:20px">기록 없음</td></tr>';
+      return;
+    }
+    rows.forEach((r, i) => {
+      const rank  = i + 1;
+      const tr    = document.createElement('tr');
+      if (r.id === sessionId) tr.classList.add('my-rank');
+      if (rank <= 3)          tr.classList.add('rank-' + rank);
+      const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+      tr.innerHTML =
+        `<td>${medal}</td>` +
+        `<td>${_escHtml(r.nickname || '익명')}</td>` +
+        `<td>${r.score}점</td>` +
+        `<td>${r.totalTime ?? '?'}s</td>`;
+      tbody.appendChild(tr);
+    });
+  } catch (_) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#f44;padding:20px">오류 발생</td></tr>';
+  }
+}
+window.showRankingModal = showRankingModal;
+
+function closeRankingModal() {
+  document.getElementById('ranking-modal').classList.remove('active');
+}
+window.closeRankingModal = closeRankingModal;
 </script>
 
 <!-- ════════════════════ DEV MODE ════════════════════ -->
@@ -1111,16 +1788,11 @@ function recordAdClick() {
   /* ── 레벨 이동 ── */
   window.devJumpToLevel = function (n) {
     if (!window._DEV.unlocked) return;
-    const target = 'screen-level' + n;
-    const el = document.getElementById(target);
-    if (!el) { _devToast('레벨 ' + n + ' 없음'); return; }
-    if (typeof clearLevel1Timers === 'function') clearLevel1Timers();
-    if (n === 1 && typeof startLevel1 === 'function') {
-      startLevel1();
-    } else {
-      showScreen(target);
+    if (n < 1 || n > 10) { _devToast('레벨은 1~10'); return; }
+    if (typeof startLevel === 'function') {
+      startLevel(n);
+      _devToast('레벨 ' + n + ' 이동');
     }
-    _devToast('레벨 ' + n + ' 이동');
   };
 
   /* ── 무적 모드 ── */

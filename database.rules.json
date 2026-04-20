@@ -11,6 +11,14 @@
       ".write": true
     },
 
+    "rankings": {
+      ".read": true,
+      "$entry": {
+        ".write": true,
+        ".validate": "newData.hasChildren(['nickname','score','totalTime','clearedAt']) && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 10000 && newData.child('totalTime').isNumber() && newData.child('totalTime').val() >= 290 && newData.child('nickname').isString() && newData.child('nickname').val().length <= 20"
+      }
+    },
+
     "$other": {
       ".read":  false,
       ".write": false
