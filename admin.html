@@ -181,6 +181,47 @@
 
     .empty-row td { text-align: center; color: #2e2e2e; padding: 44px; font-size: 0.88rem; }
 
+    /* ════ 요약 통계 카드 ════ */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: #141414;
+      border: 1px solid #1e1e1e;
+      border-radius: 14px;
+      padding: 20px 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: border-color 0.2s;
+    }
+    .stat-card:hover { border-color: #333; }
+    .stat-icon  { font-size: 1.4rem; margin-bottom: 4px; line-height: 1; }
+    .stat-value {
+      font-size: 2.1rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 0.7rem;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-top: 2px;
+    }
+    .stat-level   { border-left: 3px solid #2255cc; }
+    .stat-level   .stat-value { color: #4488ff; }
+    .stat-total   { border-left: 3px solid #aa3300; }
+    .stat-total   .stat-value { color: #ff8833; }
+    .stat-active  { border-left: 3px solid #116622; }
+    .stat-active  .stat-value { color: #33cc66; }
+    .stat-expired { border-left: 3px solid #551111; }
+    .stat-expired .stat-value { color: #ff5555; }
+
     /* ════════════════════════════════════════════
        MOBILE RESPONSIVE  ≤ 768px
     ════════════════════════════════════════════ */
@@ -195,6 +236,11 @@
 
       /* ── 대시보드 여백 ── */
       #dashboard { padding: 16px 12px 100px; }
+
+      /* ── 요약 카드 ── */
+      .summary-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+      .stat-card { padding: 14px 14px 12px; }
+      .stat-value { font-size: 1.7rem; }
 
       /* ── 헤더 ── */
       h1 {
@@ -377,6 +423,30 @@
       <a href="index.html">← 게임으로</a>
     </div>
   </h1>
+
+  <!-- ── 요약 통계 ── -->
+  <div class="summary-grid">
+    <div class="stat-card stat-level">
+      <span class="stat-icon">🎮</span>
+      <span class="stat-value" id="stat-max-level">—</span>
+      <span class="stat-label">최대 레벨</span>
+    </div>
+    <div class="stat-card stat-total">
+      <span class="stat-icon">📢</span>
+      <span class="stat-value" id="stat-total-ads">—</span>
+      <span class="stat-label">총 광고</span>
+    </div>
+    <div class="stat-card stat-active">
+      <span class="stat-icon">✅</span>
+      <span class="stat-value" id="stat-active-ads">—</span>
+      <span class="stat-label">활성 광고</span>
+    </div>
+    <div class="stat-card stat-expired">
+      <span class="stat-icon">⏰</span>
+      <span class="stat-value" id="stat-expired-ads">—</span>
+      <span class="stat-label">만료 광고</span>
+    </div>
+  </div>
 
   <!-- ── 광고 추가/수정 폼 ── -->
   <div class="form-card">
@@ -611,6 +681,11 @@ function isExpired(expiresAt) {
 }
 
 window._renderAds = function (data) {
+  /* 통계 카드 즉시 갱신 */
+  updateSummary(data);
+  /* 최대 레벨은 최초 1회만 fetch */
+  loadMaxLevel();
+
   const tbody   = document.getElementById('ads-tbody');
   const entries = Object.entries(data);
   document.getElementById('ad-count').textContent = `총 ${entries.length}개`;
@@ -652,6 +727,40 @@ function esc(str) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+/* ── 요약 통계 업데이트 (ads onValue마다 자동 호출) ── */
+function updateSummary(data) {
+  const now     = Date.now();
+  const entries = Object.values(data);
+  const total   = entries.length;
+  const active  = entries.filter(a =>
+    a.active !== false && (!a.expiresAt || new Date(a.expiresAt).getTime() > now)
+  ).length;
+  const expired = entries.filter(a =>
+    a.expiresAt && new Date(a.expiresAt).getTime() <= now
+  ).length;
+
+  document.getElementById('stat-total-ads').textContent   = total;
+  document.getElementById('stat-active-ads').textContent  = active;
+  document.getElementById('stat-expired-ads').textContent = expired;
+}
+
+/* ── 최대 레벨 계산: index.html의 screen-level 개수를 동적으로 카운트 ── */
+let _levelLoaded = false;
+function loadMaxLevel() {
+  if (_levelLoaded) return;
+  _levelLoaded = true;
+  fetch('index.html?_=' + Date.now())
+    .then(r => r.text())
+    .then(html => {
+      const matches = html.match(/id="screen-level\d+"/g) || [];
+      document.getElementById('stat-max-level').textContent = matches.length || '1';
+    })
+    .catch(() => {
+      document.getElementById('stat-max-level').textContent = '1';
+    });
+}
+window.loadMaxLevel = loadMaxLevel;
 
 /* ── 광고 추가/수정 ── */
 function submitForm() {
