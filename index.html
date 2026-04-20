@@ -479,6 +479,17 @@
   window._dbQuery        = query;
   window._dbOrderByChild = orderByChild;
   window._dbLimitToFirst = limitToFirst;
+
+  /* ── 광고 데이터 실시간 동기화 ── */
+  onValue(ref(database, 'ads'), snapshot => {
+    const data = snapshot.val() || {};
+    window._adsCache = Object.values(data);
+    /* 오프닝 커서 광고: 최초 1회만 초기화 */
+    if (!window._cursorAdInited && typeof window._initOpeningCursorAd === 'function') {
+      window._cursorAdInited = true;
+      window._initOpeningCursorAd(window.randomAd('opening'));
+    }
+  });
 </script>
 
 <!-- ════════════════════ GAME LOGIC ════════════════════ -->
@@ -490,54 +501,62 @@
   let y = window.innerHeight / 2;
   let tx = x, ty = y;
   let raf = null;
-  let active = true;
+  let running = false;
   const LERP = 0.055;
 
-  const ADS_LOCAL = [
-    { img: 'https://stimg.sooplive.com/LOGO/be/bear0424/bear0424.jpg',         url: 'https://www.sooplive.com/station/bear0424' },
-    { img: 'https://stimg.sooplive.com/LOGO/sk/skftodwocks2/skftodwocks2.jpg', url: 'https://www.sooplive.com/station/skftodwocks2' },
-  ];
-  const picked = ADS_LOCAL[Math.floor(Math.random() * ADS_LOCAL.length)];
-  el.style.backgroundImage = `url('${picked.img}')`;
-  el.dataset.url = picked.url;
-  el.classList.add('active');
-  el.style.left = x + 'px';
-  el.style.top  = y + 'px';
-
+  /* 마우스 위치는 광고 로드 전부터 추적 */
   function onMove(e) { tx = e.clientX; ty = e.clientY; }
   document.addEventListener('mousemove', onMove);
 
   function tick() {
-    if (!active) return;
     x += (tx - x) * LERP;
     y += (ty - y) * LERP;
     el.style.left = x + 'px';
     el.style.top  = y + 'px';
-    raf = requestAnimationFrame(tick);
+    if (running) raf = requestAnimationFrame(tick);
   }
-  raf = requestAnimationFrame(tick);
+
+  /* Firebase에서 광고가 로드된 후 호출됨 */
+  window._initOpeningCursorAd = function (ad) {
+    if (!ad) return;
+    el.style.backgroundImage = `url('${ad.imgUrl}')`;
+    el.dataset.url = ad.landingUrl;
+    el.style.left  = x + 'px';
+    el.style.top   = y + 'px';
+    el.classList.add('active');
+    running = true;
+    raf = requestAnimationFrame(tick);
+  };
 
   window._removeOpeningCursorAd = function () {
-    active = false;
+    running = false;
     document.removeEventListener('mousemove', onMove);
-    if (raf) cancelAnimationFrame(raf);
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
     el.classList.remove('active');
     el.remove();
   };
 
   window.onOpeningCursorAdClick = function () {
-    window.open(picked.url, '_blank');
+    const url = el.dataset.url;
+    if (!url) return;
+    window.open(url, '_blank');
     if (typeof recordAdClick === 'function') recordAdClick();
     if (typeof playAdSound   === 'function') playAdSound();
   };
 })();
 
-/* ── 광고 데이터 ── */
-const ADS = [
-  { img: 'https://stimg.sooplive.com/LOGO/be/bear0424/bear0424.jpg',        url: 'https://www.sooplive.com/station/bear0424' },
-  { img: 'https://stimg.sooplive.com/LOGO/sk/skftodwocks2/skftodwocks2.jpg', url: 'https://www.sooplive.com/station/skftodwocks2' },
-];
-function randomAd() { return ADS[Math.floor(Math.random() * ADS.length)]; }
+/* ── 광고 데이터 (Firebase RTDB /ads 경로에서 실시간 로드) ── */
+window._adsCache = [];
+function randomAd(type) {
+  const now  = Date.now();
+  let pool = window._adsCache.filter(a =>
+    a.active !== false &&
+    (!a.expiresAt || new Date(a.expiresAt).getTime() > now)
+  );
+  if (type) pool = pool.filter(a => a.type === type || a.type === 'all');
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 /* ── 세션 상태 ── */
 const sessionId       = 'user_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
@@ -675,9 +694,10 @@ function onStartBtnHover() {
 
   const ad     = document.getElementById('tutorial-ad');
   const img    = document.getElementById('tutorial-ad-img');
-  const picked = randomAd();
-  img.src          = picked.img;
-  ad.dataset.url   = picked.url;
+  const picked = randomAd('tutorial');
+  if (!picked) return;
+  img.src          = picked.imgUrl;
+  ad.dataset.url   = picked.landingUrl;
   ad.classList.add('show');
 }
 window.onStartBtnHover = onStartBtnHover;
@@ -808,9 +828,10 @@ function showAdPopup() {
   const body  = document.getElementById('ad-popup-body');
   const close = document.getElementById('ad-close-btn');
 
-  const picked = randomAd();
-  img.src   = picked.img;
-  body.href = picked.url;
+  const picked = randomAd('level1');
+  if (!picked) return;
+  img.src   = picked.imgUrl;
+  body.href = picked.landingUrl;
 
   adPopupRunawayCount = 0;
   close.style.position = '';
@@ -849,7 +870,7 @@ function showAdPopup() {
 
   body.onclick = (e) => {
     e.preventDefault();
-    window.open(picked.url, '_blank');
+    window.open(picked.landingUrl, '_blank');
     recordAdClick();
     playFailSound();
     hideAdPopup();

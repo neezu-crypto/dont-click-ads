@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>광고 관리자 — dont-click-ads</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 32px 24px 80px; }
+
+    h1 { font-size: 1.5rem; color: #ff4444; margin-bottom: 28px; padding-bottom: 14px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 10px; }
+    h1 a { font-size: 0.85rem; color: #555; text-decoration: none; margin-left: auto; padding: 6px 14px; border: 1px solid #333; border-radius: 6px; }
+    h1 a:hover { color: #aaa; border-color: #555; }
+
+    /* ── Form card ── */
+    .form-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 24px; margin-bottom: 32px; }
+    .form-card h2 { font-size: 1rem; color: #fff; margin-bottom: 18px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .full { grid-column: 1 / -1; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 0.75rem; color: #777; text-transform: uppercase; letter-spacing: 0.6px; }
+    .form-group input, .form-group select {
+      padding: 10px 14px; background: #111; border: 1px solid #2e2e2e;
+      border-radius: 8px; color: #fff; font-size: 0.93rem; outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: #ff4400; }
+    .form-group input::placeholder { color: #444; }
+    .form-actions { display: flex; gap: 10px; margin-top: 18px; align-items: center; }
+
+    /* ── Buttons ── */
+    .btn { padding: 10px 22px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.92rem; font-weight: 600; transition: opacity 0.15s, transform 0.1s; }
+    .btn:hover { opacity: 0.82; transform: scale(1.02); }
+    .btn-add    { background: #ff4400; color: #fff; }
+    .btn-save   { background: #22aa55; color: #fff; }
+    .btn-cancel { background: #2a2a2a; color: #ccc; }
+    .btn-seed   { background: #1e3f99; color: #aac4ff; font-size: 0.82rem; padding: 8px 16px; margin-left: auto; }
+
+    /* ── Table ── */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .section-header h2 { font-size: 0.95rem; color: #ccc; }
+    #ad-count { font-size: 0.82rem; color: #555; }
+    .table-wrap { overflow-x: auto; border: 1px solid #1e1e1e; border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    thead { background: #141414; }
+    th { padding: 11px 14px; text-align: left; color: #666; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #222; }
+    td { padding: 11px 14px; border-bottom: 1px solid #1a1a1a; vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: #131313; }
+
+    .ad-thumb { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid #2a2a2a; background: #111; }
+    .url-cell { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #888; font-size: 0.8rem; font-family: monospace; }
+
+    /* ── Badges ── */
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.3px; }
+    .badge-all      { background: #0f200f; color: #66dd66; border: 1px solid #225522; }
+    .badge-opening  { background: #1a0035; color: #bb77ff; border: 1px solid #5500aa; }
+    .badge-tutorial { background: #001e33; color: #55bbff; border: 1px solid #005588; }
+    .badge-level1   { background: #2a1200; color: #ffaa44; border: 1px solid #884400; }
+
+    .expired-tag { font-size: 0.72rem; color: #ff4444; margin-left: 5px; }
+    .no-expiry   { color: #3a3a3a; }
+
+    /* ── Toggle ── */
+    .toggle { position: relative; display: inline-block; width: 42px; height: 22px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: #2a2a2a; border-radius: 22px; cursor: pointer; transition: background 0.2s; }
+    .slider::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #666; border-radius: 50%; transition: transform 0.2s, background 0.2s; }
+    .toggle input:checked + .slider { background: #1a4a25; }
+    .toggle input:checked + .slider::before { transform: translateX(20px); background: #44dd77; }
+
+    /* ── Row actions ── */
+    .row-actions { display: flex; gap: 7px; }
+    .btn-edit   { background: #0e2244; color: #6699ff; padding: 5px 13px; border: 1px solid #1a3a77; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: background 0.15s; }
+    .btn-delete { background: #2a0a0a; color: #ff6666; padding: 5px 13px; border: 1px solid #551111; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: background 0.15s; }
+    .btn-edit:hover   { background: #1a3a77; }
+    .btn-delete:hover { background: #551111; }
+
+    /* ── Status toast ── */
+    #status-bar {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
+      padding: 10px 20px; font-size: 0.87rem; color: #aaa;
+      opacity: 0; transition: opacity 0.3s, transform 0.3s;
+      transform: translateY(8px);
+      pointer-events: none; z-index: 100;
+    }
+    #status-bar.show { opacity: 1; transform: translateY(0); }
+    #status-bar.ok  { color: #66dd77; border-color: #225533; }
+    #status-bar.err { color: #ff6666; border-color: #551111; }
+
+    .empty-row td { text-align: center; color: #333; padding: 40px; }
+  </style>
+</head>
+<body>
+
+<h1>
+  🛠 광고 관리자 대시보드
+  <a href="index.html">← 게임으로</a>
+</h1>
+
+<!-- ════ 광고 추가/수정 폼 ════ -->
+<div class="form-card">
+  <h2 id="form-title">광고 추가</h2>
+  <div class="form-grid">
+    <div class="form-group full">
+      <label>이미지 URL</label>
+      <input id="f-img" type="url" placeholder="https://example.com/banner.jpg" />
+    </div>
+    <div class="form-group full">
+      <label>랜딩 URL (클릭 시 이동할 링크)</label>
+      <input id="f-url" type="url" placeholder="https://example.com/channel" />
+    </div>
+    <div class="form-group">
+      <label>만료 날짜 (이후 자동 비노출)</label>
+      <input id="f-expires" type="date" />
+    </div>
+    <div class="form-group">
+      <label>노출 타입</label>
+      <select id="f-type">
+        <option value="all">전체 (all) — 모든 위치에 노출</option>
+        <option value="opening">오프닝 전용 (opening)</option>
+        <option value="tutorial">튜토리얼 전용 (tutorial)</option>
+        <option value="level1">레벨1 전용 (level1)</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-add"  id="form-submit-btn" onclick="submitForm()">광고 추가</button>
+    <button class="btn btn-cancel" id="form-cancel-btn" style="display:none" onclick="cancelEdit()">취소</button>
+    <button class="btn btn-seed" onclick="seedDefaults()">기본 광고 시드 추가</button>
+  </div>
+</div>
+
+<!-- ════ 광고 목록 ════ -->
+<div class="section-header">
+  <h2>광고 목록</h2>
+  <span id="ad-count">불러오는 중…</span>
+</div>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>미리보기</th>
+        <th>이미지 URL</th>
+        <th>랜딩 URL</th>
+        <th>타입</th>
+        <th>만료일</th>
+        <th>활성화</th>
+        <th>작업</th>
+      </tr>
+    </thead>
+    <tbody id="ads-tbody">
+      <tr class="empty-row"><td colspan="7">Firebase 연결 중…</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div id="status-bar"></div>
+
+<!-- ════ Firebase ════ -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import { getDatabase, ref, push, set, update, remove, onValue }
+    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+  const firebaseConfig = {
+    apiKey:            'AIzaSyBksTHiQp0lhMoszgi2HEyLR0EZICDoM5I',
+    authDomain:        'dont-click-ads.firebaseapp.com',
+    projectId:         'dont-click-ads',
+    storageBucket:     'dont-click-ads.firebasestorage.app',
+    messagingSenderId: '816420511581',
+    appId:             '1:816420511581:web:4fb244445594272b8b12b4',
+    measurementId:     'G-93BXQQ41J7',
+    databaseURL:       'https://dont-click-ads-default-rtdb.firebaseio.com/'
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  window._fbOps = {
+    push:   (path, data)       => push(ref(db, path), data),
+    update: (path, data)       => update(ref(db, path), data),
+    remove: (path)             => remove(ref(db, path)),
+    onAds:  (cb)               => onValue(ref(db, 'ads'), cb),
+  };
+
+  window._fbOps.onAds(snapshot => {
+    window._adsLocalCache = snapshot.val() || {};
+    window._renderAds(window._adsLocalCache);
+  });
+</script>
+
+<!-- ════ Admin Logic ════ -->
+<script>
+let editingId = null;
+
+const DEFAULT_ADS = [
+  {
+    imgUrl:     'https://stimg.sooplive.com/LOGO/be/bear0424/bear0424.jpg',
+    landingUrl: 'https://www.sooplive.com/station/bear0424',
+    expiresAt:  '2027-12-31',
+    type:       'all',
+    active:     true
+  },
+  {
+    imgUrl:     'https://stimg.sooplive.com/LOGO/sk/skftodwocks2/skftodwocks2.jpg',
+    landingUrl: 'https://www.sooplive.com/station/skftodwocks2',
+    expiresAt:  '2027-12-31',
+    type:       'all',
+    active:     true
+  }
+];
+
+function typeBadge(type) {
+  const map = {
+    all:      ['badge-all',      '전체'],
+    opening:  ['badge-opening',  '오프닝'],
+    tutorial: ['badge-tutorial', '튜토리얼'],
+    level1:   ['badge-level1',   '레벨1'],
+  };
+  const [cls, label] = map[type] || ['badge-all', type || '?'];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function isExpired(expiresAt) {
+  if (!expiresAt) return false;
+  return new Date(expiresAt).getTime() < Date.now();
+}
+
+window._renderAds = function (data) {
+  const tbody   = document.getElementById('ads-tbody');
+  const entries = Object.entries(data);
+  document.getElementById('ad-count').textContent = `총 ${entries.length}개`;
+
+  if (!entries.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">등록된 광고 없음 — 위 폼으로 추가하거나 시드 버튼을 사용하세요.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = entries.map(([id, ad]) => {
+    const expired    = isExpired(ad.expiresAt);
+    const expiryCell = ad.expiresAt
+      ? `${ad.expiresAt}${expired ? ' <span class="expired-tag">만료됨</span>' : ''}`
+      : `<span class="no-expiry">없음</span>`;
+
+    return `<tr>
+      <td><img class="ad-thumb" src="${escHtml(ad.imgUrl || '')}" onerror="this.style.opacity=0.15" /></td>
+      <td class="url-cell" title="${escHtml(ad.imgUrl || '')}">${escHtml(ad.imgUrl || '—')}</td>
+      <td class="url-cell" title="${escHtml(ad.landingUrl || '')}">${escHtml(ad.landingUrl || '—')}</td>
+      <td>${typeBadge(ad.type)}</td>
+      <td>${expiryCell}</td>
+      <td>
+        <label class="toggle">
+          <input type="checkbox" ${ad.active ? 'checked' : ''} onchange="toggleActive('${id}', this.checked)">
+          <span class="slider"></span>
+        </label>
+      </td>
+      <td>
+        <div class="row-actions">
+          <button class="btn-edit"   onclick="startEdit('${id}')">수정</button>
+          <button class="btn-delete" onclick="deleteAd('${id}')">삭제</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+};
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function submitForm() {
+  const imgUrl     = document.getElementById('f-img').value.trim();
+  const landingUrl = document.getElementById('f-url').value.trim();
+  const expiresAt  = document.getElementById('f-expires').value || null;
+  const type       = document.getElementById('f-type').value;
+
+  if (!imgUrl || !landingUrl) {
+    showStatus('이미지 URL과 랜딩 URL은 필수입니다.', 'err');
+    return;
+  }
+
+  const data = { imgUrl, landingUrl, expiresAt, type, active: true, updatedAt: Date.now() };
+
+  if (editingId) {
+    window._fbOps.update('ads/' + editingId, data)
+      .then(() => { showStatus('광고가 수정되었습니다.', 'ok'); cancelEdit(); })
+      .catch(e => showStatus('오류: ' + e.message, 'err'));
+  } else {
+    data.createdAt = Date.now();
+    window._fbOps.push('ads', data)
+      .then(() => { showStatus('광고가 추가되었습니다.', 'ok'); clearForm(); })
+      .catch(e => showStatus('오류: ' + e.message, 'err'));
+  }
+}
+window.submitForm = submitForm;
+
+function startEdit(id) {
+  const ad = (window._adsLocalCache || {})[id];
+  if (!ad) { showStatus('광고 데이터를 불러올 수 없습니다.', 'err'); return; }
+  editingId = id;
+  document.getElementById('f-img').value     = ad.imgUrl     || '';
+  document.getElementById('f-url').value     = ad.landingUrl || '';
+  document.getElementById('f-expires').value = ad.expiresAt  || '';
+  document.getElementById('f-type').value    = ad.type       || 'all';
+  document.getElementById('form-title').textContent       = '광고 수정';
+  document.getElementById('form-submit-btn').textContent  = '수정 저장';
+  document.getElementById('form-submit-btn').className    = 'btn btn-save';
+  document.getElementById('form-cancel-btn').style.display = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+window.startEdit = startEdit;
+
+function cancelEdit() {
+  editingId = null;
+  clearForm();
+  document.getElementById('form-title').textContent       = '광고 추가';
+  document.getElementById('form-submit-btn').textContent  = '광고 추가';
+  document.getElementById('form-submit-btn').className    = 'btn btn-add';
+  document.getElementById('form-cancel-btn').style.display = 'none';
+}
+window.cancelEdit = cancelEdit;
+
+function clearForm() {
+  ['f-img', 'f-url', 'f-expires'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-type').value = 'all';
+}
+
+function deleteAd(id) {
+  if (!confirm('이 광고를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+  window._fbOps.remove('ads/' + id)
+    .then(() => showStatus('광고가 삭제되었습니다.', 'ok'))
+    .catch(e => showStatus('오류: ' + e.message, 'err'));
+}
+window.deleteAd = deleteAd;
+
+function toggleActive(id, active) {
+  window._fbOps.update('ads/' + id, { active, updatedAt: Date.now() })
+    .then(() => showStatus(active ? '✓ 활성화되었습니다.' : '✗ 비활성화되었습니다.', 'ok'))
+    .catch(e => showStatus('오류: ' + e.message, 'err'));
+}
+window.toggleActive = toggleActive;
+
+function seedDefaults() {
+  if (!confirm('기본 광고 2개(bear0424, skftodwocks2)를 추가하시겠습니까?')) return;
+  Promise.all(DEFAULT_ADS.map(ad => window._fbOps.push('ads', { ...ad, createdAt: Date.now() })))
+    .then(() => showStatus('기본 광고 2개가 추가되었습니다.', 'ok'))
+    .catch(e => showStatus('오류: ' + e.message, 'err'));
+}
+window.seedDefaults = seedDefaults;
+
+let _statusTimer = null;
+function showStatus(msg, type) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.className   = `show ${type}`;
+  if (_statusTimer) clearTimeout(_statusTimer);
+  _statusTimer = setTimeout(() => { bar.classList.remove('show'); }, 3200);
+}
+</script>
+
+</body>
+</html>
