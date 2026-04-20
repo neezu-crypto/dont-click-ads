@@ -422,7 +422,7 @@ function playAdSound() {
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(freq * 0.5, now + i * 0.07);
     osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + i * 0.07 + 0.15);
-    gain.gain.setValueAtTime(0.18, now + i * 0.07);
+    gain.gain.setValueAtTime(0.1, now + i * 0.07);
     gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.3);
     osc.start(now + i * 0.07);
     osc.stop(now + i * 0.07 + 0.35);
@@ -439,7 +439,7 @@ function playFailSound() {
   osc.type = 'square';
   osc.frequency.setValueAtTime(300, now);
   osc.frequency.exponentialRampToValueAtTime(60, now + 0.4);
-  gain.gain.setValueAtTime(0.35, now);
+  gain.gain.setValueAtTime(0.1, now);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
   osc.start(now); osc.stop(now + 0.5);
 }
@@ -453,7 +453,7 @@ function playSuccessSound() {
     osc.connect(gain); gain.connect(ctx.destination);
     osc.type = 'sine';
     osc.frequency.value = f;
-    gain.gain.setValueAtTime(0.15, now + i * 0.1);
+    gain.gain.setValueAtTime(0.1, now + i * 0.1);
     gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.2);
     osc.start(now + i * 0.1); osc.stop(now + i * 0.1 + 0.25);
   });
@@ -470,7 +470,7 @@ function playTutorialFailBeep() {
   osc.frequency.setValueAtTime(80, now);
   osc.frequency.setValueAtTime(100, now + 0.15);
   osc.frequency.setValueAtTime(80, now + 0.3);
-  gain.gain.setValueAtTime(0.4, now);
+  gain.gain.setValueAtTime(0.1, now);
   gain.gain.setValueAtTime(0.4, now + 0.45);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
   osc.start(now); osc.stop(now + 0.6);
