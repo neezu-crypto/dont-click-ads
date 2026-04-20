@@ -327,6 +327,27 @@
     }
     .btn-restart:hover { background: #1144cc; transform: scale(1.04); }
 
+    /* ─── OPENING CURSOR AD ─── */
+    #opening-cursor-ad {
+      display: none;
+      position: fixed;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid #ff4400;
+      box-shadow: 0 0 14px #ff440099, 0 0 4px #fff3;
+      z-index: 999;
+      transform: translate(-50%, -50%);
+      background-size: cover;
+      background-position: center;
+      pointer-events: auto;
+      transition: box-shadow 0.2s;
+    }
+    #opening-cursor-ad.active { display: block; }
+    #opening-cursor-ad:hover { box-shadow: 0 0 22px #ff4400cc, 0 0 6px #fff5; }
+
     /* ─── STATS BAR ─── */
     #stats-bar {
       display: none;
@@ -417,6 +438,9 @@
   </a>
 </div>
 
+<!-- ════════════════════ OPENING CURSOR AD ════════════════════ -->
+<div id="opening-cursor-ad" onclick="onOpeningCursorAdClick()"></div>
+
 <!-- ════════════════════ STATS BAR ════════════════════ -->
 <div id="stats-bar">
   <span id="stats-nickname"></span>
@@ -459,6 +483,55 @@
 
 <!-- ════════════════════ GAME LOGIC ════════════════════ -->
 <script>
+/* ════════ OPENING CURSOR AD ════════ */
+(function () {
+  const el = document.getElementById('opening-cursor-ad');
+  let x = window.innerWidth / 2;
+  let y = window.innerHeight / 2;
+  let tx = x, ty = y;
+  let raf = null;
+  let active = true;
+  const LERP = 0.055;
+
+  const ADS_LOCAL = [
+    { img: 'https://stimg.sooplive.com/LOGO/be/bear0424/bear0424.jpg',         url: 'https://www.sooplive.com/station/bear0424' },
+    { img: 'https://stimg.sooplive.com/LOGO/sk/skftodwocks2/skftodwocks2.jpg', url: 'https://www.sooplive.com/station/skftodwocks2' },
+  ];
+  const picked = ADS_LOCAL[Math.floor(Math.random() * ADS_LOCAL.length)];
+  el.style.backgroundImage = `url('${picked.img}')`;
+  el.dataset.url = picked.url;
+  el.classList.add('active');
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+
+  function onMove(e) { tx = e.clientX; ty = e.clientY; }
+  document.addEventListener('mousemove', onMove);
+
+  function tick() {
+    if (!active) return;
+    x += (tx - x) * LERP;
+    y += (ty - y) * LERP;
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    raf = requestAnimationFrame(tick);
+  }
+  raf = requestAnimationFrame(tick);
+
+  window._removeOpeningCursorAd = function () {
+    active = false;
+    document.removeEventListener('mousemove', onMove);
+    if (raf) cancelAnimationFrame(raf);
+    el.classList.remove('active');
+    el.remove();
+  };
+
+  window.onOpeningCursorAdClick = function () {
+    window.open(picked.url, '_blank');
+    if (typeof recordAdClick === 'function') recordAdClick();
+    if (typeof playAdSound   === 'function') playAdSound();
+  };
+})();
+
 /* ── 광고 데이터 ── */
 const ADS = [
   { img: 'https://stimg.sooplive.com/LOGO/be/bear0424/bear0424.jpg',        url: 'https://www.sooplive.com/station/bear0424' },
@@ -556,6 +629,7 @@ function showScreen(id) {
 
 /* ════════ OPENING ════════ */
 function goToNickname() {
+  if (typeof window._removeOpeningCursorAd === 'function') window._removeOpeningCursorAd();
   showScreen('screen-nickname');
   document.getElementById('nickname-input').focus();
 }
