@@ -459,7 +459,8 @@
     databaseURL:       'https://dont-click-ads-default-rtdb.firebaseio.com/'
   };
 
-  const ADMIN_EMAIL    = 'skftodwocks2@gmail.com';
+  /* ── 관리자 이메일 (소문자 정규화 저장) ── */
+  const ADMIN_EMAIL    = 'skftodwocks2@gmail.com'.toLowerCase().trim();
   const googleProvider = new GoogleAuthProvider();
   googleProvider.setCustomParameters({ login_hint: ADMIN_EMAIL });
 
@@ -469,33 +470,44 @@
 
   let adsUnsubscribe = null;
 
+  function isAdmin(user) {
+    return user && typeof user.email === 'string' &&
+           user.email.toLowerCase().trim() === ADMIN_EMAIL;
+  }
+
+  function showDashboard(user) {
+    document.getElementById('login-screen').classList.remove('visible');
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('logged-email').textContent = user.email;
+    if (!adsUnsubscribe) {
+      adsUnsubscribe = onValue(ref(db, 'ads'), snapshot => {
+        window._adsLocalCache = snapshot.val() || {};
+        window._renderAds(window._adsLocalCache);
+      });
+    }
+  }
+
+  function showLogin() {
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('login-screen').classList.add('visible');
+    if (adsUnsubscribe) { adsUnsubscribe(); adsUnsubscribe = null; }
+  }
+
   /* ── Auth 상태 감지: 페이지 로드 직후 실행 ── */
   onAuthStateChanged(auth, user => {
-    /* 로딩 오버레이 제거 */
     document.getElementById('auth-loading').classList.add('hidden');
 
-    if (user && user.email === ADMIN_EMAIL) {
-      /* 인증됨 → 대시보드만 표시 */
-      document.getElementById('login-screen').classList.remove('visible');
-      document.getElementById('dashboard').style.display = '';
-      document.getElementById('logged-email').textContent = user.email;
-
-      if (!adsUnsubscribe) {
-        adsUnsubscribe = onValue(ref(db, 'ads'), snapshot => {
-          window._adsLocalCache = snapshot.val() || {};
-          window._renderAds(window._adsLocalCache);
-        });
-      }
+    if (isAdmin(user)) {
+      showDashboard(user);
     } else {
-      /* 미인증 → 로그인 화면만 표시, 대시보드 완전 숨김 */
-      document.getElementById('dashboard').style.display = 'none';
-      document.getElementById('login-screen').classList.add('visible');
-      if (adsUnsubscribe) { adsUnsubscribe(); adsUnsubscribe = null; }
-
+      showLogin();
       if (user) {
-        /* 허가되지 않은 Google 계정 */
-        signOut(auth);
-        window._showLoginError('이 계정은 관리자 권한이 없습니다: ' + user.email);
+        /* 권한 없는 계정: 즉시 로그아웃 후 경고 */
+        signOut(auth).then(() => {
+          window._showLoginError(
+            `접근 권한이 없는 계정입니다.\n(${user.email})`
+          );
+        });
       }
     }
   });
