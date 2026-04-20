@@ -51,6 +51,40 @@
       96% { transform: translate(-2px, 2px); }
     }
 
+    /* ─── NICKNAME ─── */
+    #screen-nickname {
+      background: radial-gradient(ellipse at center, #001a33 0%, #000 100%);
+      gap: 24px;
+      text-align: center;
+    }
+    #screen-nickname h2 {
+      font-size: 1.8rem;
+      color: #fff;
+    }
+    #screen-nickname p {
+      color: #aaa;
+      font-size: 1rem;
+      max-width: 400px;
+    }
+    #nickname-input {
+      width: 300px;
+      padding: 14px 18px;
+      font-size: 1.1rem;
+      border: 2px solid #444;
+      border-radius: 10px;
+      background: #1a1a1a;
+      color: #fff;
+      outline: none;
+      text-align: center;
+    }
+    #nickname-input:focus { border-color: #2266ff; }
+    #nickname-input::placeholder { color: #555; }
+    #nickname-error {
+      color: #ff4444;
+      font-size: 0.9rem;
+      min-height: 1.2em;
+    }
+
     /* ─── TUTORIAL ─── */
     #screen-tutorial {
       background: #111;
@@ -65,7 +99,6 @@
       width: 100%;
     }
 
-    /* 버튼 래퍼: position:relative 로 광고 배너를 같은 공간에 겹치게 */
     #tutorial-btn-area {
       position: relative;
       width: 260px;
@@ -88,13 +121,8 @@
       z-index: 10;
     }
     #btn-start:hover { background: #1144cc; }
+    #btn-start.moved { top: 200px; }
 
-    /* 버튼이 아래로 200px 이동했을 때 */
-    #btn-start.moved {
-      top: 200px;
-    }
-
-    /* 광고 배너: 기본 숨김, 버튼 hover 후 표시 */
     #tutorial-ad {
       display: none;
       position: absolute;
@@ -107,11 +135,7 @@
       border: 2px solid #ff4400;
       z-index: 9;
     }
-    #tutorial-ad img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
+    #tutorial-ad img { width: 100%; height: 100%; object-fit: cover; }
     #tutorial-ad.show { display: block; }
 
     /* ─── TUTORIAL RESULT OVERLAY ─── */
@@ -183,6 +207,38 @@
       text-align: center;
     }
 
+    /* ─── LEVEL 1 광고 클릭 결과 오버레이 ─── */
+    #level1-ad-result {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 300;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      text-align: center;
+      padding: 24px;
+    }
+    #level1-ad-result.active { display: flex; }
+    #level1-ad-result h2 { font-size: 2.2rem; color: #ff4444; }
+    #level1-ad-result .result-score {
+      font-size: 3.5rem;
+      font-weight: bold;
+      color: #ffcc00;
+      text-shadow: 0 0 20px #ffcc0088;
+    }
+    #level1-ad-result p { font-size: 1.1rem; color: #aaa; max-width: 420px; }
+    #level1-ad-result .nickname-badge {
+      font-size: 1rem;
+      color: #888;
+      background: #1a1a1a;
+      padding: 6px 18px;
+      border-radius: 20px;
+      border: 1px solid #333;
+    }
+
     /* ─── AD POPUP ─── */
     #ad-popup {
       display: none;
@@ -191,7 +247,6 @@
       background: #fff;
       border: 3px solid #ff4400;
       border-radius: 8px;
-      padding: 0;
       overflow: hidden;
       box-shadow: 0 8px 40px #ff440066;
       animation: popIn 0.25s ease;
@@ -223,19 +278,8 @@
       color: #fff;
       border-radius: 4px;
     }
-    /* 닫기 버튼이 마우스에서 도망감 */
-    #ad-close-btn.runaway { pointer-events: none; }
-
-    #ad-popup-body {
-      cursor: pointer;
-      display: block;
-    }
-    #ad-popup-body img {
-      width: 100%;
-      max-height: 200px;
-      object-fit: cover;
-      display: block;
-    }
+    #ad-popup-body { cursor: pointer; display: block; }
+    #ad-popup-body img { width: 100%; max-height: 200px; object-fit: cover; display: block; }
     #ad-popup-body .ad-label {
       background: #ffff00;
       color: #000;
@@ -270,7 +314,20 @@
     }
     .btn-secondary:hover { background: #555; }
 
-    /* ─── SCORE / STATS ─── */
+    .btn-restart {
+      padding: 14px 40px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      background: #2266ff;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-restart:hover { background: #1144cc; transform: scale(1.04); }
+
+    /* ─── STATS BAR ─── */
     #stats-bar {
       display: none;
       position: fixed;
@@ -282,7 +339,7 @@
       color: #888;
       z-index: 50;
     }
-    #stats-bar.active { display: flex; gap: 24px; }
+    #stats-bar.active { display: flex; gap: 24px; align-items: center; }
   </style>
 </head>
 <body>
@@ -292,8 +349,17 @@
   <h1>절대 광고를<br>클릭하지 마</h1>
   <p>이 게임은 당신을 광고 클릭으로 유도하기 위해 설계되었습니다.<br>
      얼마나 버틸 수 있는지 한번 해보세요.</p>
-  <button class="btn-primary" onclick="goToTutorial()">게임 시작하기</button>
+  <button class="btn-primary" onclick="goToNickname()">게임 시작하기</button>
   <p style="color:#555; font-size:0.8rem; margin-top:8px;">광고 클릭 횟수는 전 세계 랭킹에 기록됩니다.</p>
+</div>
+
+<!-- ════════════════════ NICKNAME ════════════════════ -->
+<div id="screen-nickname" class="screen">
+  <h2>닉네임을 입력하세요</h2>
+  <p>랭킹 집계에 사용됩니다.<br>몇 번이나 낚이는지 전 세계에 공개됩니다.</p>
+  <input id="nickname-input" type="text" maxlength="16" placeholder="닉네임 (최대 16자)" />
+  <p id="nickname-error"></p>
+  <button class="btn-primary" onclick="submitNickname()">확인</button>
 </div>
 
 <!-- ════════════════════ TUTORIAL ════════════════════ -->
@@ -301,11 +367,9 @@
   <p id="tutorial-instruction">튜토리얼: 아래 버튼을 눌러 게임을 시작하세요.</p>
 
   <div id="tutorial-btn-area">
-    <!-- 광고 배너 (버튼 이동 후 원래 자리에 등장) -->
     <div id="tutorial-ad" onclick="onTutorialAdClick()">
       <img id="tutorial-ad-img" src="" alt="광고" />
     </div>
-    <!-- 게임 시작 버튼 -->
     <button id="btn-start" onmouseenter="onStartBtnHover()" onclick="onStartBtnClick()">
       게임 시작하기
     </button>
@@ -332,6 +396,15 @@
   </div>
 </div>
 
+<!-- 레벨 1 광고 클릭 결과 오버레이 -->
+<div id="level1-ad-result">
+  <h2>😱 낚였습니다!</h2>
+  <div class="nickname-badge" id="result-nickname-badge"></div>
+  <div class="result-score" id="result-ad-count"></div>
+  <p>지금까지 광고를 이렇게나 클릭했어요.<br>다시 도전해볼까요?</p>
+  <button class="btn-restart" onclick="restartLevel1()">레벨 재시작</button>
+</div>
+
 <!-- ════════════════════ AD POPUP ════════════════════ -->
 <div id="ad-popup">
   <div id="ad-popup-header">
@@ -346,15 +419,16 @@
 
 <!-- ════════════════════ STATS BAR ════════════════════ -->
 <div id="stats-bar">
-  <span>내 광고 클릭: <strong id="my-total-clicks">0</strong>회</span>
+  <span id="stats-nickname"></span>
+  <span>광고 클릭: <strong id="my-total-clicks">0</strong>회</span>
   <span id="rank-display"></span>
 </div>
 
 <!-- ════════════════════ FIREBASE ════════════════════ -->
 <script type="module">
-  import { initializeApp }         from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-  import { getAnalytics }          from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js';
-  import { getDatabase, ref, get, set, increment, onValue, query, orderByChild, limitToFirst }
+  import { initializeApp }    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import { getAnalytics }     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js';
+  import { getDatabase, ref, get, set, update, onValue, query, orderByChild, limitToFirst }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
   const firebaseConfig = {
@@ -370,16 +444,15 @@
 
   const app      = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
-  const database = getDatabase(app);
+  const database  = getDatabase(app);
 
-  /* 전역 노출 */
-  window._db = database;
-  window._dbRef = ref;
-  window._dbSet = set;
-  window._dbIncrement = increment;
-  window._dbGet = get;
-  window._dbOnValue = onValue;
-  window._dbQuery = query;
+  window._db             = database;
+  window._dbRef          = ref;
+  window._dbSet          = set;
+  window._dbUpdate       = update;
+  window._dbGet          = get;
+  window._dbOnValue      = onValue;
+  window._dbQuery        = query;
   window._dbOrderByChild = orderByChild;
   window._dbLimitToFirst = limitToFirst;
 </script>
@@ -388,20 +461,22 @@
 <script>
 /* ── 광고 데이터 ── */
 const ADS = [
-  { img: 'https://stimg.sooplive.com/LOGO/be/bear0424/bear0424.jpg',       url: 'https://www.sooplive.com/station/bear0424' },
+  { img: 'https://stimg.sooplive.com/LOGO/be/bear0424/bear0424.jpg',        url: 'https://www.sooplive.com/station/bear0424' },
   { img: 'https://stimg.sooplive.com/LOGO/sk/skftodwocks2/skftodwocks2.jpg', url: 'https://www.sooplive.com/station/skftodwocks2' },
 ];
 function randomAd() { return ADS[Math.floor(Math.random() * ADS.length)]; }
 
 /* ── 세션 상태 ── */
-let sessionId     = 'user_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-let totalAdClicks = 0;
-let gameScore     = 0;
+const sessionId       = 'user_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+let playerNickname    = '';
+let totalAdClicks     = 0;
+let gameScore         = 0;
 let tutorialAdClicked = false;
 let tutorialHovered   = false;
-let level1Timer   = null;
-let level1TimeLeft = 30;
-let targetMoveTimer = null;
+let level1Timer       = null;
+let level1TimeLeft    = 30;
+let adPopupTimer      = null;
+let isLevel1Running   = false;
 
 /* ════════ Web Audio API ════════ */
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -414,7 +489,6 @@ function getAudioCtx() {
 function playAdSound() {
   const ctx = getAudioCtx();
   const now = ctx.currentTime;
-  /* 띠링! — 짧은 상승 글리산도 + 불협화음 */
   [880, 1046, 1318, 660].forEach((freq, i) => {
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -432,7 +506,6 @@ function playAdSound() {
 function playFailSound() {
   const ctx = getAudioCtx();
   const now = ctx.currentTime;
-  /* 꽝! — 저음 드롭 */
   const osc  = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain); gain.connect(ctx.destination);
@@ -460,7 +533,6 @@ function playSuccessSound() {
 }
 
 function playTutorialFailBeep() {
-  /* 킹받는 저음 비프 */
   const ctx = getAudioCtx();
   const now = ctx.currentTime;
   const osc  = ctx.createOscillator();
@@ -471,7 +543,7 @@ function playTutorialFailBeep() {
   osc.frequency.setValueAtTime(100, now + 0.15);
   osc.frequency.setValueAtTime(80, now + 0.3);
   gain.gain.setValueAtTime(0.1, now);
-  gain.gain.setValueAtTime(0.4, now + 0.45);
+  gain.gain.setValueAtTime(0.1, now + 0.45);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
   osc.start(now); osc.stop(now + 0.6);
 }
@@ -483,25 +555,55 @@ function showScreen(id) {
 }
 
 /* ════════ OPENING ════════ */
+function goToNickname() {
+  showScreen('screen-nickname');
+  document.getElementById('nickname-input').focus();
+}
+window.goToNickname = goToNickname;
+
+/* ════════ NICKNAME ════════ */
+function submitNickname() {
+  const input = document.getElementById('nickname-input');
+  const error = document.getElementById('nickname-error');
+  const name  = input.value.trim();
+
+  if (!name) {
+    error.textContent = '닉네임을 입력해주세요.';
+    input.focus();
+    return;
+  }
+  error.textContent = '';
+  playerNickname = name;
+
+  /* RTDB에 플레이어 등록 */
+  savePlayerToDb({ nickname: playerNickname, clicks: 0, createdAt: Date.now(), updatedAt: Date.now() });
+
+  document.getElementById('stats-nickname').textContent = playerNickname;
+  goToTutorial();
+}
+window.submitNickname = submitNickname;
+
+/* Enter 키로 닉네임 제출 */
+document.getElementById('nickname-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitNickname();
+});
+
+/* ════════ TUTORIAL ════════ */
 function goToTutorial() {
   showScreen('screen-tutorial');
 }
-window.goToTutorial = goToTutorial;
 
-/* ════════ TUTORIAL ════════ */
 function onStartBtnHover() {
   if (tutorialHovered) return;
   tutorialHovered = true;
 
-  const btn = document.getElementById('btn-start');
-  btn.classList.add('moved');           /* 버튼 200px 아래로 */
+  document.getElementById('btn-start').classList.add('moved');
 
-  /* 원래 자리에 광고 등장 */
-  const ad  = document.getElementById('tutorial-ad');
-  const img = document.getElementById('tutorial-ad-img');
+  const ad     = document.getElementById('tutorial-ad');
+  const img    = document.getElementById('tutorial-ad-img');
   const picked = randomAd();
-  img.src = picked.img;
-  ad.dataset.url = picked.url;
+  img.src          = picked.img;
+  ad.dataset.url   = picked.url;
   ad.classList.add('show');
 }
 window.onStartBtnHover = onStartBtnHover;
@@ -509,8 +611,7 @@ window.onStartBtnHover = onStartBtnHover;
 function onTutorialAdClick() {
   if (tutorialAdClicked) return;
   tutorialAdClicked = true;
-  const url = document.getElementById('tutorial-ad').dataset.url;
-  window.open(url, '_blank');
+  window.open(document.getElementById('tutorial-ad').dataset.url, '_blank');
   recordAdClick();
   playTutorialFailBeep();
   showTutorialResult(true);
@@ -525,23 +626,20 @@ function onStartBtnClick() {
 window.onStartBtnClick = onStartBtnClick;
 
 function showTutorialResult(clickedAd) {
-  const overlay = document.getElementById('tutorial-result');
-  const title   = document.getElementById('result-title');
-  const msg     = document.getElementById('result-msg');
-  const btn     = document.getElementById('result-action-btn');
+  const title = document.getElementById('result-title');
+  const msg   = document.getElementById('result-msg');
+  const btn   = document.getElementById('result-action-btn');
 
   if (clickedAd) {
     title.textContent = '😱 광고를 클릭하셨네요!';
     msg.textContent   = '이제 본격적으로 게임을 시작해볼까요?';
     btn.textContent   = '튜토리얼 끝내기';
-    btn.dataset.next  = 'level1';
   } else {
     title.textContent = '✅ 튜토리얼 완료!';
     msg.textContent   = '이제 진짜 시작입니다.';
     btn.textContent   = '레벨 1 시작';
-    btn.dataset.next  = 'level1';
   }
-  overlay.classList.add('active');
+  document.getElementById('tutorial-result').classList.add('active');
 }
 
 function handleResultAction() {
@@ -552,24 +650,42 @@ window.handleResultAction = handleResultAction;
 
 /* ════════ LEVEL 1 ════════ */
 function startLevel1() {
+  clearLevel1Timers();
+  document.getElementById('level1-ad-result').classList.remove('active');
   showScreen('screen-level1');
   document.getElementById('stats-bar').classList.add('active');
-  gameScore = 0;
+
+  gameScore      = 0;
   level1TimeLeft = 30;
+  isLevel1Running = true;
   updateLevel1UI();
   moveTarget();
+
   level1Timer = setInterval(() => {
+    if (!isLevel1Running) return;
     level1TimeLeft--;
     document.getElementById('timer-display').textContent = level1TimeLeft;
     if (level1TimeLeft <= 0) endLevel1();
   }, 1000);
 
-  /* 주기적으로 광고 팝업 표시 (7~14초 간격) */
   scheduleAdPopup();
 }
 
+function restartLevel1() {
+  document.getElementById('level1-ad-result').classList.remove('active');
+  hideAdPopup();
+  startLevel1();
+}
+window.restartLevel1 = restartLevel1;
+
+function clearLevel1Timers() {
+  if (level1Timer)    { clearInterval(level1Timer);  level1Timer    = null; }
+  if (adPopupTimer)   { clearTimeout(adPopupTimer);  adPopupTimer   = null; }
+  isLevel1Running = false;
+}
+
 function updateLevel1UI() {
-  document.getElementById('score-display').textContent = gameScore;
+  document.getElementById('score-display').textContent    = gameScore;
   document.getElementById('ad-click-display').textContent = totalAdClicks;
   document.getElementById('my-total-clicks').textContent  = totalAdClicks;
 }
@@ -577,35 +693,31 @@ function updateLevel1UI() {
 function moveTarget() {
   const area   = document.getElementById('game-area');
   const target = document.getElementById('target');
-  const maxX = area.clientWidth  - 80;
-  const maxY = area.clientHeight - 80;
-  target.style.left = Math.random() * maxX + 'px';
-  target.style.top  = Math.random() * maxY + 'px';
+  target.style.left = Math.random() * (area.clientWidth  - 80) + 'px';
+  target.style.top  = Math.random() * (area.clientHeight - 80) + 'px';
 }
 
 function onTargetClick() {
+  if (!isLevel1Running) return;
   gameScore += 10;
   playSuccessSound();
   moveTarget();
   updateLevel1UI();
-  /* 20% 확률로 즉시 광고 팝업 */
   if (Math.random() < 0.2) showAdPopup();
 }
 window.onTargetClick = onTargetClick;
 
 function endLevel1() {
-  clearInterval(level1Timer);
-  clearTimeout(targetMoveTimer);
+  clearLevel1Timers();
   hideAdPopup();
   alert(`레벨 1 클리어!\n점수: ${gameScore}\n광고 클릭: ${totalAdClicks}회`);
 }
 
-/* 광고 팝업 스케줄 */
 function scheduleAdPopup() {
-  if (level1TimeLeft <= 0) return;
+  if (!isLevel1Running) return;
   const delay = (7 + Math.random() * 7) * 1000;
-  targetMoveTimer = setTimeout(() => {
-    if (level1TimeLeft > 0) {
+  adPopupTimer = setTimeout(() => {
+    if (isLevel1Running) {
       showAdPopup();
       scheduleAdPopup();
     }
@@ -614,6 +726,7 @@ function scheduleAdPopup() {
 
 /* ════════ AD POPUP ════════ */
 let adPopupRunawayCount = 0;
+let currentAdInLevel1 = false;
 
 function showAdPopup() {
   const popup = document.getElementById('ad-popup');
@@ -622,32 +735,49 @@ function showAdPopup() {
   const close = document.getElementById('ad-close-btn');
 
   const picked = randomAd();
-  img.src  = picked.img;
+  img.src   = picked.img;
   body.href = picked.url;
+
   adPopupRunawayCount = 0;
-  close.classList.remove('runaway');
-  close.style.transform = '';
-  close.style.position  = '';
-  close.style.left = '';
-  close.style.top  = '';
+  close.style.position = '';
+  close.style.left     = '';
 
-  /* 랜덤 위치 */
-  const pw = 340;
-  const ph = 260;
-  popup.style.left = (window.innerWidth  * 0.1 + Math.random() * window.innerWidth  * 0.6) + 'px';
-  popup.style.top  = (window.innerHeight * 0.15 + Math.random() * window.innerHeight * 0.5) + 'px';
+  /* 초록 버튼이 50% 이상 가려지지 않는 위치 선택 (최대 20회 시도) */
+  const targetBCR  = document.getElementById('target').getBoundingClientRect();
+  const halfTarget = (targetBCR.width * targetBCR.height) / 2;
+  const PW = 340, PH = 265;
+
+  function overlapArea(l, t) {
+    const xo = Math.max(0, Math.min(l + PW, targetBCR.right)  - Math.max(l, targetBCR.left));
+    const yo = Math.max(0, Math.min(t + PH, targetBCR.bottom) - Math.max(t, targetBCR.top));
+    return xo * yo;
+  }
+
+  let bestL = 0, bestT = 0, bestOv = Infinity;
+  for (let i = 0; i < 20; i++) {
+    const l = window.innerWidth  * 0.1 + Math.random() * (window.innerWidth  * 0.8 - PW);
+    const t = window.innerHeight * 0.1 + Math.random() * (window.innerHeight * 0.8 - PH);
+    const ov = overlapArea(l, t);
+    if (ov < bestOv) { bestOv = ov; bestL = l; bestT = t; }
+    if (ov < halfTarget) break;
+  }
+  popup.style.left = bestL + 'px';
+  popup.style.top  = bestT + 'px';
   popup.classList.add('active');
-
   playAdSound();
 
-  /* 광고 클릭 이벤트 */
   body.onclick = (e) => {
     e.preventDefault();
     window.open(picked.url, '_blank');
     recordAdClick();
     playFailSound();
     hideAdPopup();
-    updateLevel1UI();
+    /* 레벨 1 진행 중이면 결과 오버레이 표시 */
+    if (isLevel1Running) {
+      isLevel1Running = false;
+      clearLevel1Timers();
+      showLevel1AdResult();
+    }
   };
 }
 
@@ -656,7 +786,6 @@ function hideAdPopup() {
 }
 
 function onCloseAdClick() {
-  /* 첫 1~2번은 도망, 그 이후엔 실제로 닫힘 */
   if (adPopupRunawayCount < 2) return;
   hideAdPopup();
 }
@@ -665,31 +794,35 @@ window.onCloseAdClick = onCloseAdClick;
 function onCloseBtnHover(e) {
   if (adPopupRunawayCount >= 2) return;
   adPopupRunawayCount++;
-
-  /* 버튼을 헤더 안에서 반대편으로 이동 */
-  const btn = e.currentTarget;
-  const header = btn.parentElement;
-  const headerW = header.clientWidth;
-
+  const btn     = e.currentTarget;
+  const headerW = btn.parentElement.clientWidth;
   btn.style.position = 'relative';
-  const currentLeft = btn.offsetLeft;
-  if (currentLeft > headerW / 2) {
-    btn.style.left = '-' + (currentLeft - 8) + 'px';
-  } else {
-    btn.style.left = (headerW - currentLeft - 60) + 'px';
-  }
+  const currentLeft  = btn.offsetLeft;
+  btn.style.left = (currentLeft > headerW / 2)
+    ? '-' + (currentLeft - 8) + 'px'
+    : (headerW - currentLeft - 60) + 'px';
 }
 window.onCloseBtnHover = onCloseBtnHover;
 
+/* ── 레벨 1 광고 클릭 결과 ── */
+function showLevel1AdResult() {
+  document.getElementById('result-nickname-badge').textContent = playerNickname + ' 님';
+  document.getElementById('result-ad-count').textContent       = totalAdClicks + '회';
+  document.getElementById('level1-ad-result').classList.add('active');
+}
+
 /* ════════ Firebase 기록 ════════ */
+function savePlayerToDb(data) {
+  if (!window._db) return;
+  window._dbSet(window._dbRef(window._db, 'players/' + sessionId), data);
+}
+
 function recordAdClick() {
   totalAdClicks++;
   updateLevel1UI();
-
-  /* DB 준비 후 저장 */
   if (!window._db) return;
-  const userRef = window._dbRef(window._db, 'clicks/' + sessionId);
-  window._dbSet(userRef, {
+  window._dbUpdate(window._dbRef(window._db, 'players/' + sessionId), {
+    nickname:  playerNickname,
     clicks:    totalAdClicks,
     updatedAt: Date.now()
   });
