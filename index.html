@@ -348,6 +348,81 @@
     #opening-cursor-ad.active { display: block; }
     #opening-cursor-ad:hover { box-shadow: 0 0 22px #ff4400cc, 0 0 6px #fff5; }
 
+    /* ─── DEV PANEL ─── */
+    #dev-panel {
+      display: none;
+      position: fixed;
+      bottom: 20px; right: 20px;
+      width: 260px;
+      background: rgba(10,10,20,0.93);
+      border: 1px solid #2266ff;
+      border-radius: 12px;
+      padding: 0;
+      z-index: 9000;
+      font-size: 0.85rem;
+      color: #ccc;
+      box-shadow: 0 4px 24px #2266ff44;
+    }
+    #dev-panel.active { display: block; }
+    #dev-panel-header {
+      background: #2266ff;
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+    #dev-panel-header button {
+      background: none; border: none; color: #fff;
+      cursor: pointer; font-size: 1rem; padding: 0 4px;
+    }
+    #dev-panel-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+    #dev-user-badge {
+      font-size: 0.75rem; color: #88aaff;
+      background: #0d1a33; padding: 4px 10px;
+      border-radius: 6px; text-align: center;
+    }
+    .dev-row { display: flex; align-items: center; gap: 8px; }
+    .dev-row label { flex: 1; color: #aaa; }
+    .dev-row input[type=number] {
+      width: 54px; padding: 4px 6px;
+      background: #1a1a2e; border: 1px solid #444;
+      border-radius: 6px; color: #fff; font-size: 0.85rem;
+    }
+    .dev-row input[type=range] { flex: 1; accent-color: #2266ff; }
+    .dev-row span { min-width: 28px; text-align: right; color: #fff; }
+    .dev-btn {
+      padding: 6px 12px; font-size: 0.8rem; border: none;
+      border-radius: 6px; cursor: pointer; transition: background 0.15s;
+    }
+    .dev-btn-blue  { background: #2266ff; color: #fff; }
+    .dev-btn-blue:hover { background: #1144cc; }
+    .dev-btn-red   { background: #882222; color: #fff; }
+    .dev-btn-red:hover { background: #aa3333; }
+    .dev-toggle {
+      width: 38px; height: 20px; position: relative;
+      appearance: none; background: #333; border-radius: 10px;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .dev-toggle::after {
+      content: ''; position: absolute;
+      width: 14px; height: 14px; background: #fff;
+      border-radius: 50%; top: 3px; left: 3px;
+      transition: left 0.2s;
+    }
+    .dev-toggle:checked { background: #00cc77; }
+    .dev-toggle:checked::after { left: 21px; }
+    #dev-toast {
+      display: none;
+      position: fixed; bottom: 80px; right: 20px;
+      background: #1a1a2e; border: 1px solid #2266ff;
+      color: #aad4ff; padding: 8px 16px; border-radius: 8px;
+      font-size: 0.8rem; z-index: 9001;
+    }
+
     /* ─── STATS BAR ─── */
     #stats-bar {
       display: none;
@@ -441,6 +516,38 @@
 <!-- ════════════════════ OPENING CURSOR AD ════════════════════ -->
 <div id="opening-cursor-ad" onclick="onOpeningCursorAdClick()"></div>
 
+<!-- ════════════════════ DEV PANEL ════════════════════ -->
+<div id="dev-panel">
+  <div id="dev-panel-header">
+    <span>🛠 Dev Mode</span>
+    <button onclick="devHidePanel()">✕</button>
+  </div>
+  <div id="dev-panel-body">
+    <div id="dev-user-badge">로그인 중...</div>
+
+    <div class="dev-row">
+      <label>레벨 이동</label>
+      <input id="dev-level-input" type="number" min="1" max="99" value="1" />
+      <button class="dev-btn dev-btn-blue" onclick="devJumpToLevel(+document.getElementById('dev-level-input').value)">이동</button>
+    </div>
+
+    <div class="dev-row">
+      <label>무적 모드</label>
+      <input id="dev-god-toggle" type="checkbox" class="dev-toggle" onchange="devToggleGodMode(this.checked)" />
+    </div>
+
+    <div class="dev-row">
+      <label>광고 속도</label>
+      <input id="dev-speed-slider" type="range" min="1" max="10" step="0.5" value="1"
+             oninput="devSetSpeed(+this.value); document.getElementById('dev-speed-val').textContent=this.value+'x'" />
+      <span id="dev-speed-val">1x</span>
+    </div>
+
+    <button class="dev-btn dev-btn-red" onclick="devResetData()">세션 데이터 초기화</button>
+  </div>
+</div>
+<div id="dev-toast"></div>
+
 <!-- ════════════════════ STATS BAR ════════════════════ -->
 <div id="stats-bar">
   <span id="stats-nickname"></span>
@@ -454,6 +561,8 @@
   import { getAnalytics }     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js';
   import { getDatabase, ref, get, set, update, onValue, query, orderByChild, limitToFirst }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+  import { getAuth, GoogleAuthProvider, signInWithPopup }
+    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
   const firebaseConfig = {
     apiKey:            'AIzaSyBksTHiQp0lhMoszgi2HEyLR0EZICDoM5I',
@@ -466,9 +575,16 @@
     databaseURL:       'https://dont-click-ads-default-rtdb.firebaseio.com/'
   };
 
-  const app      = initializeApp(firebaseConfig);
+  const app       = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
   const database  = getDatabase(app);
+
+  const _devAuthInst     = getAuth(app);
+  const _devAuthProvider = new GoogleAuthProvider();
+  window._devAuth = {
+    signIn:      () => signInWithPopup(_devAuthInst, _devAuthProvider),
+    currentUser: () => _devAuthInst.currentUser,
+  };
 
   window._db             = database;
   window._dbRef          = ref;
@@ -704,6 +820,7 @@ window.onStartBtnHover = onStartBtnHover;
 
 function onTutorialAdClick() {
   if (tutorialAdClicked) return;
+  if (window._DEV?.godMode) { _devToast('무적 모드: 튜토리얼 광고 무시'); return; }
   tutorialAdClicked = true;
   window.open(document.getElementById('tutorial-ad').dataset.url, '_blank');
   recordAdClick();
@@ -809,7 +926,8 @@ function endLevel1() {
 
 function scheduleAdPopup() {
   if (!isLevel1Running) return;
-  const delay = (7 + Math.random() * 7) * 1000;
+  const base  = (7 + Math.random() * 7) * 1000;
+  const delay = base / (window._DEV?.speed ?? 1);
   adPopupTimer = setTimeout(() => {
     if (isLevel1Running) {
       showAdPopup();
@@ -870,6 +988,7 @@ function showAdPopup() {
 
   body.onclick = (e) => {
     e.preventDefault();
+    if (window._DEV?.godMode) { _devToast('무적 모드: 광고 클릭 무시'); hideAdPopup(); return; }
     window.open(picked.landingUrl, '_blank');
     recordAdClick();
     playFailSound();
@@ -929,6 +1048,99 @@ function recordAdClick() {
     updatedAt: Date.now()
   });
 }
+</script>
+
+<!-- ════════════════════ DEV MODE ════════════════════ -->
+<script>
+(function () {
+  const DEV_EMAIL = 'skftodwocks2@gmail.com';
+
+  window._DEV = { unlocked: false, godMode: false, speed: 1 };
+
+  /* ── 토스트 알림 ── */
+  window._devToast = function (msg) {
+    const el = document.getElementById('dev-toast');
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => { el.style.display = 'none'; }, 2000);
+  };
+
+  /* ── Ctrl+Enter 트리거 ── */
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey && e.key === 'Enter') _devLogin();
+  });
+
+  function _devLogin() {
+    if (window._DEV.unlocked) { devShowPanel(); return; }
+    if (!window._devAuth) { _devToast('Firebase 아직 로딩 중...'); return; }
+
+    const existing = window._devAuth.currentUser();
+    if (existing) { _devCheckAndUnlock(existing); return; }
+
+    window._devAuth.signIn()
+      .then(result => _devCheckAndUnlock(result.user))
+      .catch(err => _devToast('로그인 실패: ' + err.code));
+  }
+
+  function _devCheckAndUnlock(user) {
+    if (!user || user.email.toLowerCase().trim() !== DEV_EMAIL) {
+      _devToast('개발자 계정이 아닙니다.');
+      return;
+    }
+    window._DEV.unlocked = true;
+    document.getElementById('dev-user-badge').textContent = user.email;
+    devShowPanel();
+    _devToast('Dev Mode 활성화!');
+  }
+
+  /* ── 패널 열기/닫기 ── */
+  window.devShowPanel = function () {
+    document.getElementById('dev-panel').classList.add('active');
+  };
+  window.devHidePanel = function () {
+    document.getElementById('dev-panel').classList.remove('active');
+  };
+
+  /* ── 레벨 이동 ── */
+  window.devJumpToLevel = function (n) {
+    if (!window._DEV.unlocked) return;
+    const target = 'screen-level' + n;
+    const el = document.getElementById(target);
+    if (!el) { _devToast('레벨 ' + n + ' 없음'); return; }
+    if (typeof clearLevel1Timers === 'function') clearLevel1Timers();
+    if (n === 1 && typeof startLevel1 === 'function') {
+      startLevel1();
+    } else {
+      showScreen(target);
+    }
+    _devToast('레벨 ' + n + ' 이동');
+  };
+
+  /* ── 무적 모드 ── */
+  window.devToggleGodMode = function (val) {
+    if (!window._DEV.unlocked) return;
+    window._DEV.godMode = val;
+    _devToast('무적 모드: ' + (val ? 'ON' : 'OFF'));
+  };
+
+  /* ── 광고 속도 ── */
+  window.devSetSpeed = function (v) {
+    if (!window._DEV.unlocked) return;
+    window._DEV.speed = v;
+  };
+
+  /* ── 세션 데이터 초기화 ── */
+  window.devResetData = function () {
+    if (!window._DEV.unlocked) return;
+    totalAdClicks = 0;
+    gameScore     = 0;
+    tutorialAdClicked = false;
+    tutorialHovered   = false;
+    updateLevel1UI();
+    _devToast('세션 데이터 초기화 완료');
+  };
+})();
 </script>
 
 </body>
