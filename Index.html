@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>절대 광고를 클릭하지 마</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ─── SCREENS ─── */
+    .screen {
+      display: none;
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0; left: 0;
+    }
+    .screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+    /* ─── OPENING ─── */
+    #screen-opening {
+      background: radial-gradient(ellipse at center, #1a0033 0%, #000 100%);
+      text-align: center;
+      gap: 24px;
+    }
+    #screen-opening h1 {
+      font-size: 2.8rem;
+      color: #ff4444;
+      text-shadow: 0 0 20px #ff0000, 0 0 40px #ff000066;
+      letter-spacing: 2px;
+      animation: glitch 3s infinite;
+    }
+    #screen-opening p {
+      color: #aaa;
+      font-size: 1.1rem;
+      max-width: 480px;
+    }
+
+    @keyframes glitch {
+      0%, 90%, 100% { transform: translate(0); filter: none; }
+      92% { transform: translate(-3px, 1px); filter: hue-rotate(90deg); }
+      94% { transform: translate(3px, -1px); filter: hue-rotate(-90deg); }
+      96% { transform: translate(-2px, 2px); }
+    }
+
+    /* ─── TUTORIAL ─── */
+    #screen-tutorial {
+      background: #111;
+      position: relative;
+    }
+    #tutorial-instruction {
+      position: absolute;
+      top: 60px;
+      font-size: 1.2rem;
+      color: #ccc;
+      text-align: center;
+      width: 100%;
+    }
+
+    /* 버튼 래퍼: position:relative 로 광고 배너를 같은 공간에 겹치게 */
+    #tutorial-btn-area {
+      position: relative;
+      width: 260px;
+      height: 80px;
+    }
+
+    #btn-start {
+      position: absolute;
+      top: 0; left: 0;
+      width: 260px;
+      height: 80px;
+      font-size: 1.3rem;
+      font-weight: bold;
+      background: #2266ff;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+      z-index: 10;
+    }
+    #btn-start:hover { background: #1144cc; }
+
+    /* 버튼이 아래로 200px 이동했을 때 */
+    #btn-start.moved {
+      top: 200px;
+    }
+
+    /* 광고 배너: 기본 숨김, 버튼 hover 후 표시 */
+    #tutorial-ad {
+      display: none;
+      position: absolute;
+      top: 0; left: 0;
+      width: 260px;
+      height: 80px;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid #ff4400;
+      z-index: 9;
+    }
+    #tutorial-ad img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #tutorial-ad.show { display: block; }
+
+    /* ─── TUTORIAL RESULT OVERLAY ─── */
+    #tutorial-result {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 100;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      text-align: center;
+      padding: 24px;
+    }
+    #tutorial-result.active { display: flex; }
+    #tutorial-result h2 { font-size: 2rem; color: #ff4444; }
+    #tutorial-result p  { font-size: 1.1rem; color: #ccc; max-width: 480px; }
+
+    /* ─── LEVEL 1 ─── */
+    #screen-level1 {
+      background: #0d0d0d;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+    }
+    #level1-info {
+      position: absolute;
+      top: 20px;
+      display: flex;
+      gap: 32px;
+      font-size: 1rem;
+      color: #aaa;
+    }
+    #level1-info span { color: #fff; font-weight: bold; }
+
+    #game-area {
+      width: min(640px, 90vw);
+      height: 420px;
+      background: #1a1a2e;
+      border: 2px solid #333;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    #target {
+      position: absolute;
+      width: 72px;
+      height: 72px;
+      background: radial-gradient(circle, #00ffaa, #00cc77);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: #000;
+      user-select: none;
+      transition: box-shadow 0.1s;
+      box-shadow: 0 0 16px #00ffaa88;
+    }
+    #target:hover { box-shadow: 0 0 28px #00ffaacc; }
+
+    #level1-msg {
+      font-size: 1.1rem;
+      color: #ccc;
+      text-align: center;
+    }
+
+    /* ─── AD POPUP ─── */
+    #ad-popup {
+      display: none;
+      position: fixed;
+      z-index: 200;
+      background: #fff;
+      border: 3px solid #ff4400;
+      border-radius: 8px;
+      padding: 0;
+      overflow: hidden;
+      box-shadow: 0 8px 40px #ff440066;
+      animation: popIn 0.25s ease;
+      min-width: 320px;
+    }
+    #ad-popup.active { display: block; }
+
+    @keyframes popIn {
+      from { transform: scale(0.3) rotate(-6deg); }
+      to   { transform: scale(1) rotate(0deg); }
+    }
+
+    #ad-popup-header {
+      background: #ff4400;
+      color: #fff;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: default;
+    }
+    #ad-close-btn {
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 2px 8px;
+      background: #cc2200;
+      border: none;
+      color: #fff;
+      border-radius: 4px;
+    }
+    /* 닫기 버튼이 마우스에서 도망감 */
+    #ad-close-btn.runaway { pointer-events: none; }
+
+    #ad-popup-body {
+      cursor: pointer;
+      display: block;
+    }
+    #ad-popup-body img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      display: block;
+    }
+    #ad-popup-body .ad-label {
+      background: #ffff00;
+      color: #000;
+      font-size: 0.75rem;
+      font-weight: bold;
+      text-align: center;
+      padding: 4px;
+    }
+
+    /* ─── SHARED BUTTONS ─── */
+    .btn-primary {
+      padding: 14px 36px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      background: #ff4400;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-primary:hover { background: #cc2200; transform: scale(1.04); }
+
+    .btn-secondary {
+      padding: 12px 28px;
+      font-size: 1rem;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { background: #555; }
+
+    /* ─── SCORE / STATS ─── */
+    #stats-bar {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #111;
+      border-top: 1px solid #333;
+      padding: 8px 24px;
+      font-size: 0.85rem;
+      color: #888;
+      z-index: 50;
+    }
+    #stats-bar.active { display: flex; gap: 24px; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════ OPENING ════════════════════ -->
+<div id="screen-opening" class="screen active">
+  <h1>절대 광고를<br>클릭하지 마</h1>
+  <p>이 게임은 당신을 광고 클릭으로 유도하기 위해 설계되었습니다.<br>
+     얼마나 버틸 수 있는지 한번 해보세요.</p>
+  <button class="btn-primary" onclick="goToTutorial()">게임 시작하기</button>
+  <p style="color:#555; font-size:0.8rem; margin-top:8px;">광고 클릭 횟수는 전 세계 랭킹에 기록됩니다.</p>
+</div>
+
+<!-- ════════════════════ TUTORIAL ════════════════════ -->
+<div id="screen-tutorial" class="screen">
+  <p id="tutorial-instruction">튜토리얼: 아래 버튼을 눌러 게임을 시작하세요.</p>
+
+  <div id="tutorial-btn-area">
+    <!-- 광고 배너 (버튼 이동 후 원래 자리에 등장) -->
+    <div id="tutorial-ad" onclick="onTutorialAdClick()">
+      <img id="tutorial-ad-img" src="" alt="광고" />
+    </div>
+    <!-- 게임 시작 버튼 -->
+    <button id="btn-start" onmouseenter="onStartBtnHover()" onclick="onStartBtnClick()">
+      게임 시작하기
+    </button>
+  </div>
+</div>
+
+<!-- 튜토리얼 결과 오버레이 -->
+<div id="tutorial-result">
+  <h2 id="result-title"></h2>
+  <p  id="result-msg"></p>
+  <button id="result-action-btn" class="btn-primary" onclick="handleResultAction()"></button>
+</div>
+
+<!-- ════════════════════ LEVEL 1 ════════════════════ -->
+<div id="screen-level1" class="screen">
+  <div id="level1-info">
+    <div>점수: <span id="score-display">0</span></div>
+    <div>광고 클릭: <span id="ad-click-display">0</span>회</div>
+    <div>남은 시간: <span id="timer-display">30</span>s</div>
+  </div>
+  <p id="level1-msg">초록 원을 클릭하세요! (광고 함정을 조심하세요)</p>
+  <div id="game-area">
+    <div id="target" onclick="onTargetClick()">클릭!</div>
+  </div>
+</div>
+
+<!-- ════════════════════ AD POPUP ════════════════════ -->
+<div id="ad-popup">
+  <div id="ad-popup-header">
+    <span>⚠️ 광고</span>
+    <button id="ad-close-btn" onmouseenter="onCloseBtnHover(event)" onclick="onCloseAdClick()">✕</button>
+  </div>
+  <a id="ad-popup-body" class="ad-popup-body" target="_blank">
+    <div class="ad-label">📢 스폰서 광고 — 클릭하면 새 탭이 열립니다</div>
+    <img id="ad-popup-img" src="" alt="광고 이미지" />
+  </a>
+</div>
+
+<!-- ════════════════════ STATS BAR ════════════════════ -->
+<div id="stats-bar">
+  <span>내 광고 클릭: <strong id="my-total-clicks">0</strong>회</span>
+  <span id="rank-display"></span>
+</div>
+
+<!-- ════════════════════ FIREBASE ════════════════════ -->
+<script type="module">
+  import { initializeApp }         from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import { getAnalytics }          from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js';
+  import { getDatabase, ref, get, set, increment, onValue, query, orderByChild, limitToFirst }
+    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+  const firebaseConfig = {
+    apiKey:            'AIzaSyBksTHiQp0lhMoszgi2HEyLR0EZICDoM5I',
+    authDomain:        'dont-click-ads.firebaseapp.com',
+    projectId:         'dont-click-ads',
+    storageBucket:     'dont-click-ads.firebasestorage.app',
+    messagingSenderId: '816420511581',
+    appId:             '1:816420511581:web:4fb244445594272b8b12b4',
+    measurementId:     'G-93BXQQ41J7',
+    databaseURL:       'https://dont-click-ads-default-rtdb.firebaseio.com/'
+  };
+
+  const app      = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const database = getDatabase(app);
+
+  /* 전역 노출 */
+  window._db = database;
+  window._dbRef = ref;
+  window._dbSet = set;
+  window._dbIncrement = increment;
+  window._dbGet = get;
+  window._dbOnValue = onValue;
+  window._dbQuery = query;
+  window._dbOrderByChild = orderByChild;
+  window._dbLimitToFirst = limitToFirst;
+</script>
+
+<!-- ════════════════════ GAME LOGIC ════════════════════ -->
+<script>
+/* ── 광고 데이터 ── */
+const ADS = [
+  { img: 'https://stimg.sooplive.com/LOGO/be/bear0424/bear0424.jpg',       url: 'https://www.sooplive.com/station/bear0424' },
+  { img: 'https://stimg.sooplive.com/LOGO/sk/skftodwocks2/skftodwocks2.jpg', url: 'https://www.sooplive.com/station/skftodwocks2' },
+];
+function randomAd() { return ADS[Math.floor(Math.random() * ADS.length)]; }
+
+/* ── 세션 상태 ── */
+let sessionId     = 'user_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+let totalAdClicks = 0;
+let gameScore     = 0;
+let tutorialAdClicked = false;
+let tutorialHovered   = false;
+let level1Timer   = null;
+let level1TimeLeft = 30;
+let targetMoveTimer = null;
+
+/* ════════ Web Audio API ════════ */
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+  return audioCtx;
+}
+
+function playAdSound() {
+  const ctx = getAudioCtx();
+  const now = ctx.currentTime;
+  /* 띠링! — 짧은 상승 글리산도 + 불협화음 */
+  [880, 1046, 1318, 660].forEach((freq, i) => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq * 0.5, now + i * 0.07);
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + i * 0.07 + 0.15);
+    gain.gain.setValueAtTime(0.18, now + i * 0.07);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.3);
+    osc.start(now + i * 0.07);
+    osc.stop(now + i * 0.07 + 0.35);
+  });
+}
+
+function playFailSound() {
+  const ctx = getAudioCtx();
+  const now = ctx.currentTime;
+  /* 꽝! — 저음 드롭 */
+  const osc  = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(300, now);
+  osc.frequency.exponentialRampToValueAtTime(60, now + 0.4);
+  gain.gain.setValueAtTime(0.35, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+  osc.start(now); osc.stop(now + 0.5);
+}
+
+function playSuccessSound() {
+  const ctx = getAudioCtx();
+  const now = ctx.currentTime;
+  [523, 659, 784, 1046].forEach((f, i) => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = f;
+    gain.gain.setValueAtTime(0.15, now + i * 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.2);
+    osc.start(now + i * 0.1); osc.stop(now + i * 0.1 + 0.25);
+  });
+}
+
+function playTutorialFailBeep() {
+  /* 킹받는 저음 비프 */
+  const ctx = getAudioCtx();
+  const now = ctx.currentTime;
+  const osc  = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(80, now);
+  osc.frequency.setValueAtTime(100, now + 0.15);
+  osc.frequency.setValueAtTime(80, now + 0.3);
+  gain.gain.setValueAtTime(0.4, now);
+  gain.gain.setValueAtTime(0.4, now + 0.45);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+  osc.start(now); osc.stop(now + 0.6);
+}
+
+/* ════════ 화면 전환 ════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ════════ OPENING ════════ */
+function goToTutorial() {
+  showScreen('screen-tutorial');
+}
+window.goToTutorial = goToTutorial;
+
+/* ════════ TUTORIAL ════════ */
+function onStartBtnHover() {
+  if (tutorialHovered) return;
+  tutorialHovered = true;
+
+  const btn = document.getElementById('btn-start');
+  btn.classList.add('moved');           /* 버튼 200px 아래로 */
+
+  /* 원래 자리에 광고 등장 */
+  const ad  = document.getElementById('tutorial-ad');
+  const img = document.getElementById('tutorial-ad-img');
+  const picked = randomAd();
+  img.src = picked.img;
+  ad.dataset.url = picked.url;
+  ad.classList.add('show');
+}
+window.onStartBtnHover = onStartBtnHover;
+
+function onTutorialAdClick() {
+  if (tutorialAdClicked) return;
+  tutorialAdClicked = true;
+  const url = document.getElementById('tutorial-ad').dataset.url;
+  window.open(url, '_blank');
+  recordAdClick();
+  playTutorialFailBeep();
+  showTutorialResult(true);
+}
+window.onTutorialAdClick = onTutorialAdClick;
+
+function onStartBtnClick() {
+  if (tutorialAdClicked) return;
+  playSuccessSound();
+  showTutorialResult(false);
+}
+window.onStartBtnClick = onStartBtnClick;
+
+function showTutorialResult(clickedAd) {
+  const overlay = document.getElementById('tutorial-result');
+  const title   = document.getElementById('result-title');
+  const msg     = document.getElementById('result-msg');
+  const btn     = document.getElementById('result-action-btn');
+
+  if (clickedAd) {
+    title.textContent = '😱 광고를 클릭하셨네요!';
+    msg.textContent   = '이제 본격적으로 게임을 시작해볼까요?';
+    btn.textContent   = '튜토리얼 끝내기';
+    btn.dataset.next  = 'level1';
+  } else {
+    title.textContent = '✅ 튜토리얼 완료!';
+    msg.textContent   = '이제 진짜 시작입니다.';
+    btn.textContent   = '레벨 1 시작';
+    btn.dataset.next  = 'level1';
+  }
+  overlay.classList.add('active');
+}
+
+function handleResultAction() {
+  document.getElementById('tutorial-result').classList.remove('active');
+  startLevel1();
+}
+window.handleResultAction = handleResultAction;
+
+/* ════════ LEVEL 1 ════════ */
+function startLevel1() {
+  showScreen('screen-level1');
+  document.getElementById('stats-bar').classList.add('active');
+  gameScore = 0;
+  level1TimeLeft = 30;
+  updateLevel1UI();
+  moveTarget();
+  level1Timer = setInterval(() => {
+    level1TimeLeft--;
+    document.getElementById('timer-display').textContent = level1TimeLeft;
+    if (level1TimeLeft <= 0) endLevel1();
+  }, 1000);
+
+  /* 주기적으로 광고 팝업 표시 (7~14초 간격) */
+  scheduleAdPopup();
+}
+
+function updateLevel1UI() {
+  document.getElementById('score-display').textContent = gameScore;
+  document.getElementById('ad-click-display').textContent = totalAdClicks;
+  document.getElementById('my-total-clicks').textContent  = totalAdClicks;
+}
+
+function moveTarget() {
+  const area   = document.getElementById('game-area');
+  const target = document.getElementById('target');
+  const maxX = area.clientWidth  - 80;
+  const maxY = area.clientHeight - 80;
+  target.style.left = Math.random() * maxX + 'px';
+  target.style.top  = Math.random() * maxY + 'px';
+}
+
+function onTargetClick() {
+  gameScore += 10;
+  playSuccessSound();
+  moveTarget();
+  updateLevel1UI();
+  /* 20% 확률로 즉시 광고 팝업 */
+  if (Math.random() < 0.2) showAdPopup();
+}
+window.onTargetClick = onTargetClick;
+
+function endLevel1() {
+  clearInterval(level1Timer);
+  clearTimeout(targetMoveTimer);
+  hideAdPopup();
+  alert(`레벨 1 클리어!\n점수: ${gameScore}\n광고 클릭: ${totalAdClicks}회`);
+}
+
+/* 광고 팝업 스케줄 */
+function scheduleAdPopup() {
+  if (level1TimeLeft <= 0) return;
+  const delay = (7 + Math.random() * 7) * 1000;
+  targetMoveTimer = setTimeout(() => {
+    if (level1TimeLeft > 0) {
+      showAdPopup();
+      scheduleAdPopup();
+    }
+  }, delay);
+}
+
+/* ════════ AD POPUP ════════ */
+let adPopupRunawayCount = 0;
+
+function showAdPopup() {
+  const popup = document.getElementById('ad-popup');
+  const img   = document.getElementById('ad-popup-img');
+  const body  = document.getElementById('ad-popup-body');
+  const close = document.getElementById('ad-close-btn');
+
+  const picked = randomAd();
+  img.src  = picked.img;
+  body.href = picked.url;
+  adPopupRunawayCount = 0;
+  close.classList.remove('runaway');
+  close.style.transform = '';
+  close.style.position  = '';
+  close.style.left = '';
+  close.style.top  = '';
+
+  /* 랜덤 위치 */
+  const pw = 340;
+  const ph = 260;
+  popup.style.left = (window.innerWidth  * 0.1 + Math.random() * window.innerWidth  * 0.6) + 'px';
+  popup.style.top  = (window.innerHeight * 0.15 + Math.random() * window.innerHeight * 0.5) + 'px';
+  popup.classList.add('active');
+
+  playAdSound();
+
+  /* 광고 클릭 이벤트 */
+  body.onclick = (e) => {
+    e.preventDefault();
+    window.open(picked.url, '_blank');
+    recordAdClick();
+    playFailSound();
+    hideAdPopup();
+    updateLevel1UI();
+  };
+}
+
+function hideAdPopup() {
+  document.getElementById('ad-popup').classList.remove('active');
+}
+
+function onCloseAdClick() {
+  /* 첫 1~2번은 도망, 그 이후엔 실제로 닫힘 */
+  if (adPopupRunawayCount < 2) return;
+  hideAdPopup();
+}
+window.onCloseAdClick = onCloseAdClick;
+
+function onCloseBtnHover(e) {
+  if (adPopupRunawayCount >= 2) return;
+  adPopupRunawayCount++;
+
+  /* 버튼을 헤더 안에서 반대편으로 이동 */
+  const btn = e.currentTarget;
+  const header = btn.parentElement;
+  const headerW = header.clientWidth;
+
+  btn.style.position = 'relative';
+  const currentLeft = btn.offsetLeft;
+  if (currentLeft > headerW / 2) {
+    btn.style.left = '-' + (currentLeft - 8) + 'px';
+  } else {
+    btn.style.left = (headerW - currentLeft - 60) + 'px';
+  }
+}
+window.onCloseBtnHover = onCloseBtnHover;
+
+/* ════════ Firebase 기록 ════════ */
+function recordAdClick() {
+  totalAdClicks++;
+  updateLevel1UI();
+
+  /* DB 준비 후 저장 */
+  if (!window._db) return;
+  const userRef = window._dbRef(window._db, 'clicks/' + sessionId);
+  window._dbSet(userRef, {
+    clicks:    totalAdClicks,
+    updatedAt: Date.now()
+  });
+}
+</script>
+
+</body>
+</html>
