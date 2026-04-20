@@ -6,162 +6,422 @@
   <title>광고 관리자 — dont-click-ads</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 32px 24px 80px; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; }
 
-    h1 { font-size: 1.5rem; color: #ff4444; margin-bottom: 28px; padding-bottom: 14px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 10px; }
-    h1 a { font-size: 0.85rem; color: #555; text-decoration: none; margin-left: auto; padding: 6px 14px; border: 1px solid #333; border-radius: 6px; }
-    h1 a:hover { color: #aaa; border-color: #555; }
-
-    /* ── Form card ── */
-    .form-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 24px; margin-bottom: 32px; }
-    .form-card h2 { font-size: 1rem; color: #fff; margin-bottom: 18px; }
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .full { grid-column: 1 / -1; }
-    .form-group { display: flex; flex-direction: column; gap: 6px; }
-    .form-group label { font-size: 0.75rem; color: #777; text-transform: uppercase; letter-spacing: 0.6px; }
-    .form-group input, .form-group select {
-      padding: 10px 14px; background: #111; border: 1px solid #2e2e2e;
+    /* ════ 로그인 화면 ════ */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .login-card {
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 40px 36px;
+      width: 360px;
+      text-align: center;
+    }
+    .login-card h2 { font-size: 1.2rem; color: #ff4444; margin-bottom: 6px; }
+    .login-card p  { font-size: 0.82rem; color: #444; margin-bottom: 28px; }
+    .login-field {
+      display: flex; flex-direction: column; gap: 6px;
+      text-align: left; margin-bottom: 14px;
+    }
+    .login-field label { font-size: 0.72rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+    .login-field input {
+      padding: 11px 14px; background: #0d0d0d; border: 1px solid #2a2a2a;
       border-radius: 8px; color: #fff; font-size: 0.93rem; outline: none;
       transition: border-color 0.15s;
     }
+    .login-field input:focus { border-color: #ff4400; }
+    #login-error { font-size: 0.82rem; color: #ff5555; min-height: 1.2em; margin-bottom: 12px; }
+    .btn-login {
+      width: 100%; padding: 12px; background: #ff4400; color: #fff;
+      border: none; border-radius: 8px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .btn-login:hover   { opacity: 0.85; }
+    .btn-login:disabled { opacity: 0.4; cursor: default; }
+
+    /* ════ 대시보드 ════ */
+    #dashboard { display: none; padding: 32px 24px 80px; }
+
+    h1 {
+      font-size: 1.45rem; color: #ff4444; margin-bottom: 28px;
+      padding-bottom: 14px; border-bottom: 1px solid #1e1e1e;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    #logged-email { font-size: 0.8rem; color: #555; }
+    .btn-logout {
+      font-size: 0.8rem; color: #888; background: none;
+      border: 1px solid #333; border-radius: 6px; padding: 5px 12px;
+      cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .btn-logout:hover { color: #ccc; border-color: #666; }
+    h1 a {
+      font-size: 0.8rem; color: #555; text-decoration: none;
+      border: 1px solid #2a2a2a; border-radius: 6px; padding: 5px 12px;
+    }
+    h1 a:hover { color: #aaa; border-color: #555; }
+
+    /* ── Form card ── */
+    .form-card { background: #141414; border: 1px solid #222; border-radius: 12px; padding: 24px; margin-bottom: 32px; }
+    .form-card h2 { font-size: 0.95rem; color: #ccc; margin-bottom: 18px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .full { grid-column: 1 / -1; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 0.72rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-group input, .form-group select {
+      padding: 10px 14px; background: #0d0d0d; border: 1px solid #2a2a2a;
+      border-radius: 8px; color: #fff; font-size: 0.9rem; outline: none;
+      transition: border-color 0.15s;
+    }
     .form-group input:focus, .form-group select:focus { border-color: #ff4400; }
-    .form-group input::placeholder { color: #444; }
+    .form-group input::placeholder { color: #383838; }
     .form-actions { display: flex; gap: 10px; margin-top: 18px; align-items: center; }
 
     /* ── Buttons ── */
-    .btn { padding: 10px 22px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.92rem; font-weight: 600; transition: opacity 0.15s, transform 0.1s; }
-    .btn:hover { opacity: 0.82; transform: scale(1.02); }
-    .btn-add    { background: #ff4400; color: #fff; }
-    .btn-save   { background: #22aa55; color: #fff; }
-    .btn-cancel { background: #2a2a2a; color: #ccc; }
-    .btn-seed   { background: #1e3f99; color: #aac4ff; font-size: 0.82rem; padding: 8px 16px; margin-left: auto; }
+    .btn { padding: 10px 22px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: opacity 0.15s; }
+    .btn:hover { opacity: 0.82; }
+    .btn-add    { background: #c83300; color: #fff; }
+    .btn-save   { background: #1a8a44; color: #fff; }
+    .btn-cancel { background: #222; color: #aaa; }
+    .btn-seed   { background: #0e2a77; color: #88aaff; font-size: 0.8rem; padding: 8px 16px; margin-left: auto; }
 
     /* ── Table ── */
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .section-header h2 { font-size: 0.95rem; color: #ccc; }
-    #ad-count { font-size: 0.82rem; color: #555; }
+    .section-header h2 { font-size: 0.9rem; color: #999; }
+    #ad-count { font-size: 0.8rem; color: #444; }
     .table-wrap { overflow-x: auto; border: 1px solid #1e1e1e; border-radius: 10px; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-    thead { background: #141414; }
-    th { padding: 11px 14px; text-align: left; color: #666; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #222; }
-    td { padding: 11px 14px; border-bottom: 1px solid #1a1a1a; vertical-align: middle; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    thead { background: #111; }
+    th {
+      padding: 11px 14px; text-align: left; color: #555;
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; border-bottom: 1px solid #1e1e1e;
+    }
+    td { padding: 11px 14px; border-bottom: 1px solid #171717; vertical-align: middle; }
     tbody tr:last-child td { border-bottom: none; }
-    tbody tr:hover td { background: #131313; }
+    tbody tr:hover td { background: #111; }
 
-    .ad-thumb { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid #2a2a2a; background: #111; }
-    .url-cell { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #888; font-size: 0.8rem; font-family: monospace; }
+    .ad-thumb {
+      width: 46px; height: 46px; border-radius: 50%;
+      object-fit: cover; border: 2px solid #222; background: #111;
+    }
+    .url-cell {
+      max-width: 180px; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; color: #777; font-size: 0.78rem; font-family: monospace;
+    }
 
-    /* ── Badges ── */
-    .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.3px; }
-    .badge-all      { background: #0f200f; color: #66dd66; border: 1px solid #225522; }
-    .badge-opening  { background: #1a0035; color: #bb77ff; border: 1px solid #5500aa; }
-    .badge-tutorial { background: #001e33; color: #55bbff; border: 1px solid #005588; }
-    .badge-level1   { background: #2a1200; color: #ffaa44; border: 1px solid #884400; }
+    /* ── Type badges ── */
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; }
+    .badge-all      { background: #0a1a0a; color: #55cc55; border: 1px solid #1a4a1a; }
+    .badge-opening  { background: #150028; color: #bb77ff; border: 1px solid #4400aa; }
+    .badge-tutorial { background: #001828; color: #44aaff; border: 1px solid #004488; }
+    .badge-level1   { background: #221000; color: #ff9933; border: 1px solid #773300; }
 
-    .expired-tag { font-size: 0.72rem; color: #ff4444; margin-left: 5px; }
-    .no-expiry   { color: #3a3a3a; }
+    .expired-tag { font-size: 0.7rem; color: #cc3333; margin-left: 5px; }
+    .no-expiry   { color: #2e2e2e; font-size: 0.8rem; }
 
-    /* ── Toggle ── */
-    .toggle { position: relative; display: inline-block; width: 42px; height: 22px; }
+    /* ── Toggle switch ── */
+    .toggle { position: relative; display: inline-block; width: 40px; height: 21px; }
     .toggle input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; inset: 0; background: #2a2a2a; border-radius: 22px; cursor: pointer; transition: background 0.2s; }
-    .slider::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #666; border-radius: 50%; transition: transform 0.2s, background 0.2s; }
-    .toggle input:checked + .slider { background: #1a4a25; }
-    .toggle input:checked + .slider::before { transform: translateX(20px); background: #44dd77; }
+    .slider { position: absolute; inset: 0; background: #252525; border-radius: 21px; cursor: pointer; transition: background 0.2s; }
+    .slider::before {
+      content: ''; position: absolute; width: 15px; height: 15px;
+      left: 3px; top: 3px; background: #555; border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle input:checked + .slider { background: #143a22; }
+    .toggle input:checked + .slider::before { transform: translateX(19px); background: #33cc66; }
 
     /* ── Row actions ── */
-    .row-actions { display: flex; gap: 7px; }
-    .btn-edit   { background: #0e2244; color: #6699ff; padding: 5px 13px; border: 1px solid #1a3a77; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: background 0.15s; }
-    .btn-delete { background: #2a0a0a; color: #ff6666; padding: 5px 13px; border: 1px solid #551111; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: background 0.15s; }
-    .btn-edit:hover   { background: #1a3a77; }
-    .btn-delete:hover { background: #551111; }
+    .row-actions { display: flex; gap: 6px; }
+    .btn-edit   { background: #0a1e3a; color: #5588ff; padding: 5px 12px; border: 1px solid #153366; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600; transition: background 0.15s; }
+    .btn-delete { background: #220808; color: #ff5555; padding: 5px 12px; border: 1px solid #440f0f; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600; transition: background 0.15s; }
+    .btn-edit:hover   { background: #153366; }
+    .btn-delete:hover { background: #440f0f; }
 
     /* ── Status toast ── */
     #status-bar {
       position: fixed; bottom: 24px; right: 24px;
-      background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
-      padding: 10px 20px; font-size: 0.87rem; color: #aaa;
+      background: #141414; border: 1px solid #2a2a2a; border-radius: 8px;
+      padding: 10px 20px; font-size: 0.85rem; color: #888;
       opacity: 0; transition: opacity 0.3s, transform 0.3s;
-      transform: translateY(8px);
-      pointer-events: none; z-index: 100;
+      transform: translateY(8px); pointer-events: none; z-index: 200;
     }
     #status-bar.show { opacity: 1; transform: translateY(0); }
-    #status-bar.ok  { color: #66dd77; border-color: #225533; }
-    #status-bar.err { color: #ff6666; border-color: #551111; }
+    #status-bar.ok  { color: #55dd66; border-color: #1a4428; }
+    #status-bar.err { color: #ff5555; border-color: #441111; }
 
-    .empty-row td { text-align: center; color: #333; padding: 40px; }
+    .empty-row td { text-align: center; color: #2e2e2e; padding: 44px; font-size: 0.88rem; }
+
+    /* ════════════════════════════════════════════
+       MOBILE RESPONSIVE  ≤ 768px
+    ════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+
+      /* ── 로그인 카드 ── */
+      #login-screen { padding: 0 16px; align-items: flex-start; padding-top: 60px; }
+      .login-card {
+        width: 100%;
+        padding: 28px 20px;
+        border-radius: 12px;
+      }
+      .login-card h2 { font-size: 1.1rem; }
+      .login-field input { font-size: 16px; min-height: 48px; } /* iOS 줌 방지 */
+      .btn-login { min-height: 52px; font-size: 1.05rem; }
+
+      /* ── 대시보드 여백 ── */
+      #dashboard { padding: 16px 12px 100px; }
+
+      /* ── 헤더 ── */
+      h1 {
+        font-size: 1rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .header-right {
+        margin-left: 0;
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      #logged-email { width: 100%; font-size: 0.75rem; order: -1; }
+      .btn-logout, h1 a {
+        min-height: 44px;
+        padding: 10px 16px;
+        font-size: 0.88rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* ── 폼 ── */
+      .form-card { padding: 16px 14px; margin-bottom: 20px; }
+      .form-card h2 { font-size: 0.9rem; margin-bottom: 14px; }
+      .form-grid { grid-template-columns: 1fr; gap: 10px; }
+      .full { grid-column: 1; }
+      .form-group input,
+      .form-group select {
+        font-size: 16px; /* iOS 자동 줌 방지 */
+        min-height: 48px;
+        width: 100%;
+      }
+      .form-actions { flex-wrap: wrap; gap: 8px; }
+      .btn {
+        min-height: 48px;
+        flex: 1 1 120px;
+        justify-content: center;
+      }
+      .btn-seed {
+        margin-left: 0;
+        flex: 1 0 100%;
+        min-height: 44px;
+        font-size: 0.85rem;
+      }
+
+      /* ── 섹션 헤더 ── */
+      .section-header { margin-bottom: 10px; }
+      .section-header h2 { font-size: 0.85rem; }
+      #ad-count { font-size: 0.78rem; }
+
+      /* ══════════════════════════════
+         테이블 → 카드 뷰
+      ══════════════════════════════ */
+      .table-wrap {
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        overflow-x: visible;
+      }
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
+
+      /* 각 row → 카드 */
+      tbody tr {
+        background: #141414;
+        border: 1px solid #1e1e1e;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        padding: 14px 14px 10px;
+        position: relative;
+      }
+      tbody tr:last-child { margin-bottom: 0; }
+      tbody tr:hover td { background: transparent; }
+
+      /* 셀 → 라벨+값 한 줄 */
+      tbody td {
+        border: none;
+        padding: 4px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.84rem;
+      }
+      tbody td::before {
+        content: attr(data-label);
+        font-size: 0.67rem;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        min-width: 52px;
+        flex-shrink: 0;
+      }
+      /* 썸네일 셀: 라벨 숨기고 카드 우상단 배치 */
+      tbody td[data-label="thumb"] {
+        position: absolute;
+        top: 14px; right: 14px;
+        width: auto;
+      }
+      tbody td[data-label="thumb"]::before { display: none; }
+
+      .url-cell {
+        max-width: calc(100vw - 180px);
+      }
+
+      /* 빈 목록 카드 */
+      .empty-row td {
+        display: block;
+        padding: 32px 0;
+        text-align: center;
+      }
+      .empty-row td::before { display: none; }
+
+      /* ── 액션 버튼 (터치 타깃) ── */
+      tbody td[data-label="작업"] { margin-top: 6px; padding-top: 10px; border-top: 1px solid #1e1e1e; }
+      tbody td[data-label="작업"]::before { display: none; }
+      .row-actions { gap: 8px; flex-wrap: wrap; width: 100%; }
+      .btn-edit, .btn-delete {
+        min-height: 44px;
+        padding: 10px 0;
+        font-size: 0.9rem;
+        flex: 1;
+        text-align: center;
+        justify-content: center;
+      }
+
+      /* ── 토글 — 터치 크기 확대 ── */
+      .toggle { width: 50px; height: 28px; }
+      .slider::before { width: 22px; height: 22px; }
+      .toggle input:checked + .slider::before { transform: translateX(22px); }
+
+      /* ── Status toast — 하단 중앙 ── */
+      #status-bar {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+        text-align: center;
+        font-size: 0.88rem;
+      }
+    }
   </style>
 </head>
 <body>
 
-<h1>
-  🛠 광고 관리자 대시보드
-  <a href="index.html">← 게임으로</a>
-</h1>
-
-<!-- ════ 광고 추가/수정 폼 ════ -->
-<div class="form-card">
-  <h2 id="form-title">광고 추가</h2>
-  <div class="form-grid">
-    <div class="form-group full">
-      <label>이미지 URL</label>
-      <input id="f-img" type="url" placeholder="https://example.com/banner.jpg" />
+<!-- ════════════════════ 로그인 화면 ════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <h2>🔐 관리자 로그인</h2>
+    <p>dont-click-ads 광고 관리자 전용 페이지</p>
+    <div class="login-field">
+      <label>이메일</label>
+      <input id="login-email" type="email" placeholder="admin@example.com" autocomplete="email" />
     </div>
-    <div class="form-group full">
-      <label>랜딩 URL (클릭 시 이동할 링크)</label>
-      <input id="f-url" type="url" placeholder="https://example.com/channel" />
+    <div class="login-field">
+      <label>비밀번호</label>
+      <input id="login-pw" type="password" placeholder="••••••••" autocomplete="current-password" />
     </div>
-    <div class="form-group">
-      <label>만료 날짜 (이후 자동 비노출)</label>
-      <input id="f-expires" type="date" />
-    </div>
-    <div class="form-group">
-      <label>노출 타입</label>
-      <select id="f-type">
-        <option value="all">전체 (all) — 모든 위치에 노출</option>
-        <option value="opening">오프닝 전용 (opening)</option>
-        <option value="tutorial">튜토리얼 전용 (tutorial)</option>
-        <option value="level1">레벨1 전용 (level1)</option>
-      </select>
-    </div>
-  </div>
-  <div class="form-actions">
-    <button class="btn btn-add"  id="form-submit-btn" onclick="submitForm()">광고 추가</button>
-    <button class="btn btn-cancel" id="form-cancel-btn" style="display:none" onclick="cancelEdit()">취소</button>
-    <button class="btn btn-seed" onclick="seedDefaults()">기본 광고 시드 추가</button>
+    <p id="login-error"></p>
+    <button class="btn-login" id="login-btn" onclick="doLogin()">로그인</button>
   </div>
 </div>
 
-<!-- ════ 광고 목록 ════ -->
-<div class="section-header">
-  <h2>광고 목록</h2>
-  <span id="ad-count">불러오는 중…</span>
-</div>
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>미리보기</th>
-        <th>이미지 URL</th>
-        <th>랜딩 URL</th>
-        <th>타입</th>
-        <th>만료일</th>
-        <th>활성화</th>
-        <th>작업</th>
-      </tr>
-    </thead>
-    <tbody id="ads-tbody">
-      <tr class="empty-row"><td colspan="7">Firebase 연결 중…</td></tr>
-    </tbody>
-  </table>
-</div>
+<!-- ════════════════════ 대시보드 ════════════════════ -->
+<div id="dashboard">
+
+  <h1>
+    🛠 광고 관리자 대시보드
+    <div class="header-right">
+      <span id="logged-email"></span>
+      <button class="btn-logout" onclick="doLogout()">로그아웃</button>
+      <a href="index.html">← 게임으로</a>
+    </div>
+  </h1>
+
+  <!-- ── 광고 추가/수정 폼 ── -->
+  <div class="form-card">
+    <h2 id="form-title">광고 추가</h2>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>이미지 URL <span style="color:#cc3333">*</span></label>
+        <input id="f-img" type="url" placeholder="https://example.com/banner.jpg" />
+      </div>
+      <div class="form-group full">
+        <label>랜딩 URL (클릭 시 이동) <span style="color:#cc3333">*</span></label>
+        <input id="f-url" type="url" placeholder="https://example.com/channel" />
+      </div>
+      <div class="form-group">
+        <label>만료 날짜 (이후 자동 비노출)</label>
+        <input id="f-expires" type="date" />
+      </div>
+      <div class="form-group">
+        <label>노출 타입 <span style="color:#cc3333">*</span></label>
+        <select id="f-type">
+          <option value="all">전체 (all) — 모든 위치</option>
+          <option value="opening">오프닝 전용 (opening)</option>
+          <option value="tutorial">튜토리얼 전용 (tutorial)</option>
+          <option value="level1">레벨1 전용 (level1)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-add"    id="form-submit-btn" onclick="submitForm()">광고 추가</button>
+      <button class="btn btn-cancel" id="form-cancel-btn" style="display:none" onclick="cancelEdit()">취소</button>
+      <button class="btn btn-seed"   onclick="seedDefaults()">기본 광고 시드 추가</button>
+    </div>
+  </div>
+
+  <!-- ── 광고 목록 ── -->
+  <div class="section-header">
+    <h2>광고 목록</h2>
+    <span id="ad-count">불러오는 중…</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>미리보기</th>
+          <th>이미지 URL</th>
+          <th>랜딩 URL</th>
+          <th>타입</th>
+          <th>만료일</th>
+          <th>활성화</th>
+          <th>작업</th>
+        </tr>
+      </thead>
+      <tbody id="ads-tbody">
+        <tr class="empty-row"><td colspan="7">로그인 후 광고 목록이 표시됩니다.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- /#dashboard -->
 
 <div id="status-bar"></div>
 
-<!-- ════ Firebase ════ -->
+<!-- ════════════════════ Firebase ════════════════════ -->
 <script type="module">
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-  import { getDatabase, ref, push, set, update, remove, onValue }
+  import { initializeApp }
+    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+  import { getDatabase, ref, push, update, remove, onValue }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
   const firebaseConfig = {
@@ -175,26 +435,55 @@
     databaseURL:       'https://dont-click-ads-default-rtdb.firebaseio.com/'
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db  = getDatabase(app);
+  const ADMIN_EMAIL = 'skftodwocks2@gmail.com';
 
-  window._fbOps = {
-    push:   (path, data)       => push(ref(db, path), data),
-    update: (path, data)       => update(ref(db, path), data),
-    remove: (path)             => remove(ref(db, path)),
-    onAds:  (cb)               => onValue(ref(db, 'ads'), cb),
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getDatabase(app);
+
+  let adsUnsubscribe = null;
+
+  /* ── Auth 상태 감지 ── */
+  onAuthStateChanged(auth, user => {
+    if (user && user.email === ADMIN_EMAIL) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('dashboard').style.display    = '';
+      document.getElementById('logged-email').textContent   = user.email;
+
+      /* 광고 데이터 실시간 구독 */
+      if (!adsUnsubscribe) {
+        adsUnsubscribe = onValue(ref(db, 'ads'), snapshot => {
+          window._adsLocalCache = snapshot.val() || {};
+          window._renderAds(window._adsLocalCache);
+        });
+      }
+    } else {
+      document.getElementById('login-screen').style.display = '';
+      document.getElementById('dashboard').style.display    = 'none';
+      if (adsUnsubscribe) { adsUnsubscribe(); adsUnsubscribe = null; }
+      if (user) {
+        /* 관리자 이메일이 아닌 계정으로 로그인 시도 */
+        signOut(auth);
+        window._showLoginError('해당 계정에는 관리자 권한이 없습니다.');
+      }
+    }
+  });
+
+  /* ── Firebase 작업을 전역에 노출 ── */
+  window._fbAuth = {
+    signIn:  (email, pw) => signInWithEmailAndPassword(auth, email, pw),
+    signOut: ()          => signOut(auth),
   };
 
-  window._fbOps.onAds(snapshot => {
-    window._adsLocalCache = snapshot.val() || {};
-    window._renderAds(window._adsLocalCache);
-  });
+  window._fbOps = {
+    push:   (path, data) => push(ref(db, path), data),
+    update: (path, data) => update(ref(db, path), data),
+    remove: (path)       => remove(ref(db, path)),
+  };
 </script>
 
-<!-- ════ Admin Logic ════ -->
+<!-- ════════════════════ Admin Logic ════════════════════ -->
 <script>
-let editingId = null;
-
 const DEFAULT_ADS = [
   {
     imgUrl:     'https://stimg.sooplive.com/LOGO/be/bear0424/bear0424.jpg',
@@ -212,6 +501,61 @@ const DEFAULT_ADS = [
   }
 ];
 
+let editingId = null;
+
+/* ── 로그인 ── */
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pw    = document.getElementById('login-pw').value;
+  const btn   = document.getElementById('login-btn');
+
+  if (!email || !pw) { window._showLoginError('이메일과 비밀번호를 입력해주세요.'); return; }
+
+  btn.disabled    = true;
+  btn.textContent = '로그인 중…';
+
+  window._fbAuth.signIn(email, pw)
+    .catch(e => {
+      btn.disabled    = false;
+      btn.textContent = '로그인';
+      const msg = {
+        'auth/invalid-credential':    '이메일 또는 비밀번호가 올바르지 않습니다.',
+        'auth/user-not-found':        '등록되지 않은 계정입니다.',
+        'auth/wrong-password':        '비밀번호가 올바르지 않습니다.',
+        'auth/too-many-requests':     '로그인 시도가 너무 많습니다. 잠시 후 재시도해주세요.',
+        'auth/invalid-email':         '올바른 이메일 형식이 아닙니다.',
+      }[e.code] || '로그인 오류: ' + e.message;
+      window._showLoginError(msg);
+    });
+}
+window.doLogin = doLogin;
+
+/* Enter 키로 로그인 */
+['login-email', 'login-pw'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+});
+
+/* ── 로그아웃 ── */
+function doLogout() {
+  window._fbAuth.signOut();
+  document.getElementById('ads-tbody').innerHTML =
+    `<tr class="empty-row"><td colspan="7">로그인 후 광고 목록이 표시됩니다.</td></tr>`;
+  document.getElementById('login-btn').disabled    = false;
+  document.getElementById('login-btn').textContent = '로그인';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pw').value    = '';
+  document.getElementById('login-error').textContent = '';
+  cancelEdit();
+}
+window.doLogout = doLogout;
+
+window._showLoginError = function(msg) {
+  document.getElementById('login-error').textContent = msg;
+};
+
+/* ── 광고 테이블 렌더링 ── */
 function typeBadge(type) {
   const map = {
     all:      ['badge-all',      '전체'],
@@ -224,8 +568,7 @@ function typeBadge(type) {
 }
 
 function isExpired(expiresAt) {
-  if (!expiresAt) return false;
-  return new Date(expiresAt).getTime() < Date.now();
+  return expiresAt && new Date(expiresAt).getTime() < Date.now();
 }
 
 window._renderAds = function (data) {
@@ -241,22 +584,21 @@ window._renderAds = function (data) {
   tbody.innerHTML = entries.map(([id, ad]) => {
     const expired    = isExpired(ad.expiresAt);
     const expiryCell = ad.expiresAt
-      ? `${ad.expiresAt}${expired ? ' <span class="expired-tag">만료됨</span>' : ''}`
-      : `<span class="no-expiry">없음</span>`;
-
+      ? `${esc(ad.expiresAt)}${expired ? ' <span class="expired-tag">만료됨</span>' : ''}`
+      : `<span class="no-expiry">—</span>`;
     return `<tr>
-      <td><img class="ad-thumb" src="${escHtml(ad.imgUrl || '')}" onerror="this.style.opacity=0.15" /></td>
-      <td class="url-cell" title="${escHtml(ad.imgUrl || '')}">${escHtml(ad.imgUrl || '—')}</td>
-      <td class="url-cell" title="${escHtml(ad.landingUrl || '')}">${escHtml(ad.landingUrl || '—')}</td>
-      <td>${typeBadge(ad.type)}</td>
-      <td>${expiryCell}</td>
-      <td>
+      <td data-label="thumb"><img class="ad-thumb" src="${esc(ad.imgUrl||'')}" onerror="this.style.opacity=0.1" /></td>
+      <td data-label="이미지" class="url-cell" title="${esc(ad.imgUrl||'')}">${esc(ad.imgUrl||'—')}</td>
+      <td data-label="랜딩" class="url-cell" title="${esc(ad.landingUrl||'')}">${esc(ad.landingUrl||'—')}</td>
+      <td data-label="타입">${typeBadge(ad.type)}</td>
+      <td data-label="만료일" style="font-size:0.82rem">${expiryCell}</td>
+      <td data-label="활성화">
         <label class="toggle">
           <input type="checkbox" ${ad.active ? 'checked' : ''} onchange="toggleActive('${id}', this.checked)">
           <span class="slider"></span>
         </label>
       </td>
-      <td>
+      <td data-label="작업">
         <div class="row-actions">
           <button class="btn-edit"   onclick="startEdit('${id}')">수정</button>
           <button class="btn-delete" onclick="deleteAd('${id}')">삭제</button>
@@ -266,10 +608,13 @@ window._renderAds = function (data) {
   }).join('');
 };
 
-function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function esc(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+/* ── 광고 추가/수정 ── */
 function submitForm() {
   const imgUrl     = document.getElementById('f-img').value.trim();
   const landingUrl = document.getElementById('f-url').value.trim();
@@ -277,8 +622,7 @@ function submitForm() {
   const type       = document.getElementById('f-type').value;
 
   if (!imgUrl || !landingUrl) {
-    showStatus('이미지 URL과 랜딩 URL은 필수입니다.', 'err');
-    return;
+    showStatus('이미지 URL과 랜딩 URL은 필수입니다.', 'err'); return;
   }
 
   const data = { imgUrl, landingUrl, expiresAt, type, active: true, updatedAt: Date.now() };
@@ -286,19 +630,19 @@ function submitForm() {
   if (editingId) {
     window._fbOps.update('ads/' + editingId, data)
       .then(() => { showStatus('광고가 수정되었습니다.', 'ok'); cancelEdit(); })
-      .catch(e => showStatus('오류: ' + e.message, 'err'));
+      .catch(e => showStatus('쓰기 오류: ' + e.message, 'err'));
   } else {
     data.createdAt = Date.now();
     window._fbOps.push('ads', data)
       .then(() => { showStatus('광고가 추가되었습니다.', 'ok'); clearForm(); })
-      .catch(e => showStatus('오류: ' + e.message, 'err'));
+      .catch(e => showStatus('쓰기 오류: ' + e.message, 'err'));
   }
 }
 window.submitForm = submitForm;
 
 function startEdit(id) {
   const ad = (window._adsLocalCache || {})[id];
-  if (!ad) { showStatus('광고 데이터를 불러올 수 없습니다.', 'err'); return; }
+  if (!ad) { showStatus('광고 데이터를 찾을 수 없습니다.', 'err'); return; }
   editingId = id;
   document.getElementById('f-img').value     = ad.imgUrl     || '';
   document.getElementById('f-url').value     = ad.landingUrl || '';
@@ -323,7 +667,7 @@ function cancelEdit() {
 window.cancelEdit = cancelEdit;
 
 function clearForm() {
-  ['f-img', 'f-url', 'f-expires'].forEach(id => document.getElementById(id).value = '');
+  ['f-img','f-url','f-expires'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-type').value = 'all';
 }
 
@@ -331,13 +675,13 @@ function deleteAd(id) {
   if (!confirm('이 광고를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
   window._fbOps.remove('ads/' + id)
     .then(() => showStatus('광고가 삭제되었습니다.', 'ok'))
-    .catch(e => showStatus('오류: ' + e.message, 'err'));
+    .catch(e => showStatus('삭제 오류: ' + e.message, 'err'));
 }
 window.deleteAd = deleteAd;
 
 function toggleActive(id, active) {
   window._fbOps.update('ads/' + id, { active, updatedAt: Date.now() })
-    .then(() => showStatus(active ? '✓ 활성화되었습니다.' : '✗ 비활성화되었습니다.', 'ok'))
+    .then(() => showStatus(active ? '✓ 활성화' : '✗ 비활성화', 'ok'))
     .catch(e => showStatus('오류: ' + e.message, 'err'));
 }
 window.toggleActive = toggleActive;
@@ -350,13 +694,14 @@ function seedDefaults() {
 }
 window.seedDefaults = seedDefaults;
 
-let _statusTimer = null;
+/* ── Status toast ── */
+let _stTimer = null;
 function showStatus(msg, type) {
   const bar = document.getElementById('status-bar');
   bar.textContent = msg;
   bar.className   = `show ${type}`;
-  if (_statusTimer) clearTimeout(_statusTimer);
-  _statusTimer = setTimeout(() => { bar.classList.remove('show'); }, 3200);
+  if (_stTimer) clearTimeout(_stTimer);
+  _stTimer = setTimeout(() => bar.classList.remove('show'), 3200);
 }
 </script>
 
