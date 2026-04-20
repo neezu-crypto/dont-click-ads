@@ -1,42 +1,16 @@
 {
   "rules": {
 
-    /* ── 광고 데이터 ──────────────────────────────────────────────
-       읽기: 누구나 허용 (게임 유저들이 광고를 불러올 수 있어야 함)
-       쓰기: Firebase Auth 로그인 + 관리자 이메일 일치 시에만 허용
-       검증: imgUrl, landingUrl, type, active 필수 항목 + 형식 검사
-    ──────────────────────────────────────────────────────────── */
     "ads": {
-      ".read": true,
-
-      "$adId": {
-        ".write": "auth != null && auth.token.email == 'skftodwocks2@gmail.com'",
-
-        ".validate": "
-          newData.hasChildren(['imgUrl', 'landingUrl', 'type', 'active'])
-          && newData.child('imgUrl').isString()
-          && newData.child('imgUrl').val().length > 5
-          && newData.child('landingUrl').isString()
-          && newData.child('landingUrl').val().length > 5
-          && newData.child('type').isString()
-          && newData.child('type').val().matches(/^(all|opening|tutorial|level1)$/)
-          && newData.child('active').isBoolean()
-        ",
-
-        "$other": { ".validate": false }
-      }
+      ".read":  true,
+      ".write": false
     },
 
-    /* ── 플레이어 기록 ────────────────────────────────────────────
-       게임 유저가 비인증 상태로 점수/클릭 기록을 저장해야 하므로
-       읽기/쓰기 모두 공개 유지
-    ──────────────────────────────────────────────────────────── */
     "players": {
       ".read":  true,
       ".write": true
     },
 
-    /* ── 그 외 모든 경로: 차단 ──────────────────────────────── */
     "$other": {
       ".read":  false,
       ".write": false

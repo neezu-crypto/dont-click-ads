@@ -445,8 +445,10 @@
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-  import { getDatabase, ref, push, update, remove, onValue }
+  import { getDatabase, ref, onValue }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+  import { getFunctions, httpsCallable }
+    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
 
   const firebaseConfig = {
     apiKey:            'AIzaSyBksTHiQp0lhMoszgi2HEyLR0EZICDoM5I',
@@ -518,10 +520,14 @@
     signOut: () => signOut(auth),
   };
 
+  /* ── Cloud Functions 호출 (서버 측 권한 검증) ── */
+  const fns = getFunctions(app);
+  const _call = (name) => httpsCallable(fns, name);
+
   window._fbOps = {
-    push:   (path, data) => push(ref(db, path), data),
-    update: (path, data) => update(ref(db, path), data),
-    remove: (path)       => remove(ref(db, path)),
+    addAd:    (data)         => _call('addAd')(data),
+    updateAd: (id, data)     => _call('updateAd')({ id, ...data }),
+    deleteAd: (id)           => _call('deleteAd')({ id }),
   };
 </script>
 
@@ -658,17 +664,17 @@ function submitForm() {
     showStatus('이미지 URL과 랜딩 URL은 필수입니다.', 'err'); return;
   }
 
-  const data = { imgUrl, landingUrl, expiresAt, type, active: true, updatedAt: Date.now() };
+  /* 타임스탬프(createdAt/updatedAt)는 서버(Functions)에서 처리 */
+  const data = { imgUrl, landingUrl, expiresAt, type, active: true };
 
   if (editingId) {
-    window._fbOps.update('ads/' + editingId, data)
+    window._fbOps.updateAd(editingId, data)
       .then(() => { showStatus('광고가 수정되었습니다.', 'ok'); cancelEdit(); })
-      .catch(e => showStatus('쓰기 오류: ' + e.message, 'err'));
+      .catch(e => showStatus('오류: ' + (e.message || e.details), 'err'));
   } else {
-    data.createdAt = Date.now();
-    window._fbOps.push('ads', data)
+    window._fbOps.addAd(data)
       .then(() => { showStatus('광고가 추가되었습니다.', 'ok'); clearForm(); })
-      .catch(e => showStatus('쓰기 오류: ' + e.message, 'err'));
+      .catch(e => showStatus('오류: ' + (e.message || e.details), 'err'));
   }
 }
 window.submitForm = submitForm;
@@ -706,24 +712,24 @@ function clearForm() {
 
 function deleteAd(id) {
   if (!confirm('이 광고를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
-  window._fbOps.remove('ads/' + id)
+  window._fbOps.deleteAd(id)
     .then(() => showStatus('광고가 삭제되었습니다.', 'ok'))
-    .catch(e => showStatus('삭제 오류: ' + e.message, 'err'));
+    .catch(e => showStatus('오류: ' + (e.message || e.details), 'err'));
 }
 window.deleteAd = deleteAd;
 
 function toggleActive(id, active) {
-  window._fbOps.update('ads/' + id, { active, updatedAt: Date.now() })
+  window._fbOps.updateAd(id, { active })
     .then(() => showStatus(active ? '✓ 활성화' : '✗ 비활성화', 'ok'))
-    .catch(e => showStatus('오류: ' + e.message, 'err'));
+    .catch(e => showStatus('오류: ' + (e.message || e.details), 'err'));
 }
 window.toggleActive = toggleActive;
 
 function seedDefaults() {
   if (!confirm('기본 광고 2개(bear0424, skftodwocks2)를 추가하시겠습니까?')) return;
-  Promise.all(DEFAULT_ADS.map(ad => window._fbOps.push('ads', { ...ad, createdAt: Date.now() })))
+  Promise.all(DEFAULT_ADS.map(ad => window._fbOps.addAd(ad)))
     .then(() => showStatus('기본 광고 2개가 추가되었습니다.', 'ok'))
-    .catch(e => showStatus('오류: ' + e.message, 'err'));
+    .catch(e => showStatus('오류: ' + (e.message || e.details), 'err'));
 }
 window.seedDefaults = seedDefaults;
 
