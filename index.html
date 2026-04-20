@@ -742,10 +742,17 @@ function showAdPopup() {
   close.style.position = '';
   close.style.left     = '';
 
-  /* 초록 버튼이 50% 이상 가려지지 않는 위치 선택 (최대 20회 시도) */
+  /* 팝업 위치: game-area 범위 내, 초록 버튼 50% 이상 가림 방지 */
+  const gameArea   = document.getElementById('game-area').getBoundingClientRect();
   const targetBCR  = document.getElementById('target').getBoundingClientRect();
   const halfTarget = (targetBCR.width * targetBCR.height) / 2;
   const PW = 340, PH = 265;
+
+  /* game-area 내에서 팝업이 들어갈 수 있는 범위 (테두리 겹침 허용) */
+  const minL = gameArea.left;
+  const maxL = gameArea.right  - PW;
+  const minT = gameArea.top;
+  const maxT = gameArea.bottom - PH;
 
   function overlapArea(l, t) {
     const xo = Math.max(0, Math.min(l + PW, targetBCR.right)  - Math.max(l, targetBCR.left));
@@ -753,10 +760,10 @@ function showAdPopup() {
     return xo * yo;
   }
 
-  let bestL = 0, bestT = 0, bestOv = Infinity;
+  let bestL = minL, bestT = minT, bestOv = Infinity;
   for (let i = 0; i < 20; i++) {
-    const l = window.innerWidth  * 0.1 + Math.random() * (window.innerWidth  * 0.8 - PW);
-    const t = window.innerHeight * 0.1 + Math.random() * (window.innerHeight * 0.8 - PH);
+    const l = minL + Math.random() * Math.max(0, maxL - minL);
+    const t = minT + Math.random() * Math.max(0, maxT - minT);
     const ov = overlapArea(l, t);
     if (ov < bestOv) { bestOv = ov; bestL = l; bestT = t; }
     if (ov < halfTarget) break;
