@@ -1230,11 +1230,11 @@ const gameStages = [
     }
   })),
 
-  // ── 레벨 2: 공 드래그 (광고 시스템 없음, 60초) ──
+  // ── 공 드래그 미로 (광고 시스템 없음, 타이머는 Level2Module이 난이도별 관리) ──
   {
     id: 'ball-drag',
-    label: '공 드래그 — 60초 안에 목표까지!',
-    timerDuration: 60,
+    label: '공 드래그 미로 — 출구를 찾아라!',
+    timerDuration: 70, // 최대값; Level2Module._tier()가 실제 시간을 덮어씀
     usesAdSystem: false,
     init(area, { onScore, onSuccess, onFail }) {
       const cleanupFn = Level2Module.start(

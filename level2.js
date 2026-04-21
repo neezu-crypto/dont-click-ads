@@ -1,281 +1,246 @@
-// Level 2: Ball Drag Maze
+// Level 2: DFS Maze — Ball Drag
 const Level2Module = (() => {
   'use strict';
 
-  const LOGICAL_W = 640;
-  const LOGICAL_H = 420;
+  // ── 캔버스 고정 해상도 (논리 px) ──
+  const CANVAS_W     = 860;
+  const CANVAS_H     = 500;
+  const MAZE_PAD     = 30;
+  const MAZE_INNER_W = CANVAS_W - MAZE_PAD * 2; // 800
+  const MAZE_INNER_H = CANVAS_H - MAZE_PAD * 2; // 440
+  const WALL_T       = 3;   // 벽 두께 (셀 경계 양쪽에 각 WALL_T px)
+  const BALL_R       = 12;  // 공 반지름 (고정)
 
-  // ── 미로 그리드 설정 ──
-  // 8열 × 5행 그리드에서 경로를 생성합니다.
-  // 열 간격 ≈ 80px, 행 간격 ≈ 83px
-  const GRID_COLS  = 8;
-  const GRID_ROWS  = 5;
-  const GRID_PAD_X = 38;
-  const GRID_PAD_Y = 44;
+  // 레벨별 난이도: 셀 크기가 작을수록 더 많은 셀 → 복잡한 미로
+  const TIERS = [
+    { minLv: 1,  maxLv: 3,  cell: 40, timer: 70 },
+    { minLv: 4,  maxLv: 6,  cell: 36, timer: 60 },
+    { minLv: 7,  maxLv: 10, cell: 32, timer: 55 },
+  ];
 
-  const CORRIDOR_HALF = 26;  // 통로 절반 폭 (px, 논리 좌표)
-  const BALL_R        = 14;  // 공 반지름
-  const CENTER_LIMIT  = CORRIDOR_HALF - BALL_R; // = 12 — 공 중심이 경로 중심선에서 벗어날 수 있는 최대 거리
-  const FINISH_SNAP_R = 26;  // 도착 포털 인식 반경
-  const TIMER_DURATION = 60;
-  const SUCCESS_SCORE  = 500;
+  function _tier() {
+    const lv = (typeof currentLevel !== 'undefined') ? currentLevel : 2;
+    return TIERS.find(t => lv >= t.minLv && lv <= t.maxLv) || TIERS[0];
+  }
 
-  // ─── 모듈 상태 ───
-  let _area         = null;
-  let _canvas       = null;
-  let _ballEl       = null;
-  let _onSuccess    = null;
-  let _onFail       = null;
+  // 색상
+  const COL_BG    = '#07090f';
+  const COL_FLOOR = '#0d1428';
+  const COL_EDGE  = '#15203a';
+
+  // ── 모듈 상태 ──
+  let _area, _canvas, _ballEl;
+  let _onSuccess, _onFail;
   let _timerInterval = null;
-  let _timeLeft     = TIMER_DURATION;
-  let _dragging     = false;
-  let _grabOffset   = { x: 0, y: 0 };
-  let _ballPos      = { x: 0, y: 0 };
-  let _pathPoints   = [];     // 게임 시작 시 생성
-  let _currentSegIdx = 0;    // 현재 공이 위치한 세그먼트 인덱스 (지름길 방지용)
-  let _ended        = false;
+  let _timeLeft = 60;
+  let _keysDown = new Set(); // 현재 눌린 방향키
+  let _rafId    = null;      // requestAnimationFrame ID
+  let _ballPos  = { x: 0, y: 0 };
+  let _ended    = false;
 
-  // ─── 경로 생성 ───
+  // 게임마다 재생성
+  let _grid  = null;   // _grid[r][c] = { vis, N, S, E, W }
+  let _COLS  = 0, _ROWS = 0, _CELL = 40;
+  let _MAZE_W = 0, _MAZE_H = 0;
+  let _mask   = null;  // Uint8ClampedArray, 마스크 이미지 R채널
+  let _sCell  = { c: 0, r: 0 };   // 출발 셀 (좌하단)
+  let _fCell  = { c: 0, r: 0 };   // 도착 셀 (우상단)
 
-  function _gridXY(c, r) {
-    const xStep = (LOGICAL_W - GRID_PAD_X * 2) / (GRID_COLS - 1);
-    const yStep = (LOGICAL_H - GRID_PAD_Y * 2) / (GRID_ROWS - 1);
-    return [GRID_PAD_X + c * xStep, GRID_PAD_Y + r * yStep];
-  }
+  // ─── DFS 미로 생성 (반복 방식, 스택 안전) ───
 
-  // 그리드 기반 랜덤 워크로 미로 경로를 생성합니다.
-  // 조건: 최소 11개 웨이포인트, 최소 3개 행 방문
-  function _generatePath() {
-    const midRow = Math.floor(GRID_ROWS / 2);
+  function _genMaze(cols, rows) {
+    const g = [];
+    for (let r = 0; r < rows; r++) {
+      g.push([]);
+      for (let c = 0; c < cols; c++)
+        g[r].push({ vis: false, N: true, S: true, E: true, W: true });
+    }
 
-    for (let attempt = 0; attempt < 15; attempt++) {
-      const visited     = new Set([`0,${midRow}`]);
-      const visitedRows = new Set([midRow]);
-      const pts         = [_gridXY(0, midRow)];
-      let c = 0, r = midRow;
+    const stack = [[0, rows - 1]];
+    g[rows - 1][0].vis = true;
 
-      for (let step = 0; step < 80; step++) {
-        if (c === GRID_COLS - 1) break;
+    while (stack.length) {
+      const [c, r] = stack[stack.length - 1];
+      const nbrs = [
+        [c,   r-1, 'N', 'S'],
+        [c,   r+1, 'S', 'N'],
+        [c+1, r,   'E', 'W'],
+        [c-1, r,   'W', 'E'],
+      ].filter(([nc, nr]) =>
+        nc >= 0 && nc < cols && nr >= 0 && nr < rows && !g[nr][nc].vis
+      );
 
-        const moves = [
-          // 오른쪽: 우선순위 높음 (앞으로 진행)
-          c < GRID_COLS - 1                        && { dc:  1, dr:  0, w: 5 },
-          // 위아래: 중간 우선순위 (지그재그 생성)
-          r > 0                                     && { dc:  0, dr: -1, w: 2 },
-          r < GRID_ROWS - 1                         && { dc:  0, dr:  1, w: 2 },
-          // 왼쪽: 낮은 우선순위, 중간 열에서만 허용 (백트래킹)
-          c > 2 && c < GRID_COLS - 2                && { dc: -1, dr:  0, w: 1 },
-        ].filter(m => m && !visited.has(`${c + m.dc},${r + m.dr}`));
-
-        if (!moves.length) break;
-
-        const total = moves.reduce((s, m) => s + m.w, 0);
-        let roll = Math.random() * total;
-        let chosen = moves[moves.length - 1];
-        for (const m of moves) { roll -= m.w; if (roll <= 0) { chosen = m; break; } }
-
-        c += chosen.dc;
-        r += chosen.dr;
-        visited.add(`${c},${r}`);
-        visitedRows.add(r);
-        pts.push(_gridXY(c, r));
+      if (nbrs.length) {
+        const [nc, nr, w, ow] = nbrs[Math.floor(Math.random() * nbrs.length)];
+        g[r][c][w]    = false;
+        g[nr][nc][ow] = false;
+        g[nr][nc].vis = true;
+        stack.push([nc, nr]);
+      } else {
+        stack.pop();
       }
-
-      // 오른쪽 끝에 닿지 못했다면 강제로 연결
-      while (c < GRID_COLS - 1) { c++; pts.push(_gridXY(c, r)); }
-
-      // 조건 충족 시 채택
-      if (pts.length >= 11 && visitedRows.size >= 3) return pts;
     }
-
-    // 폴백: 검증된 고정 미로 경로
-    return [
-      _gridXY(0, 2), _gridXY(1, 2), _gridXY(1, 0), _gridXY(3, 0),
-      _gridXY(3, 4), _gridXY(5, 4), _gridXY(5, 1), _gridXY(6, 1),
-      _gridXY(6, 3), _gridXY(7, 3), _gridXY(7, 2),
-    ];
+    return g;
   }
 
-  // ─── 수학 헬퍼 ───
+  // ─── 픽셀 충돌 마스크 ───
+  // 오프스크린 캔버스에 흰색(통로)/검은색(벽) 이진 이미지를 그립니다.
+  // 좌표계: (0,0)~(_MAZE_W-1, _MAZE_H-1) — 캔버스 pos에서 MAZE_PAD를 빼서 변환.
 
-  function _closestOnSegment(px, py, ax, ay, bx, by) {
-    const dx = bx - ax, dy = by - ay;
-    const lenSq = dx * dx + dy * dy;
-    if (lenSq === 0) return { x: ax, y: ay };
-    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
-    return { x: ax + t * dx, y: ay + t * dy };
-  }
+  function _buildMask(g, cols, rows, cell, wt) {
+    const W = cols * cell, H = rows * cell;
+    const oc = document.createElement('canvas');
+    oc.width = W; oc.height = H;
+    const ctx = oc.getContext('2d');
 
-  // 공 중심을 현재 세그먼트 ±1 범위 안에서만 이동시킵니다.
-  // 인접하지 않은 세그먼트로의 도약(지름길)을 원천 차단합니다.
-  function _clampToPath(lx, ly) {
-    const last = _pathPoints.length - 2;
-    const lo   = Math.max(0, _currentSegIdx - 1);
-    const hi   = Math.min(last, _currentSegIdx + 1);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
 
-    let bestDist = Infinity, bestPt = null, bestSeg = _currentSegIdx;
-    for (let i = lo; i <= hi; i++) {
-      const [ax, ay] = _pathPoints[i];
-      const [bx, by] = _pathPoints[i + 1];
-      const pt = _closestOnSegment(lx, ly, ax, ay, bx, by);
-      const d  = Math.hypot(lx - pt.x, ly - pt.y);
-      if (d < bestDist) { bestDist = d; bestPt = pt; bestSeg = i; }
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cl = g[r][c];
+        const x0 = c * cell + wt,  y0 = r * cell + wt;
+        const iW = cell - wt * 2,  iH = cell - wt * 2;
+
+        ctx.fillRect(x0, y0, iW, iH);
+
+        if (!cl.E && c < cols - 1)
+          ctx.fillRect(c * cell + cell - wt, y0, wt * 2, iH);
+        if (!cl.S && r < rows - 1)
+          ctx.fillRect(x0, r * cell + cell - wt, iW, wt * 2);
+      }
     }
+    return ctx.getImageData(0, 0, W, H).data;
+  }
 
-    _currentSegIdx = bestSeg;
+  // 마스크 픽셀 조회 (흰색 = 통로)
+  function _mFree(mx, my) {
+    if (mx < 0 || my < 0 || mx >= _MAZE_W || my >= _MAZE_H) return false;
+    return _mask[(my * _MAZE_W + mx) * 4] > 128;
+  }
 
-    if (bestDist > CENTER_LIMIT) {
-      const angle = Math.atan2(ly - bestPt.y, lx - bestPt.x);
-      return {
-        x: bestPt.x + Math.cos(angle) * CENTER_LIMIT,
-        y: bestPt.y + Math.sin(angle) * CENTER_LIMIT,
-      };
+  // 공 반지름 8방향 + 중심 9점이 모두 통로인지 확인
+  function _ballFits(cx, cy) {
+    const mx = cx - MAZE_PAD, my = cy - MAZE_PAD;
+    const r  = BALL_R + 1;
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4;
+      if (!_mFree(Math.round(mx + Math.cos(a) * r), Math.round(my + Math.sin(a) * r)))
+        return false;
     }
-    return { x: lx, y: ly };
+    return _mFree(Math.round(mx), Math.round(my));
   }
 
-  // 공 시작 시 현재 세그먼트 인덱스 초기화
-  function _initCurrentSeg() {
-    let bestDist = Infinity;
-    _currentSegIdx = 0;
-    for (let i = 0; i < _pathPoints.length - 1; i++) {
-      const [ax, ay] = _pathPoints[i];
-      const [bx, by] = _pathPoints[i + 1];
-      const pt = _closestOnSegment(_ballPos.x, _ballPos.y, ax, ay, bx, by);
-      const d  = Math.hypot(_ballPos.x - pt.x, _ballPos.y - pt.y);
-      if (d < bestDist) { bestDist = d; _currentSegIdx = i; }
-    }
+  // 이동 시도 → 벽 슬라이딩 처리
+  function _tryMove(fx, fy, tx, ty) {
+    if (_ballFits(tx, ty)) return { x: tx, y: ty };
+    if (_ballFits(tx, fy)) return { x: tx, y: fy };
+    if (_ballFits(fx, ty)) return { x: fx, y: ty };
+    return { x: fx, y: fy };
   }
 
-  function _getScale() {
-    if (!_area) return { x: 1, y: 1 };
-    return { x: _area.offsetWidth / LOGICAL_W, y: _area.offsetHeight / LOGICAL_H };
-  }
+  // ─── 미로 렌더링 ───
 
-  function _toLogical(displayX, displayY) {
-    const s = _getScale();
-    return { x: displayX / s.x, y: displayY / s.y };
-  }
-
-  // ─── 렌더링 ───
-
-  function _drawPath() {
-    if (!_canvas || !_pathPoints.length) return;
+  function _renderMaze() {
+    if (!_canvas || !_grid) return;
     const ctx = _canvas.getContext('2d');
-    ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+    const cw  = _canvas.width, ch = _canvas.height;
+    const sx  = cw / CANVAS_W,  sy = ch / CANVAS_H;
 
-    const s  = _getScale();
-    const hw = CORRIDOR_HALF * Math.min(s.x, s.y);
-    const pts = _pathPoints.map(([x, y]) => [x * s.x, y * s.y]);
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.fillStyle = COL_BG;
+    ctx.fillRect(0, 0, cw, ch);
 
-    function polyline() {
-      ctx.beginPath();
-      ctx.moveTo(pts[0][0], pts[0][1]);
-      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    // 미로 영역으로 이동
+    ctx.save();
+    ctx.translate(MAZE_PAD * sx, MAZE_PAD * sy);
+
+    const cW = _CELL * sx, cH = _CELL * sy;
+    const wW = WALL_T * sx, wH = WALL_T * sy;
+
+    for (let r = 0; r < _ROWS; r++) {
+      for (let c = 0; c < _COLS; c++) {
+        const cl = _grid[r][c];
+        const px = c * cW, py = r * cH;
+        const iX = px + wW, iY = py + wH;
+        const iW = cW - wW * 2, iH = cH - wH * 2;
+
+        // 통로 바닥
+        ctx.fillStyle = COL_FLOOR;
+        ctx.fillRect(iX, iY, iW, iH);
+
+        // 열린 동쪽 통로
+        if (!cl.E && c < _COLS - 1)
+          ctx.fillRect(px + cW - wW, iY, wW * 2, iH);
+
+        // 열린 남쪽 통로
+        if (!cl.S && r < _ROWS - 1)
+          ctx.fillRect(iX, py + cH - wH, iW, wH * 2);
+
+        // 닫힌 벽 엣지 하이라이트 (상·좌)
+        ctx.strokeStyle = COL_EDGE;
+        ctx.lineWidth   = 0.5;
+        if (cl.N) { ctx.beginPath(); ctx.moveTo(iX, iY); ctx.lineTo(iX + iW, iY); ctx.stroke(); }
+        if (cl.W) { ctx.beginPath(); ctx.moveTo(iX, iY); ctx.lineTo(iX, iY + iH); ctx.stroke(); }
+      }
     }
 
-    ctx.lineCap  = 'round';
-    ctx.lineJoin = 'round';
+    // 출발·도착 포털
+    _drawPortal(ctx, _sCell.c, _sCell.r, cW, cH, wW, wH, '#00ffaa', 'S');
+    _drawPortal(ctx, _fCell.c, _fCell.r, cW, cH, wW, wH, '#ff4444', 'G');
 
-    // 외부 광선 (발광 효과)
-    ctx.save();
-    ctx.strokeStyle = '#1a3380';
-    ctx.lineWidth   = hw * 2 + 10;
-    ctx.globalAlpha = 0.22;
-    polyline(); ctx.stroke();
-    ctx.globalAlpha = 1;
     ctx.restore();
-
-    // 통로 바닥 (어두운 파란색)
-    ctx.save();
-    ctx.strokeStyle = '#111930';
-    ctx.lineWidth   = hw * 2;
-    polyline(); ctx.stroke();
-    ctx.restore();
-
-    // 통로 안쪽 하이라이트
-    ctx.save();
-    ctx.strokeStyle = '#171f40';
-    ctx.lineWidth   = hw * 2 - 5;
-    polyline(); ctx.stroke();
-    ctx.restore();
-
-    // 통로 벽 (양쪽 테두리선)
-    ctx.save();
-    ctx.strokeStyle = '#2a3f7a';
-    ctx.lineWidth   = hw * 2 + 2;
-    ctx.globalAlpha = 0.6;
-    polyline(); ctx.stroke();
-    ctx.globalAlpha = 1;
-    ctx.restore();
-
-    // 중앙 점선 (길 안내)
-    ctx.save();
-    ctx.strokeStyle = '#253370';
-    ctx.lineWidth   = 1.5;
-    ctx.setLineDash([8, 10]);
-    polyline(); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.restore();
-
-    // 경유 웨이포인트 마커 (모서리 시각화)
-    ctx.save();
-    for (let i = 1; i < pts.length - 1; i++) {
-      ctx.beginPath();
-      ctx.arc(pts[i][0], pts[i][1], hw * 0.35, 0, Math.PI * 2);
-      ctx.fillStyle   = '#1e2e58';
-      ctx.strokeStyle = '#2a4080';
-      ctx.lineWidth   = 1.5;
-      ctx.fill();
-      ctx.stroke();
-    }
-    ctx.restore();
-
-    // START 포털 (초록)
-    _drawPortal(ctx, pts[0][0], pts[0][1], hw * 0.85, '#00ffaa', 'S');
-    // FINISH 포털 (빨강)
-    _drawPortal(ctx, pts[pts.length - 1][0], pts[pts.length - 1][1], hw * 0.85, '#ff4444', 'G');
   }
 
-  function _drawPortal(ctx, x, y, r, color, letter) {
-    const grd = ctx.createRadialGradient(x, y, r * 0.1, x, y, r);
-    grd.addColorStop(0, color + 'aa');
-    grd.addColorStop(1, color + '00');
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = grd;
-    ctx.fill();
-    ctx.restore();
+  function _drawPortal(ctx, c, r, cW, cH, wW, wH, color, letter) {
+    const cx  = c * cW + cW / 2;
+    const cy  = r * cH + cH / 2;
+    const rad = Math.min(cW, cH) / 2 - Math.max(wW, wH) - 1;
 
+    // 배경 색조
+    ctx.fillStyle = color + '28';
+    ctx.fillRect(c * cW + wW, r * cH + wH, cW - wW * 2, cH - wH * 2);
+
+    // 원형 링
     ctx.save();
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.arc(cx, cy, rad, 0, Math.PI * 2);
     ctx.strokeStyle = color;
-    ctx.lineWidth   = 2.5;
+    ctx.lineWidth   = 1.8;
     ctx.stroke();
-    ctx.restore();
 
-    ctx.save();
+    // 발광 후광
     ctx.beginPath();
-    ctx.arc(x, y, r + 5, 0, Math.PI * 2);
+    ctx.arc(cx, cy, rad + 3, 0, Math.PI * 2);
     ctx.strokeStyle = color + '44';
     ctx.lineWidth   = 2;
     ctx.stroke();
-    ctx.restore();
 
-    ctx.save();
-    ctx.font         = `bold ${Math.round(r * 0.75)}px monospace`;
+    // 라벨
+    ctx.font         = `bold ${Math.round(rad * 0.85)}px monospace`;
     ctx.fillStyle    = color;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(letter, x, y);
+    ctx.fillText(letter, cx, cy);
     ctx.restore();
+  }
+
+  // ─── 좌표 변환 ───
+
+  function _scale() {
+    if (!_area) return { x: 1, y: 1 };
+    return { x: _area.offsetWidth / CANVAS_W, y: _area.offsetHeight / CANVAS_H };
+  }
+
+  function _toLogi(dx, dy) {
+    const s = _scale();
+    return { x: dx / s.x, y: dy / s.y };
   }
 
   function _placeBall() {
     if (!_ballEl || !_area) return;
-    const s = _getScale();
+    const s = _scale();
     const r = BALL_R * Math.min(s.x, s.y);
     _ballEl.style.width  = `${r * 2}px`;
     _ballEl.style.height = `${r * 2}px`;
@@ -285,19 +250,15 @@ const Level2Module = (() => {
 
   // ─── 타이머 ───
 
-  function _startTimer() {
-    _timeLeft = TIMER_DURATION;
-    _updateTimerDisplay();
+  function _startTimer(dur) {
+    _timeLeft = dur;
+    _syncTimerEl();
     _timerInterval = setInterval(() => {
       _timeLeft--;
-      _updateTimerDisplay();
+      _syncTimerEl();
       if (_timeLeft <= 0) {
         _stopTimer();
-        if (!_ended) {
-          _ended = true;
-          _removeListeners();
-          if (_onFail) _onFail('timeout');
-        }
+        if (!_ended) { _ended = true; _rmListeners(); if (_onFail) _onFail('timeout'); }
       }
     }, 1000);
   }
@@ -306,7 +267,7 @@ const Level2Module = (() => {
     if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
   }
 
-  function _updateTimerDisplay() {
+  function _syncTimerEl() {
     const el = document.getElementById('timer-display');
     if (!el) return;
     el.textContent      = _timeLeft;
@@ -314,71 +275,70 @@ const Level2Module = (() => {
     el.style.textShadow = _timeLeft <= 10 ? '0 0 8px #ff444488' : '';
   }
 
-  // ─── 이벤트 핸들러 ───
+  // ─── 방향키 이벤트 & RAF 이동 루프 ───
 
-  function _getEventXY(e) {
-    const src = e.touches ? e.touches[0] : e;
-    return { clientX: src.clientX, clientY: src.clientY };
-  }
+  const MOVE_SPEED = 2.8; // 프레임당 이동 거리 (논리 px, 60fps ≈ 168px/s)
 
-  function _onDown(e) {
-    if (_ended || !_area || !_ballEl) return;
-    const { clientX, clientY } = _getEventXY(e);
-    const rect = _area.getBoundingClientRect();
-    const s    = _getScale();
-    const mx   = clientX - rect.left;
-    const my   = clientY - rect.top;
-    const bx   = _ballPos.x * s.x;
-    const by   = _ballPos.y * s.y;
-    const r    = BALL_R * Math.min(s.x, s.y);
-
-    if (Math.hypot(mx - bx, my - by) <= r * 2.2) {
-      e.preventDefault();
-      _dragging = true;
-      const lp  = _toLogical(mx, my);
-      _grabOffset = { x: lp.x - _ballPos.x, y: lp.y - _ballPos.y };
-      _ballEl.style.cursor    = 'grabbing';
-      _ballEl.style.boxShadow = '0 0 22px #00ffaacc, 0 0 44px #00ffaa44';
-      _ballEl.style.transform = 'scale(1.15)';
-    }
-  }
-
-  function _onMove(e) {
-    if (!_dragging || _ended || !_area) return;
+  function _onKeyDown(e) {
+    if (_ended) return;
+    if (!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) return;
     e.preventDefault();
-    const { clientX, clientY } = _getEventXY(e);
-    const rect = _area.getBoundingClientRect();
-    const raw  = _toLogical(clientX - rect.left, clientY - rect.top);
-    const req  = { x: raw.x - _grabOffset.x, y: raw.y - _grabOffset.y };
-    const pos  = _clampToPath(req.x, req.y);
-    _ballPos.x = pos.x;
-    _ballPos.y = pos.y;
-    _placeBall();
-
-    const [fx, fy] = _pathPoints[_pathPoints.length - 1];
-    if (Math.hypot(_ballPos.x - fx, _ballPos.y - fy) < FINISH_SNAP_R) {
-      _onReachFinish();
-    }
+    _keysDown.add(e.key);
+    if (!_rafId) _rafId = requestAnimationFrame(_moveTick);
   }
 
-  function _onUp() {
-    if (!_dragging) return;
-    _dragging = false;
-    if (_ballEl) {
-      _ballEl.style.cursor    = 'grab';
+  function _onKeyUp(e) {
+    _keysDown.delete(e.key);
+    // 모든 키가 떼어졌으면 공 멈춤 표시
+    if (_keysDown.size === 0 && _ballEl) {
       _ballEl.style.boxShadow = '0 0 12px #00ffaa88, 0 0 24px #00ffaa44';
       _ballEl.style.transform = '';
     }
   }
 
-  function _onReachFinish() {
-    if (_ended) return;
-    _ended = true;
-    _stopTimer();
-    _dragging = false;
+  function _moveTick() {
+    _rafId = null;
+    if (_ended || _keysDown.size === 0) return;
 
-    const [fx, fy] = _pathPoints[_pathPoints.length - 1];
-    _ballPos = { x: fx, y: fy };
+    let dx = 0, dy = 0;
+    if (_keysDown.has('ArrowRight')) dx += MOVE_SPEED;
+    if (_keysDown.has('ArrowLeft'))  dx -= MOVE_SPEED;
+    if (_keysDown.has('ArrowDown'))  dy += MOVE_SPEED;
+    if (_keysDown.has('ArrowUp'))    dy -= MOVE_SPEED;
+
+    // 대각선 이동 속도 정규화
+    if (dx !== 0 && dy !== 0) {
+      dx *= Math.SQRT1_2;
+      dy *= Math.SQRT1_2;
+    }
+
+    const pos = _tryMove(_ballPos.x, _ballPos.y, _ballPos.x + dx, _ballPos.y + dy);
+    _ballPos.x = pos.x; _ballPos.y = pos.y;
+    _placeBall();
+
+    // 이동 중 글로우 효과
+    if (_ballEl) {
+      _ballEl.style.boxShadow = '0 0 20px #00ffaacc, 0 0 40px #00ffaa55';
+      _ballEl.style.transform = 'scale(1.08)';
+    }
+
+    // 도착 판정
+    const gx = MAZE_PAD + (_fCell.c + 0.5) * _CELL;
+    const gy = MAZE_PAD + (_fCell.r + 0.5) * _CELL;
+    if (Math.hypot(_ballPos.x - gx, _ballPos.y - gy) < _CELL * 0.42) {
+      _onGoal(); return;
+    }
+
+    _rafId = requestAnimationFrame(_moveTick);
+  }
+
+  function _onGoal() {
+    if (_ended) return;
+    _ended = true; _stopTimer();
+    _keysDown.clear();
+    if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+
+    _ballPos = { x: MAZE_PAD + (_fCell.c + 0.5) * _CELL, y: MAZE_PAD + (_fCell.r + 0.5) * _CELL };
     _placeBall();
 
     if (_ballEl) {
@@ -388,95 +348,85 @@ const Level2Module = (() => {
       _ballEl.style.transform  = 'scale(1.5)';
     }
 
-    _removeListeners();
-    setTimeout(() => { if (_onSuccess) _onSuccess(SUCCESS_SCORE); }, 400);
+    _rmListeners();
+    setTimeout(() => { if (_onSuccess) _onSuccess(500); }, 400);
   }
 
-  // ─── 정리 ───
-
-  function _removeListeners() {
-    if (_area) {
-      _area.removeEventListener('mousedown',  _onDown);
-      _area.removeEventListener('touchstart', _onDown);
-    }
-    window.removeEventListener('mousemove', _onMove);
-    window.removeEventListener('mouseup',   _onUp);
-    window.removeEventListener('touchmove', _onMove);
-    window.removeEventListener('touchend',  _onUp);
+  function _rmListeners() {
+    window.removeEventListener('keydown', _onKeyDown);
+    window.removeEventListener('keyup',   _onKeyUp);
   }
 
   function _cleanup() {
     _stopTimer();
-    _ended    = true;
-    _dragging = false;
-    _removeListeners();
+    _ended = true;
+    _keysDown.clear();
+    if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+    _rmListeners();
+    if (_area) { _area.style.width = ''; _area.style.height = ''; }
   }
 
   // ─── Public API ───
 
   function start(area, onSuccess, onFail) {
-    _area      = area;
-    _onSuccess = onSuccess;
-    _onFail    = onFail;
-    _ended     = false;
-    _dragging  = false;
+    _area = area; _onSuccess = onSuccess; _onFail = onFail;
+    _ended = false; _keysDown.clear();
 
-    // 매 시작마다 새 미로 경로 생성
-    _pathPoints    = _generatePath();
-    _ballPos       = { x: _pathPoints[0][0], y: _pathPoints[0][1] };
-    _currentSegIdx = 0;
+    const t = _tier();
+    _CELL   = t.cell;
+    _COLS   = Math.floor(MAZE_INNER_W / _CELL);
+    _ROWS   = Math.floor(MAZE_INNER_H / _CELL);
+    _MAZE_W = _COLS * _CELL;
+    _MAZE_H = _ROWS * _CELL;
 
-    area.innerHTML = '';
+    _sCell = { c: 0,         r: _ROWS - 1 }; // 좌하단 출발
+    _fCell = { c: _COLS - 1, r: 0 };          // 우상단 도착
 
-    // 캔버스 (경로 그리기)
-    _canvas             = document.createElement('canvas');
+    _grid = _genMaze(_COLS, _ROWS);
+    _mask = _buildMask(_grid, _COLS, _ROWS, _CELL, WALL_T);
+
+    _ballPos = {
+      x: MAZE_PAD + (_sCell.c + 0.5) * _CELL,
+      y: MAZE_PAD + (_sCell.r + 0.5) * _CELL,
+    };
+
+    // 게임 영역 확장
+    area.style.width  = `min(${CANVAS_W}px, 96vw)`;
+    area.style.height = `${CANVAS_H}px`;
+    area.innerHTML    = '';
+
+    // 캔버스 (고정 해상도, CSS가 스케일 처리)
+    _canvas = document.createElement('canvas');
     _canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;border-radius:14px;';
-    _canvas.width       = area.offsetWidth  || LOGICAL_W;
-    _canvas.height      = area.offsetHeight || LOGICAL_H;
+    _canvas.width  = CANVAS_W;
+    _canvas.height = CANVAS_H;
     area.appendChild(_canvas);
 
-    // 드래그 가능한 공
+    // 공 엘리먼트
     _ballEl = document.createElement('div');
-    _ballEl.id = 'level2-ball';
     _ballEl.style.cssText = `
-      position: absolute;
-      background: radial-gradient(circle at 35% 35%, #00ffdd, #00cc77);
-      border-radius: 50%;
-      cursor: grab;
-      user-select: none;
-      -webkit-user-select: none;
-      box-shadow: 0 0 12px #00ffaa88, 0 0 24px #00ffaa44;
-      z-index: 10;
-      transition: box-shadow 0.15s, transform 0.15s;
+      position:absolute; border-radius:50%;
+      user-select:none; -webkit-user-select:none;
+      background:radial-gradient(circle at 35% 35%, #00ffdd, #00cc77);
+      box-shadow:0 0 12px #00ffaa88, 0 0 24px #00ffaa44;
+      z-index:10; transition:box-shadow 0.12s, transform 0.12s;
     `;
     area.appendChild(_ballEl);
 
-    // 안내 라벨
+    // 방향키 안내 UI
     const hint = document.createElement('div');
-    hint.style.cssText = `
-      position: absolute;
-      bottom: 10px; left: 0; right: 0;
-      text-align: center;
-      color: #1e2a50;
-      font-size: 0.78rem;
-      pointer-events: none;
-      user-select: none;
-    `;
-    hint.textContent = '공을 드래그해서 통로를 따라 [G] 포털까지 이동하세요!';
+    hint.style.cssText = 'position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#16203a;font-size:0.74rem;pointer-events:none;user-select:none;';
+    hint.textContent   = `[S] 출발 → [G] 도착  |  ← ↑ ↓ → 방향키로 이동  (${_COLS}×${_ROWS} 격자)`;
     area.appendChild(hint);
 
-    _drawPath();
+    _renderMaze();
     _placeBall();
-    _initCurrentSeg();
 
-    area.addEventListener('mousedown',  _onDown);
-    area.addEventListener('touchstart', _onDown, { passive: false });
-    window.addEventListener('mousemove', _onMove);
-    window.addEventListener('mouseup',   _onUp);
-    window.addEventListener('touchmove', _onMove, { passive: false });
-    window.addEventListener('touchend',  _onUp);
+    window.addEventListener('keydown', _onKeyDown);
+    window.addEventListener('keyup',   _onKeyUp);
 
-    _startTimer();
+    // 타이머 표시 즉시 반영 후 시작
+    _startTimer(t.timer);
 
     return _cleanup;
   }
