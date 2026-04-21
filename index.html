@@ -687,9 +687,9 @@
 <!-- 광고 클릭 게임오버 오버레이 (미니게임 공통) -->
 <div id="game-adclick">
   <div class="timeover-icon">📢</div>
-  <h2>광고를 클릭했다!</h2>
+  <h2>게임 오버!</h2>
   <div class="nickname-badge" id="game-adclick-nickname"></div>
-  <p>광고 버튼을 클릭하고 말았습니다!<br>레벨 1부터 다시 도전해보세요.</p>
+  <p>시간이 초과되었거나 광고를 클릭했습니다.<br>레벨 1부터 다시 도전해보세요.</p>
   <button class="btn-restart" onclick="restartFromLevel1()">레벨 1부터 다시하기</button>
 </div>
 
@@ -1111,106 +1111,6 @@ const MINI_GAMES = {
     }
   },
 
-  'sequence-tap': {
-    label: '숫자를 순서대로 클릭! (1→5)',
-    start(area, score, onFail) {
-      area.innerHTML = '';
-      let nextNum = 1;
-      const SZ = 56;
-
-      function randPos(exclude) {
-        let x, y, tries = 0;
-        do {
-          x = 8 + Math.random() * (area.clientWidth  - SZ - 16);
-          y = 8 + Math.random() * (area.clientHeight - SZ - 16);
-          tries++;
-        } while (tries < 30 && exclude.some(p => Math.hypot(p.x - x, p.y - y) < SZ + 12));
-        return { x, y };
-      }
-
-      function currentPositions() {
-        return [...area.querySelectorAll('[data-seq]')].map(el => ({
-          x: parseFloat(el.style.left), y: parseFloat(el.style.top)
-        }));
-      }
-
-      function makeBtn(num, pos) {
-        const d = document.createElement('div');
-        d.dataset.seq = num;
-        d.style.cssText = `position:absolute;width:${SZ}px;height:${SZ}px;border-radius:50%;
-          background:radial-gradient(circle,#4488ff,#2255cc);
-          left:${pos.x}px;top:${pos.y}px;cursor:pointer;
-          display:flex;align-items:center;justify-content:center;
-          font-size:1.3rem;font-weight:bold;color:#fff;
-          box-shadow:0 0 12px #4488ff66;user-select:none`;
-        d.textContent = num;
-
-        d.onclick = () => {
-          if (!isLevel1Running) return;
-          if (num === nextNum) {
-            d.style.background = 'radial-gradient(circle,#00ffaa,#008855)';
-            d.style.pointerEvents = 'none';
-            d.onmouseenter = null;
-            nextNum++;
-            if (nextNum > 5) { score(50); playSuccessSound(); setTimeout(spawn, 350); }
-          } else {
-            d.style.background = 'radial-gradient(circle,#ff4444,#cc0000)';
-            setTimeout(() => { d.style.background = 'radial-gradient(circle,#4488ff,#2255cc)'; }, 300);
-          }
-        };
-
-        d.onmouseenter = () => {
-          d.onmouseenter = null; // 버튼당 1회만
-          let hoverTimer = setTimeout(() => {
-            hoverTimer = null;
-            d.onmouseleave = null;
-            const ad = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
-            if (!ad) return;
-
-            // 이 버튼을 광고 원형으로 변환
-            delete d.dataset.seq;
-          d.style.background = ad.imgUrl
-            ? `url(${ad.imgUrl}) center/cover`
-            : 'radial-gradient(circle,#ff8844,#cc3300)';
-          d.style.boxShadow = '0 0 14px #ff440088';
-          d.style.border    = '2px solid #ff4400';
-          d.style.fontSize  = '0';
-          d.textContent     = '';
-          d.onclick = null;
-          d.onmousedown = () => {
-            if (!isLevel1Running) return;
-            window.open(ad.landingUrl, '_blank');
-            if (typeof recordAdClick === 'function') recordAdClick();
-            if (typeof playAdSound   === 'function') playAdSound();
-            isLevel1Running = false;
-            if (typeof onFail === 'function') onFail('ad-click');
-          };
-
-            // 실제 숫자 버튼을 다른 위치에 새로 생성
-            const exclude = currentPositions();
-            exclude.push({ x: parseFloat(d.style.left), y: parseFloat(d.style.top) });
-            area.appendChild(makeBtn(num, randPos(exclude)));
-          }, 200);
-          d.onmouseleave = () => { clearTimeout(hoverTimer); d.onmouseleave = null; };
-        };
-
-        return d;
-      }
-
-      function spawn() {
-        area.innerHTML = ''; nextNum = 1;
-        const placed = [];
-        for (let i = 1; i <= 5; i++) {
-          const pos = randPos(placed);
-          placed.push(pos);
-          area.appendChild(makeBtn(i, pos));
-        }
-      }
-
-      spawn();
-      return () => { area.innerHTML = ''; };
-    }
-  },
 
   'whack-mole': {
     label: '두더지를 잡아라! 빨간 건 피해!',
@@ -1362,6 +1262,158 @@ const gameStages = [
       return { cleanup() { cleanupFn(); area.innerHTML = ''; } };
     }
   })),
+
+  // ── 숫자 순서 클릭 (자체 타이머, 25클릭 클리어, 타임아웃/광고클릭 = 게임오버) ──
+  {
+    id: 'sequence-tap',
+    label: '숫자를 순서대로 클릭! (1→5)',
+    timerDuration: 30,
+    usesAdSystem: false,
+    init(area, { onScore, onSuccess, onFail }) {
+      area.innerHTML = '';
+      let nextNum     = 1;
+      let totalClicks = 0;
+      const TARGET    = 25;
+      const SZ        = 56;
+      let seqTimer    = null;
+      let timeLeft    = 30;
+      let ended       = false;
+
+      // 진행 표시
+      const prog = document.createElement('div');
+      prog.style.cssText = 'position:absolute;top:10px;right:12px;color:#888;font-size:0.85rem;pointer-events:none;user-select:none;z-index:5';
+      prog.textContent = `0 / ${TARGET}`;
+      area.appendChild(prog);
+
+      // 자체 카운트다운
+      seqTimer = setInterval(() => {
+        if (ended) return;
+        timeLeft--;
+        document.getElementById('timer-display').textContent = timeLeft;
+        if (timeLeft <= 0) {
+          ended = true;
+          clearInterval(seqTimer);
+          onFail('ad-click');
+        }
+      }, 1000);
+
+      function randPos(exclude) {
+        let x, y, tries = 0;
+        do {
+          x = 8 + Math.random() * (area.clientWidth  - SZ - 16);
+          y = 8 + Math.random() * (area.clientHeight - SZ - 16);
+          tries++;
+        } while (tries < 30 && exclude.some(p => Math.hypot(p.x - x, p.y - y) < SZ + 12));
+        return { x, y };
+      }
+
+      function allOccupied() {
+        return [...area.querySelectorAll('[data-seq],[data-adbait]')].map(el => ({
+          x: parseFloat(el.style.left), y: parseFloat(el.style.top)
+        }));
+      }
+
+      function makeBtn(num, pos) {
+        const d = document.createElement('div');
+        d.dataset.seq = num;
+        d.style.cssText = `position:absolute;width:${SZ}px;height:${SZ}px;border-radius:50%;
+          background:radial-gradient(circle,#4488ff,#2255cc);
+          left:${pos.x}px;top:${pos.y}px;cursor:pointer;
+          display:flex;align-items:center;justify-content:center;
+          font-size:1.3rem;font-weight:bold;color:#fff;
+          box-shadow:0 0 12px #4488ff66;user-select:none`;
+        d.textContent = num;
+
+        d.onclick = () => {
+          if (!isLevel1Running || ended) return;
+          if (num === nextNum) {
+            d.style.background = 'radial-gradient(circle,#00ffaa,#008855)';
+            d.style.pointerEvents = 'none';
+            d.onmouseenter = null;
+            nextNum++;
+            totalClicks++;
+            onScore(10);
+            playSuccessSound();
+            prog.textContent = `${totalClicks} / ${TARGET}`;
+            if (totalClicks >= TARGET) {
+              ended = true;
+              clearInterval(seqTimer);
+              setTimeout(() => onSuccess(), 350);
+            } else if (nextNum > 5) {
+              setTimeout(spawn, 350);
+            }
+          } else {
+            d.style.background = 'radial-gradient(circle,#ff4444,#cc0000)';
+            setTimeout(() => { d.style.background = 'radial-gradient(circle,#4488ff,#2255cc)'; }, 300);
+          }
+        };
+
+        d.onmouseenter = () => {
+          d.onmouseenter = null;
+          let hoverTimer = setTimeout(() => {
+            hoverTimer = null;
+            d.onmouseleave = null;
+            convertToAd(d, num);
+          }, 200);
+          d.onmouseleave = () => { clearTimeout(hoverTimer); d.onmouseleave = null; };
+        };
+
+        return d;
+      }
+
+      function convertToAd(d, num) {
+        if (ended || !isLevel1Running) return;
+        const ad = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
+        if (!ad) return;
+
+        delete d.dataset.seq;
+        d.dataset.adbait = '1';
+        d.style.background = ad.imgUrl
+          ? `url(${ad.imgUrl}) center/cover`
+          : 'radial-gradient(circle,#ff8844,#cc3300)';
+        d.style.boxShadow = '0 0 14px #ff440088';
+        d.style.border    = '2px solid #ff4400';
+        d.style.fontSize  = '0';
+        d.textContent     = '';
+        d.onclick = null;
+        d.onmouseenter = null;
+        d.onmousedown = () => {
+          if (!isLevel1Running || ended) return;
+          ended = true;
+          clearInterval(seqTimer);
+          window.open(ad.landingUrl, '_blank');
+          if (typeof recordAdClick === 'function') recordAdClick();
+          if (typeof playAdSound   === 'function') playAdSound();
+          isLevel1Running = false;
+          onFail('ad-click');
+        };
+
+        const exclude = allOccupied();
+        exclude.push({ x: parseFloat(d.style.left), y: parseFloat(d.style.top) });
+        area.appendChild(makeBtn(num, randPos(exclude)));
+      }
+
+      function spawn() {
+        area.querySelectorAll('[data-seq],[data-adbait]').forEach(el => el.remove());
+        nextNum = 1;
+        const placed = [];
+        for (let i = 1; i <= 5; i++) {
+          const pos = randPos(placed);
+          placed.push(pos);
+          area.appendChild(makeBtn(i, pos));
+        }
+      }
+
+      spawn();
+      return {
+        cleanup() {
+          ended = true;
+          clearInterval(seqTimer);
+          area.innerHTML = '';
+        }
+      };
+    }
+  },
 
   // ── 공 드래그 미로 (광고 시스템 없음, 타이머는 Level2Module이 난이도별 관리) ──
   {
