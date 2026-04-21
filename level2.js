@@ -50,8 +50,9 @@ const Level2Module = (() => {
   let _adIdxF         = 0;    // 경로 내 실수 인덱스 (보간용)
   let _adRafId        = null; // requestAnimationFrame ID (광고 이동)
   let _adLastTs       = 0;    // 직전 RAF 타임스탬프
-  let _adSpawnTimeout = null; // setTimeout ID (15초 후 출현)
-  let _adLandingUrl   = '';
+  let _adSpawnTimeout  = null;  // setTimeout ID (출현 예약)
+  let _adTimerStarted  = false; // 출발지 이탈 후 타이머 시작 여부
+  let _adLandingUrl    = '';
 
   // 게임마다 재생성
   let _grid  = null;   // _grid[r][c] = { vis, N, S, E, W }
@@ -413,6 +414,16 @@ const Level2Module = (() => {
       _ballEl.style.transform = 'scale(1.08)';
     }
 
+    // 출발지 이탈 시 광고 출현 타이머 시작
+    if (!_adTimerStarted) {
+      const sx = MAZE_PAD + (_sCell.c + 0.5) * _CELL;
+      const sy = MAZE_PAD + (_sCell.r + 0.5) * _CELL;
+      if (Math.hypot(_ballPos.x - sx, _ballPos.y - sy) > _CELL * 0.6) {
+        _adTimerStarted = true;
+        _adSpawnTimeout = setTimeout(_spawnAd, AD_SPAWN_DELAY);
+      }
+    }
+
     // 광고 충돌 판정 (이동마다 즉시 확인)
     if (_adEl) { _checkAdCollision(); if (_ended) return; }
 
@@ -470,7 +481,7 @@ const Level2Module = (() => {
     _area = area; _onSuccess = onSuccess; _onFail = onFail;
     _ended = false; _keysDown.clear();
     _pathHistory = []; _adEl = null; _adPos = { x: 0, y: 0 };
-    _adIdxF = 0; _adLastTs = 0; _adLandingUrl = '';
+    _adIdxF = 0; _adLastTs = 0; _adLandingUrl = ''; _adTimerStarted = false;
 
     const t = _tier();
     _CELL   = t.cell;
@@ -522,7 +533,6 @@ const Level2Module = (() => {
     window.addEventListener('keyup',   _onKeyUp);
 
     _startPathRecording();
-    _adSpawnTimeout = setTimeout(_spawnAd, AD_SPAWN_DELAY);
 
     _startTimer(t.timer);
 
