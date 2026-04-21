@@ -1185,7 +1185,9 @@ const MINI_GAMES = {
     label: '가장 작은 원을 클릭!',
     start(area, score) {
       area.innerHTML = '';
+      let roundTid = null;
       function round() {
+        if (!isLevel1Running) return;
         area.innerHTML = '';
         const szs = [];
         while (szs.length < 5) { const s=28+Math.floor(Math.random()*60); if(!szs.some(x=>Math.abs(x-s)<10)) szs.push(s); }
@@ -1202,13 +1204,13 @@ const MINI_GAMES = {
           d.onclick = () => {
             if (!isLevel1Running) return;
             if (d._min) { score(10); playSuccessSound(); round(); }
-            else { d.style.background='radial-gradient(circle,#ff4444,#cc0000)'; setTimeout(round,500); }
+            else { d.style.background='radial-gradient(circle,#ff4444,#cc0000)'; roundTid = setTimeout(round,500); }
           };
           area.appendChild(d);
         });
       }
       round();
-      return () => { area.innerHTML=''; };
+      return () => { clearTimeout(roundTid); area.innerHTML=''; };
     }
   },
 
@@ -1216,8 +1218,10 @@ const MINI_GAMES = {
     label: '다른 색깔 하나를 클릭!',
     start(area, score) {
       area.innerHTML = '';
+      let roundTid = null;
       const PAL = [{h:'#4488ff'},{h:'#ff4444'},{h:'#ffcc00'},{h:'#00ffaa'},{h:'#ff88ff'}];
       function round() {
+        if (!isLevel1Running) return;
         area.innerHTML = '';
         const base = PAL[Math.floor(Math.random()*PAL.length)];
         const diff = PAL.filter(c=>c.h!==base.h)[Math.floor(Math.random()*(PAL.length-1))];
@@ -1235,13 +1239,13 @@ const MINI_GAMES = {
           d.onclick = () => {
             if (!isLevel1Running) return;
             if (d._odd) { score(10); playSuccessSound(); round(); }
-            else { score(-5); d.style.opacity='.2'; setTimeout(round,400); if(Math.random()<.2)showAdPopup(); }
+            else { score(-5); d.style.opacity='.2'; roundTid = setTimeout(round,400); if(Math.random()<.2)showAdPopup(); }
           };
           area.appendChild(d);
         }
       }
       round();
-      return () => { area.innerHTML=''; };
+      return () => { clearTimeout(roundTid); area.innerHTML=''; };
     }
   },
 };
@@ -1744,7 +1748,7 @@ function startLevel(n) {
   const stageInst = stage.init(gameArea, {
     onScore:   (pts)    => { gameScore += pts; updateLevel1UI(); },
     onSuccess: ()       => { endLevelClear(); },
-    onFail:    (reason) => { isLevel1Running = false; _handleStageFail(reason); }
+    onFail:    (reason) => { clearLevel1Timers(); _handleStageFail(reason); }
   });
   _activeGameCleanup = () => stageInst.cleanup();
 

@@ -478,6 +478,7 @@ const Level2Module = (() => {
   // ─── Public API ───
 
   function start(area, onSuccess, onFail) {
+    _cleanup(); // cancel any stale RAF/timers from a previous invocation
     _area = area; _onSuccess = onSuccess; _onFail = onFail;
     _ended = false; _keysDown.clear();
     _pathHistory = []; _adEl = null; _adPos = { x: 0, y: 0 };
