@@ -10,10 +10,10 @@ const Level2Module = (() => {
   const MAZE_INNER_H = CANVAS_H - MAZE_PAD * 2; // 440
   const WALL_T       = 3;   // 벽 두께 (셀 경계 양쪽에 각 WALL_T px)
   const BALL_R       = 12;  // 공 반지름 (고정)
-  const AD_R         = Math.round(BALL_R * 1.2); // 광고 반지름 (공보다 20% 큼)
-
+  const AD_R           = Math.round(BALL_R * 1.44); // 광고 반지름
   const AD_SPAWN_DELAY = 15_000; // 15초 후 광고 출현
-  const PATH_INTERVAL  = 80;    // 경로 기록 간격 (ms)
+  const PATH_INTERVAL  = 100;   // 경로 기록 간격 (ms)
+  const AD_SPEED_MULT  = 1.2;   // 플레이어 경로 재생 속도 배율 (1.2 = 20% 빠름)
 
   // 레벨별 난이도: 셀 크기가 작을수록 더 많은 셀 → 복잡한 미로
   const TIERS = [
@@ -43,13 +43,14 @@ const Level2Module = (() => {
   let _ended    = false;
 
   // 광고 추적자 상태
-  let _pathHistory    = [];            // [{x,y}] — 플레이어 경로 기록
-  let _pathTimer      = null;          // setInterval ID (경로 기록)
-  let _adEl           = null;          // 광고 원형 DOM 요소
+  let _pathHistory    = [];   // [{x,y}] — 플레이어 경로 기록
+  let _pathTimer      = null; // setInterval ID (경로 기록)
+  let _adEl           = null; // 광고 원형 DOM 요소
   let _adPos          = { x: 0, y: 0 };
-  let _adPathIdx      = 0;
-  let _adMoveTimer    = null;          // setInterval ID (광고 이동)
-  let _adSpawnTimeout = null;          // setTimeout ID (15초 후 출현)
+  let _adIdxF         = 0;    // 경로 내 실수 인덱스 (보간용)
+  let _adRafId        = null; // requestAnimationFrame ID (광고 이동)
+  let _adLastTs       = 0;    // 직전 RAF 타임스탬프
+  let _adSpawnTimeout = null; // setTimeout ID (15초 후 출현)
   let _adLandingUrl   = '';
 
   // 게임마다 재생성
@@ -310,11 +311,12 @@ const Level2Module = (() => {
     _adEl.appendChild(label);
     _area.appendChild(_adEl);
 
-    _adPathIdx = 0;
+    _adIdxF = 0;
     _adPos = { x: _pathHistory[0].x, y: _pathHistory[0].y };
     _placeAd();
 
-    _adMoveTimer = setInterval(_stepAd, PATH_INTERVAL);
+    _adLastTs = performance.now();
+    _adRafId = requestAnimationFrame(_adMoveTick);
   }
 
   function _placeAd() {
@@ -327,14 +329,30 @@ const Level2Module = (() => {
     _adEl.style.top    = `${_adPos.y * s.y - r}px`;
   }
 
-  function _stepAd() {
+  // RAF 루프: 경과 시간 × 속도 배율로 실수 인덱스를 전진하고 선형 보간
+  function _adMoveTick(ts) {
+    _adRafId = null;
     if (_ended || !_adEl) return;
-    if (_adPathIdx < _pathHistory.length - 1) {
-      _adPathIdx++;
-      _adPos = { x: _pathHistory[_adPathIdx].x, y: _pathHistory[_adPathIdx].y };
-      _placeAd();
-    }
+
+    const elapsed = ts - _adLastTs;
+    _adLastTs = ts;
+
+    const maxIdx = _pathHistory.length - 1;
+    _adIdxF = Math.min(_adIdxF + (elapsed * AD_SPEED_MULT / PATH_INTERVAL), maxIdx);
+
+    const i0 = Math.floor(_adIdxF);
+    const i1 = Math.min(i0 + 1, maxIdx);
+    const t  = _adIdxF - i0;
+    const p0 = _pathHistory[i0], p1 = _pathHistory[i1];
+
+    _adPos = {
+      x: p0.x + (p1.x - p0.x) * t,
+      y: p0.y + (p1.y - p0.y) * t,
+    };
+    _placeAd();
     _checkAdCollision();
+
+    if (!_ended) _adRafId = requestAnimationFrame(_adMoveTick);
   }
 
   function _checkAdCollision() {
@@ -438,9 +456,9 @@ const Level2Module = (() => {
     _ended = true;
     _keysDown.clear();
     if (_rafId)           { cancelAnimationFrame(_rafId); _rafId = null; }
-    if (_pathTimer)       { clearInterval(_pathTimer);   _pathTimer = null; }
-    if (_adMoveTimer)     { clearInterval(_adMoveTimer);  _adMoveTimer = null; }
-    if (_adSpawnTimeout)  { clearTimeout(_adSpawnTimeout); _adSpawnTimeout = null; }
+    if (_pathTimer)       { clearInterval(_pathTimer);      _pathTimer = null; }
+    if (_adRafId)         { cancelAnimationFrame(_adRafId); _adRafId = null; }
+    if (_adSpawnTimeout)  { clearTimeout(_adSpawnTimeout);  _adSpawnTimeout = null; }
     if (_adEl && _adEl.parentNode) { _adEl.parentNode.removeChild(_adEl); _adEl = null; }
     _rmListeners();
     if (_area) { _area.style.width = ''; _area.style.height = ''; }
@@ -452,7 +470,7 @@ const Level2Module = (() => {
     _area = area; _onSuccess = onSuccess; _onFail = onFail;
     _ended = false; _keysDown.clear();
     _pathHistory = []; _adEl = null; _adPos = { x: 0, y: 0 };
-    _adPathIdx = 0; _adLandingUrl = '';
+    _adIdxF = 0; _adLastTs = 0; _adLandingUrl = '';
 
     const t = _tier();
     _CELL   = t.cell;
