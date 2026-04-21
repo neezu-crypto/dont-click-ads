@@ -1,4 +1,4 @@
-// Level 2: DFS Maze — Ball Drag
+// Level 2: DFS Maze — Keyboard Ball
 const Level2Module = (() => {
   'use strict';
 
@@ -10,6 +10,10 @@ const Level2Module = (() => {
   const MAZE_INNER_H = CANVAS_H - MAZE_PAD * 2; // 440
   const WALL_T       = 3;   // 벽 두께 (셀 경계 양쪽에 각 WALL_T px)
   const BALL_R       = 12;  // 공 반지름 (고정)
+  const AD_R         = Math.round(BALL_R * 1.2); // 광고 반지름 (공보다 20% 큼)
+
+  const AD_SPAWN_DELAY = 15_000; // 15초 후 광고 출현
+  const PATH_INTERVAL  = 80;    // 경로 기록 간격 (ms)
 
   // 레벨별 난이도: 셀 크기가 작을수록 더 많은 셀 → 복잡한 미로
   const TIERS = [
@@ -37,6 +41,16 @@ const Level2Module = (() => {
   let _rafId    = null;      // requestAnimationFrame ID
   let _ballPos  = { x: 0, y: 0 };
   let _ended    = false;
+
+  // 광고 추적자 상태
+  let _pathHistory    = [];            // [{x,y}] — 플레이어 경로 기록
+  let _pathTimer      = null;          // setInterval ID (경로 기록)
+  let _adEl           = null;          // 광고 원형 DOM 요소
+  let _adPos          = { x: 0, y: 0 };
+  let _adPathIdx      = 0;
+  let _adMoveTimer    = null;          // setInterval ID (광고 이동)
+  let _adSpawnTimeout = null;          // setTimeout ID (15초 후 출현)
+  let _adLandingUrl   = '';
 
   // 게임마다 재생성
   let _grid  = null;   // _grid[r][c] = { vis, N, S, E, W }
@@ -84,8 +98,6 @@ const Level2Module = (() => {
   }
 
   // ─── 픽셀 충돌 마스크 ───
-  // 오프스크린 캔버스에 흰색(통로)/검은색(벽) 이진 이미지를 그립니다.
-  // 좌표계: (0,0)~(_MAZE_W-1, _MAZE_H-1) — 캔버스 pos에서 MAZE_PAD를 빼서 변환.
 
   function _buildMask(g, cols, rows, cell, wt) {
     const W = cols * cell, H = rows * cell;
@@ -152,7 +164,6 @@ const Level2Module = (() => {
     ctx.fillStyle = COL_BG;
     ctx.fillRect(0, 0, cw, ch);
 
-    // 미로 영역으로 이동
     ctx.save();
     ctx.translate(MAZE_PAD * sx, MAZE_PAD * sy);
 
@@ -166,19 +177,15 @@ const Level2Module = (() => {
         const iX = px + wW, iY = py + wH;
         const iW = cW - wW * 2, iH = cH - wH * 2;
 
-        // 통로 바닥
         ctx.fillStyle = COL_FLOOR;
         ctx.fillRect(iX, iY, iW, iH);
 
-        // 열린 동쪽 통로
         if (!cl.E && c < _COLS - 1)
           ctx.fillRect(px + cW - wW, iY, wW * 2, iH);
 
-        // 열린 남쪽 통로
         if (!cl.S && r < _ROWS - 1)
           ctx.fillRect(iX, py + cH - wH, iW, wH * 2);
 
-        // 닫힌 벽 엣지 하이라이트 (상·좌)
         ctx.strokeStyle = COL_EDGE;
         ctx.lineWidth   = 0.5;
         if (cl.N) { ctx.beginPath(); ctx.moveTo(iX, iY); ctx.lineTo(iX + iW, iY); ctx.stroke(); }
@@ -186,7 +193,6 @@ const Level2Module = (() => {
       }
     }
 
-    // 출발·도착 포털
     _drawPortal(ctx, _sCell.c, _sCell.r, cW, cH, wW, wH, '#00ffaa', 'S');
     _drawPortal(ctx, _fCell.c, _fCell.r, cW, cH, wW, wH, '#ff4444', 'G');
 
@@ -198,11 +204,9 @@ const Level2Module = (() => {
     const cy  = r * cH + cH / 2;
     const rad = Math.min(cW, cH) / 2 - Math.max(wW, wH) - 1;
 
-    // 배경 색조
     ctx.fillStyle = color + '28';
     ctx.fillRect(c * cW + wW, r * cH + wH, cW - wW * 2, cH - wH * 2);
 
-    // 원형 링
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, rad, 0, Math.PI * 2);
@@ -210,14 +214,12 @@ const Level2Module = (() => {
     ctx.lineWidth   = 1.8;
     ctx.stroke();
 
-    // 발광 후광
     ctx.beginPath();
     ctx.arc(cx, cy, rad + 3, 0, Math.PI * 2);
     ctx.strokeStyle = color + '44';
     ctx.lineWidth   = 2;
     ctx.stroke();
 
-    // 라벨
     ctx.font         = `bold ${Math.round(rad * 0.85)}px monospace`;
     ctx.fillStyle    = color;
     ctx.textAlign    = 'center';
@@ -275,6 +277,80 @@ const Level2Module = (() => {
     el.style.textShadow = _timeLeft <= 10 ? '0 0 8px #ff444488' : '';
   }
 
+  // ─── 경로 기록 ───
+
+  function _startPathRecording() {
+    _pathHistory = [{ x: _ballPos.x, y: _ballPos.y }];
+    _pathTimer = setInterval(() => {
+      if (!_ended) _pathHistory.push({ x: _ballPos.x, y: _ballPos.y });
+    }, PATH_INTERVAL);
+  }
+
+  // ─── 광고 추적자 ───
+
+  function _spawnAd() {
+    if (_ended || !_area) return;
+    const ad = (typeof randomAd === 'function') ? randomAd('all') : null;
+    _adLandingUrl = (ad && ad.landingUrl) ? ad.landingUrl : '';
+
+    _adEl = document.createElement('div');
+    _adEl.style.cssText = `
+      position:absolute; border-radius:50%;
+      background:radial-gradient(circle at 35% 35%, #ff8844, #cc2200);
+      box-shadow:0 0 14px #ff440099, 0 0 28px #ff440044;
+      border:2px solid #ff6600;
+      z-index:9; pointer-events:none;
+      display:flex; align-items:center; justify-content:center;
+      color:#fff; font-weight:bold; letter-spacing:0.03em;
+      animation:adPulse 0.9s ease-in-out infinite alternate;
+    `;
+    const label = document.createElement('span');
+    label.textContent = 'AD';
+    label.style.cssText = 'font-size:0.55rem; user-select:none;';
+    _adEl.appendChild(label);
+    _area.appendChild(_adEl);
+
+    _adPathIdx = 0;
+    _adPos = { x: _pathHistory[0].x, y: _pathHistory[0].y };
+    _placeAd();
+
+    _adMoveTimer = setInterval(_stepAd, PATH_INTERVAL);
+  }
+
+  function _placeAd() {
+    if (!_adEl || !_area) return;
+    const s = _scale();
+    const r = AD_R * Math.min(s.x, s.y);
+    _adEl.style.width  = `${r * 2}px`;
+    _adEl.style.height = `${r * 2}px`;
+    _adEl.style.left   = `${_adPos.x * s.x - r}px`;
+    _adEl.style.top    = `${_adPos.y * s.y - r}px`;
+  }
+
+  function _stepAd() {
+    if (_ended || !_adEl) return;
+    if (_adPathIdx < _pathHistory.length - 1) {
+      _adPathIdx++;
+      _adPos = { x: _pathHistory[_adPathIdx].x, y: _pathHistory[_adPathIdx].y };
+      _placeAd();
+    }
+    _checkAdCollision();
+  }
+
+  function _checkAdCollision() {
+    if (_ended || !_adEl) return;
+    const dist = Math.hypot(_ballPos.x - _adPos.x, _ballPos.y - _adPos.y);
+    if (dist < BALL_R + AD_R) _onAdCaught();
+  }
+
+  function _onAdCaught() {
+    if (_ended) return;
+    _ended = true;
+    _cleanup();
+    if (_adLandingUrl) window.open(_adLandingUrl, '_blank');
+    if (_onFail) _onFail('ad-caught');
+  }
+
   // ─── 방향키 이벤트 & RAF 이동 루프 ───
 
   const MOVE_SPEED = 2.8; // 프레임당 이동 거리 (논리 px, 60fps ≈ 168px/s)
@@ -289,7 +365,6 @@ const Level2Module = (() => {
 
   function _onKeyUp(e) {
     _keysDown.delete(e.key);
-    // 모든 키가 떼어졌으면 공 멈춤 표시
     if (_keysDown.size === 0 && _ballEl) {
       _ballEl.style.boxShadow = '0 0 12px #00ffaa88, 0 0 24px #00ffaa44';
       _ballEl.style.transform = '';
@@ -306,7 +381,6 @@ const Level2Module = (() => {
     if (_keysDown.has('ArrowDown'))  dy += MOVE_SPEED;
     if (_keysDown.has('ArrowUp'))    dy -= MOVE_SPEED;
 
-    // 대각선 이동 속도 정규화
     if (dx !== 0 && dy !== 0) {
       dx *= Math.SQRT1_2;
       dy *= Math.SQRT1_2;
@@ -316,11 +390,13 @@ const Level2Module = (() => {
     _ballPos.x = pos.x; _ballPos.y = pos.y;
     _placeBall();
 
-    // 이동 중 글로우 효과
     if (_ballEl) {
       _ballEl.style.boxShadow = '0 0 20px #00ffaacc, 0 0 40px #00ffaa55';
       _ballEl.style.transform = 'scale(1.08)';
     }
+
+    // 광고 충돌 판정 (이동마다 즉시 확인)
+    if (_adEl) { _checkAdCollision(); if (_ended) return; }
 
     // 도착 판정
     const gx = MAZE_PAD + (_fCell.c + 0.5) * _CELL;
@@ -361,7 +437,11 @@ const Level2Module = (() => {
     _stopTimer();
     _ended = true;
     _keysDown.clear();
-    if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+    if (_rafId)           { cancelAnimationFrame(_rafId); _rafId = null; }
+    if (_pathTimer)       { clearInterval(_pathTimer);   _pathTimer = null; }
+    if (_adMoveTimer)     { clearInterval(_adMoveTimer);  _adMoveTimer = null; }
+    if (_adSpawnTimeout)  { clearTimeout(_adSpawnTimeout); _adSpawnTimeout = null; }
+    if (_adEl && _adEl.parentNode) { _adEl.parentNode.removeChild(_adEl); _adEl = null; }
     _rmListeners();
     if (_area) { _area.style.width = ''; _area.style.height = ''; }
   }
@@ -371,6 +451,8 @@ const Level2Module = (() => {
   function start(area, onSuccess, onFail) {
     _area = area; _onSuccess = onSuccess; _onFail = onFail;
     _ended = false; _keysDown.clear();
+    _pathHistory = []; _adEl = null; _adPos = { x: 0, y: 0 };
+    _adPathIdx = 0; _adLandingUrl = '';
 
     const t = _tier();
     _CELL   = t.cell;
@@ -390,19 +472,16 @@ const Level2Module = (() => {
       y: MAZE_PAD + (_sCell.r + 0.5) * _CELL,
     };
 
-    // 게임 영역 확장
     area.style.width  = `min(${CANVAS_W}px, 96vw)`;
     area.style.height = `${CANVAS_H}px`;
     area.innerHTML    = '';
 
-    // 캔버스 (고정 해상도, CSS가 스케일 처리)
     _canvas = document.createElement('canvas');
     _canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;border-radius:14px;';
     _canvas.width  = CANVAS_W;
     _canvas.height = CANVAS_H;
     area.appendChild(_canvas);
 
-    // 공 엘리먼트
     _ballEl = document.createElement('div');
     _ballEl.style.cssText = `
       position:absolute; border-radius:50%;
@@ -413,7 +492,6 @@ const Level2Module = (() => {
     `;
     area.appendChild(_ballEl);
 
-    // 방향키 안내 UI
     const hint = document.createElement('div');
     hint.style.cssText = 'position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#16203a;font-size:0.74rem;pointer-events:none;user-select:none;';
     hint.textContent   = `[S] 출발 → [G] 도착  |  ← ↑ ↓ → 방향키로 이동  (${_COLS}×${_ROWS} 격자)`;
@@ -425,7 +503,9 @@ const Level2Module = (() => {
     window.addEventListener('keydown', _onKeyDown);
     window.addEventListener('keyup',   _onKeyUp);
 
-    // 타이머 표시 즉시 반영 후 시작
+    _startPathRecording();
+    _adSpawnTimeout = setTimeout(_spawnAd, AD_SPAWN_DELAY);
+
     _startTimer(t.timer);
 
     return _cleanup;
@@ -434,7 +514,7 @@ const Level2Module = (() => {
   function onAdElementInteract() {
     if (_ended) return;
     _cleanup();
-    if (_onFail) _onFail('ad-click');
+    if (_onFail) _onFail('ad-caught');
   }
 
   return { start, onAdElementInteract };
