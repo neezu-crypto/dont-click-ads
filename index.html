@@ -583,6 +583,28 @@
       from { box-shadow: 0 0 14px #ff440099, 0 0 28px #ff440044; transform: scale(1); }
       to   { box-shadow: 0 0 22px #ff4400cc, 0 0 44px #ff440077; transform: scale(1.06); }
     }
+    #game-adclick {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 300;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      text-align: center;
+      padding: 24px;
+    }
+    #game-adclick.active { display: flex; }
+    #game-adclick h2 { font-size: 2.2rem; color: #ff4422; text-shadow: 0 0 20px #ff442266; }
+    #game-adclick .timeover-icon { font-size: 4rem; }
+    #game-adclick p { font-size: 1.1rem; color: #aaa; max-width: 420px; line-height: 1.6; }
+    #game-adclick .nickname-badge {
+      font-size: 1rem; color: #888;
+      background: #1a1a1a; padding: 6px 18px;
+      border-radius: 20px; border: 1px solid #333;
+    }
   </style>
 </head>
 <body>
@@ -661,6 +683,15 @@
 
 <!-- ════════════════════ OPENING CURSOR AD ════════════════════ -->
 <div id="opening-cursor-ad" onclick="onOpeningCursorAdClick()"></div>
+
+<!-- 광고 클릭 게임오버 오버레이 (미니게임 공통) -->
+<div id="game-adclick">
+  <div class="timeover-icon">📢</div>
+  <h2>광고를 클릭했다!</h2>
+  <div class="nickname-badge" id="game-adclick-nickname"></div>
+  <p>광고 버튼을 클릭하고 말았습니다!<br>레벨 1부터 다시 도전해보세요.</p>
+  <button class="btn-restart" onclick="restartFromLevel1()">레벨 1부터 다시하기</button>
+</div>
 
 <!-- 레벨 2 타임오버 오버레이 -->
 <div id="level2-timeover">
@@ -1082,36 +1113,100 @@ const MINI_GAMES = {
 
   'sequence-tap': {
     label: '숫자를 순서대로 클릭! (1→5)',
-    start(area, score) {
+    start(area, score, onFail) {
       area.innerHTML = '';
       let nextNum = 1;
+      const SZ = 56;
+
+      function randPos(exclude) {
+        let x, y, tries = 0;
+        do {
+          x = 8 + Math.random() * (area.clientWidth  - SZ - 16);
+          y = 8 + Math.random() * (area.clientHeight - SZ - 16);
+          tries++;
+        } while (tries < 30 && exclude.some(p => Math.hypot(p.x - x, p.y - y) < SZ + 12));
+        return { x, y };
+      }
+
+      function currentPositions() {
+        return [...area.querySelectorAll('[data-seq]')].map(el => ({
+          x: parseFloat(el.style.left), y: parseFloat(el.style.top)
+        }));
+      }
+
+      function makeBtn(num, pos) {
+        const d = document.createElement('div');
+        d.dataset.seq = num;
+        d.style.cssText = `position:absolute;width:${SZ}px;height:${SZ}px;border-radius:50%;
+          background:radial-gradient(circle,#4488ff,#2255cc);
+          left:${pos.x}px;top:${pos.y}px;cursor:pointer;
+          display:flex;align-items:center;justify-content:center;
+          font-size:1.3rem;font-weight:bold;color:#fff;
+          box-shadow:0 0 12px #4488ff66;user-select:none`;
+        d.textContent = num;
+
+        d.onclick = () => {
+          if (!isLevel1Running) return;
+          if (num === nextNum) {
+            d.style.background = 'radial-gradient(circle,#00ffaa,#008855)';
+            d.style.pointerEvents = 'none';
+            d.onmouseenter = null;
+            nextNum++;
+            if (nextNum > 5) { score(50); playSuccessSound(); setTimeout(spawn, 350); }
+          } else {
+            d.style.background = 'radial-gradient(circle,#ff4444,#cc0000)';
+            setTimeout(() => { d.style.background = 'radial-gradient(circle,#4488ff,#2255cc)'; }, 300);
+          }
+        };
+
+        d.onmouseenter = () => {
+          d.onmouseenter = null; // 버튼당 1회만
+          let hoverTimer = setTimeout(() => {
+            hoverTimer = null;
+            d.onmouseleave = null;
+            const ad = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
+            if (!ad) return;
+
+            // 이 버튼을 광고 원형으로 변환
+            delete d.dataset.seq;
+          d.style.background = ad.imgUrl
+            ? `url(${ad.imgUrl}) center/cover`
+            : 'radial-gradient(circle,#ff8844,#cc3300)';
+          d.style.boxShadow = '0 0 14px #ff440088';
+          d.style.border    = '2px solid #ff4400';
+          d.style.fontSize  = '0';
+          d.textContent     = '';
+          d.onclick = null;
+          d.onmousedown = () => {
+            if (!isLevel1Running) return;
+            window.open(ad.landingUrl, '_blank');
+            if (typeof recordAdClick === 'function') recordAdClick();
+            if (typeof playAdSound   === 'function') playAdSound();
+            isLevel1Running = false;
+            if (typeof onFail === 'function') onFail('ad-click');
+          };
+
+            // 실제 숫자 버튼을 다른 위치에 새로 생성
+            const exclude = currentPositions();
+            exclude.push({ x: parseFloat(d.style.left), y: parseFloat(d.style.top) });
+            area.appendChild(makeBtn(num, randPos(exclude)));
+          }, 200);
+          d.onmouseleave = () => { clearTimeout(hoverTimer); d.onmouseleave = null; };
+        };
+
+        return d;
+      }
+
       function spawn() {
         area.innerHTML = ''; nextNum = 1;
         const placed = [];
         for (let i = 1; i <= 5; i++) {
-          const sz = 56;
-          let x, y, tries = 0;
-          do { x=8+Math.random()*(area.clientWidth-sz-16); y=8+Math.random()*(area.clientHeight-sz-16); tries++; }
-          while (tries<30 && placed.some(p=>Math.hypot(p.x-x,p.y-y)<sz+8));
-          placed.push({x, y});
-          const d = document.createElement('div');
-          d.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:radial-gradient(circle,#4488ff,#2255cc);left:${x}px;top:${y}px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:bold;color:#fff;box-shadow:0 0 12px #4488ff66;user-select:none`;
-          d.textContent = i; d._n = i;
-          area.appendChild(d);
-          d.onclick = () => {
-            if (!isLevel1Running) return;
-            if (d._n === nextNum) {
-              d.style.background = 'radial-gradient(circle,#00ffaa,#008855)';
-              d.style.pointerEvents = 'none';
-              nextNum++;
-              if (nextNum > 5) { score(50); playSuccessSound(); setTimeout(spawn, 350); }
-            } else {
-              d.style.background = 'radial-gradient(circle,#ff4444,#cc0000)';
-              setTimeout(() => { d.style.background = 'radial-gradient(circle,#4488ff,#2255cc)'; }, 300);
-            }
-          };
+          const pos = randPos(placed);
+          placed.push(pos);
+          area.appendChild(makeBtn(i, pos));
         }
       }
+
       spawn();
       return () => { area.innerHTML = ''; };
     }
@@ -1262,8 +1357,8 @@ const gameStages = [
     label: game.label,
     timerDuration: 30,
     usesAdSystem: true,
-    init(area, { onScore }) {
-      const cleanupFn = game.start(area, onScore) || (() => {});
+    init(area, { onScore, onFail }) {
+      const cleanupFn = game.start(area, onScore, onFail) || (() => {});
       return { cleanup() { cleanupFn(); area.innerHTML = ''; } };
     }
   })),
@@ -1311,6 +1406,7 @@ function _pickStage(n) {
 function _handleStageFail(reason) {
   if (reason === 'timeout')   showLevel2TimeOver();
   if (reason === 'ad-caught') showLevel2AdCaught();
+  if (reason === 'ad-click')  showAdClickGameOver();
 }
 
 /* ════════ Web Audio API ════════ */
@@ -1575,6 +1671,7 @@ function startLevel(n) {
   document.getElementById('level-clear-overlay').classList.remove('active');
   document.getElementById('level2-timeover').classList.remove('active');
   document.getElementById('level2-adcaught').classList.remove('active');
+  document.getElementById('game-adclick').classList.remove('active');
   showScreen('screen-level1');
   document.getElementById('stats-bar').classList.add('active');
   document.getElementById('current-level-display').textContent = n;
@@ -1638,9 +1735,17 @@ window.showLevel2AdCaught = showLevel2AdCaught;
 
 function restartFromLevel1() {
   document.getElementById('level2-adcaught').classList.remove('active');
+  document.getElementById('game-adclick').classList.remove('active');
   startLevel(1);
 }
 window.restartFromLevel1 = restartFromLevel1;
+
+function showAdClickGameOver() {
+  const nb = document.getElementById('game-adclick-nickname');
+  if (nb) nb.textContent = playerNickname || '';
+  document.getElementById('game-adclick').classList.add('active');
+}
+window.showAdClickGameOver = showAdClickGameOver;
 
 function clearLevel1Timers() {
   if (level1Timer)  { clearInterval(level1Timer); level1Timer  = null; }
