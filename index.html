@@ -100,14 +100,12 @@
     }
 
     #tutorial-btn-area {
-      position: relative;
-      width: 260px;
-      height: 80px;
+      position: absolute;
+      inset: 0;
     }
 
     #btn-start {
       position: absolute;
-      top: 0; left: 0;
       width: 260px;
       height: 80px;
       font-size: 1.3rem;
@@ -121,12 +119,12 @@
       z-index: 10;
     }
     #btn-start:hover { background: #1144cc; }
-    #btn-start.moved { top: 200px; }
 
     #tutorial-ad {
       display: none;
       position: absolute;
-      top: 0; left: 0;
+      left: calc(50% - 130px);
+      top: calc(50% - 40px);
       width: 260px;
       height: 80px;
       border-radius: 12px;
@@ -615,7 +613,7 @@
     <div id="tutorial-ad" onclick="onTutorialAdClick()">
       <img id="tutorial-ad-img" src="" alt="광고" />
     </div>
-    <button id="btn-start" onmouseenter="onStartBtnHover()" onclick="onStartBtnClick()">
+    <button id="btn-start" onclick="onStartBtnClick()">
       게임 시작하기
     </button>
   </div>
@@ -943,6 +941,16 @@ let gameStartTime     = 0;
 let totalGameTime     = 0;
 let tutorialAdClicked = false;
 let tutorialHovered   = false;
+
+// ── 튜토리얼 버튼 회피 상태 ──
+const T_BTN_W       = 260, T_BTN_H = 80;
+const T_FLEE_RADIUS = 200;   // 이 거리 안에 마우스가 들어오면 회피
+const T_LERP        = 0.07;  // 보간 계수 (낮을수록 부드럽고 느림)
+let _tBtnX = 0, _tBtnY = 0; // 현재 버튼 중심 좌표
+let _tTgtX = 0, _tTgtY = 0; // 목표 좌표
+let _tMouseX = -9999, _tMouseY = -9999;
+let _tRafId  = null;
+let _tActive = false;
 let level1Timer       = null;
 let level1TimeLeft    = 30;
 let adPopupTimer          = null;
@@ -1419,14 +1427,93 @@ document.getElementById('nickname-input').addEventListener('keydown', e => {
 /* ════════ TUTORIAL ════════ */
 function goToTutorial() {
   showScreen('screen-tutorial');
+  _tBtnSetup();
+}
+
+function _tBtnSetup() {
+  tutorialHovered   = false;
+  tutorialAdClicked = false;
+  _tActive = false;
+  if (_tRafId) { cancelAnimationFrame(_tRafId); _tRafId = null; }
+
+  // 버튼 초기 위치: 화면 중앙
+  const SW = window.innerWidth, SH = window.innerHeight;
+  _tBtnX = SW / 2; _tBtnY = SH / 2;
+  _tTgtX = _tBtnX; _tTgtY = _tBtnY;
+  _tMouseX = -9999; _tMouseY = -9999;
+  _tPlaceBtn();
+
+  const btn    = document.getElementById('btn-start');
+  const screen = document.getElementById('screen-tutorial');
+  btn.addEventListener('mouseenter', _tOnBtnFirstHover, { once: true });
+  screen.addEventListener('mousemove', _tOnScreenMouseMove);
+}
+
+function _tBtnCleanup() {
+  _tActive = false;
+  if (_tRafId) { cancelAnimationFrame(_tRafId); _tRafId = null; }
+  const screen = document.getElementById('screen-tutorial');
+  if (screen) screen.removeEventListener('mousemove', _tOnScreenMouseMove);
+}
+
+function _tOnBtnFirstHover() {
+  if (_tActive) return;
+  _tActive = true;
+
+  // 광고 노출
+  onStartBtnHover();
+
+  // 첫 호버: 아래 고정 위치로 순간이동
+  const SH = window.innerHeight;
+  const tx = _tBtnX;
+  const ty = Math.min(_tBtnY + 220, SH - T_BTN_H / 2);
+  _tBtnX = tx; _tBtnY = ty;
+  _tTgtX = tx; _tTgtY = ty;
+  _tPlaceBtn();
+
+  // 이후 마우스 접근 시 부드러운 회피 루프 시작
+  _tRafId = requestAnimationFrame(_tBtnTick);
+}
+
+function _tOnScreenMouseMove(e) {
+  const rect = document.getElementById('screen-tutorial').getBoundingClientRect();
+  _tMouseX = e.clientX - rect.left;
+  _tMouseY = e.clientY - rect.top;
+  if (_tActive) _tComputeTarget();
+}
+
+function _tComputeTarget() {
+  const SW = window.innerWidth, SH = window.innerHeight;
+  const dx = _tMouseX - _tBtnX, dy = _tMouseY - _tBtnY;
+  const dist = Math.hypot(dx, dy) || 1;
+  if (dist < T_FLEE_RADIUS) {
+    const nx = dx / dist, ny = dy / dist;
+    const fx = _tBtnX - nx * T_FLEE_RADIUS * 1.8;
+    const fy = _tBtnY - ny * T_FLEE_RADIUS * 1.8;
+    _tTgtX = Math.max(T_BTN_W / 2, Math.min(SW - T_BTN_W / 2, fx));
+    _tTgtY = Math.max(T_BTN_H / 2, Math.min(SH - T_BTN_H / 2, fy));
+  }
+}
+
+function _tBtnTick() {
+  _tRafId = null;
+  if (!_tActive) return;
+  _tBtnX += (_tTgtX - _tBtnX) * T_LERP;
+  _tBtnY += (_tTgtY - _tBtnY) * T_LERP;
+  _tPlaceBtn();
+  _tRafId = requestAnimationFrame(_tBtnTick);
+}
+
+function _tPlaceBtn() {
+  const btn = document.getElementById('btn-start');
+  if (!btn) return;
+  btn.style.left = Math.round(_tBtnX - T_BTN_W / 2) + 'px';
+  btn.style.top  = Math.round(_tBtnY - T_BTN_H / 2) + 'px';
 }
 
 function onStartBtnHover() {
   if (tutorialHovered) return;
   tutorialHovered = true;
-
-  document.getElementById('btn-start').classList.add('moved');
-
   const ad     = document.getElementById('tutorial-ad');
   const img    = document.getElementById('tutorial-ad-img');
   const picked = randomAd('tutorial');
@@ -1456,6 +1543,7 @@ function onStartBtnClick() {
 window.onStartBtnClick = onStartBtnClick;
 
 function showTutorialResult(clickedAd) {
+  _tBtnCleanup();
   const title = document.getElementById('result-title');
   const msg   = document.getElementById('result-msg');
   const btn   = document.getElementById('result-action-btn');
