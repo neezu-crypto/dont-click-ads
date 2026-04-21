@@ -1278,6 +1278,7 @@ const gameStages = [
       let seqTimer    = null;
       let timeLeft    = 30;
       let ended       = false;
+      let adConverted = false; // 라운드당 1회 제한
 
       // 진행 표시
       const prog = document.createElement('div');
@@ -1362,9 +1363,10 @@ const gameStages = [
       }
 
       function convertToAd(d, num) {
-        if (ended || !isLevel1Running) return;
+        if (ended || !isLevel1Running || adConverted) return;
         const ad = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
         if (!ad) return;
+        adConverted = true;
 
         delete d.dataset.seq;
         d.dataset.adbait = '1';
@@ -1395,7 +1397,7 @@ const gameStages = [
 
       function spawn() {
         area.querySelectorAll('[data-seq],[data-adbait]').forEach(el => el.remove());
-        nextNum = 1;
+        nextNum = 1; adConverted = false;
         const placed = [];
         for (let i = 1; i <= 5; i++) {
           const pos = randPos(placed);
