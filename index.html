@@ -1099,8 +1099,17 @@ const MINI_GAMES = {
           btn.onmouseleave = () => btn.style.background = '#1a1a1a';
           btn.onclick = () => {
             if (!isLevel1Running) return;
-            if (v === ans) { score(20); playSuccessSound(); if (Math.random()<.15) showAdPopup(); }
-            clearTimeout(tid); next();
+            if (v === ans) {
+              score(20); playSuccessSound(); if (Math.random()<.15) showAdPopup();
+              clearTimeout(tid); next();
+            } else {
+              const ad = randomAd('level1') || randomAd('all');
+              if (ad) { window.open(ad.landingUrl, '_blank'); }
+              recordAdClick();
+              playFailSound();
+              clearLevel1Timers();
+              showAdClickGameOver();
+            }
           };
           bWrap.appendChild(btn);
         });
