@@ -513,6 +513,11 @@
     }
     .dev-toggle:checked { background: #00cc77; }
     .dev-toggle:checked::after { left: 21px; }
+    .dev-select {
+      flex: 1; padding: 4px 6px;
+      background: #1a1a2e; border: 1px solid #444;
+      border-radius: 6px; color: #fff; font-size: 0.8rem; cursor: pointer;
+    }
     #dev-toast {
       display: none;
       position: fixed; bottom: 80px; right: 20px;
@@ -534,6 +539,33 @@
       z-index: 50;
     }
     #stats-bar.active { display: flex; gap: 24px; align-items: center; }
+
+    /* ─── LEVEL 2 TIME OVER OVERLAY ─── */
+    #level2-timeover {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 300;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      text-align: center;
+      padding: 24px;
+    }
+    #level2-timeover.active { display: flex; }
+    #level2-timeover h2 { font-size: 2.2rem; color: #ff8800; text-shadow: 0 0 20px #ff880066; }
+    #level2-timeover .timeover-icon { font-size: 4rem; }
+    #level2-timeover p { font-size: 1.1rem; color: #aaa; max-width: 420px; line-height: 1.6; }
+    #level2-timeover .nickname-badge {
+      font-size: 1rem;
+      color: #888;
+      background: #1a1a1a;
+      padding: 6px 18px;
+      border-radius: 20px;
+      border: 1px solid #333;
+    }
   </style>
 </head>
 <body>
@@ -613,6 +645,15 @@
 <!-- ════════════════════ OPENING CURSOR AD ════════════════════ -->
 <div id="opening-cursor-ad" onclick="onOpeningCursorAdClick()"></div>
 
+<!-- 레벨 2 타임오버 오버레이 -->
+<div id="level2-timeover">
+  <div class="timeover-icon">⏰</div>
+  <h2>타임 오버!</h2>
+  <div class="nickname-badge" id="level2-timeover-nickname"></div>
+  <p>60초 안에 공을 목표 지점까지 옮기지 못했습니다.<br>다시 도전해볼까요?</p>
+  <button class="btn-restart" onclick="restartLevel2()">레벨 재시작</button>
+</div>
+
 <!-- 레벨 플레이스홀더 (admin 레벨 카운터용) -->
 <div id="screen-level2"  class="screen"></div>
 <div id="screen-level3"  class="screen"></div>
@@ -689,9 +730,9 @@
     <div id="dev-user-badge">로그인 중...</div>
 
     <div class="dev-row">
-      <label>레벨 이동</label>
-      <input id="dev-level-input" type="number" min="1" max="99" value="1" />
-      <button class="dev-btn dev-btn-blue" onclick="devJumpToLevel(+document.getElementById('dev-level-input').value)">이동</button>
+      <label>게임 선택</label>
+      <select id="dev-game-select" class="dev-select"></select>
+      <button class="dev-btn dev-btn-blue" onclick="devStartGame(document.getElementById('dev-game-select').value)">▶</button>
     </div>
 
     <div class="dev-row">
@@ -776,6 +817,9 @@
     }
   });
 </script>
+
+<!-- ════════════════════ LEVEL 2 MODULE ════════════════════ -->
+<script src="level2.js"></script>
 
 <!-- ════════════════════ GAME LOGIC ════════════════════ -->
 <script>
@@ -1169,9 +1213,66 @@ const MINI_GAMES = {
   },
 };
 
-function _pickRandomGame() {
-  const pool = Object.keys(MINI_GAMES).filter(k => k !== 'circle-click');
-  return pool[Math.floor(Math.random() * pool.length)];
+/* ════════ GAME STAGES REGISTRY ════════ */
+// 모든 플레이어블 스테이지를 통합 인터페이스로 관리합니다.
+// 인터페이스: { id, label, timerDuration, usesAdSystem, init(area, callbacks) → { cleanup() } }
+// callbacks: { onScore(pts), onSuccess(), onFail(reason) }
+const gameStages = [
+  // ── MINI_GAMES 래핑 (광고 시스템 포함, 30초) ──
+  ...Object.entries(MINI_GAMES).map(([id, game]) => ({
+    id,
+    label: game.label,
+    timerDuration: 30,
+    usesAdSystem: true,
+    init(area, { onScore }) {
+      const cleanupFn = game.start(area, onScore) || (() => {});
+      return { cleanup() { cleanupFn(); area.innerHTML = ''; } };
+    }
+  })),
+
+  // ── 레벨 2: 공 드래그 (광고 시스템 없음, 60초) ──
+  {
+    id: 'ball-drag',
+    label: '공 드래그 — 60초 안에 목표까지!',
+    timerDuration: 60,
+    usesAdSystem: false,
+    init(area, { onScore, onSuccess, onFail }) {
+      const cleanupFn = Level2Module.start(
+        area,
+        (bonus) => { onScore(bonus); onSuccess(); },
+        onFail
+      );
+      return { cleanup() { cleanupFn && cleanupFn(); area.innerHTML = ''; } };
+    }
+  }
+];
+
+let _lastStageId   = null;
+let _forcedStageId = null; // devStartGame()이 설정하면 다음 _pickStage 호출에서 1회 소비
+
+// 레벨에 맞는 스테이지를 선택합니다.
+// Dev 강제 지정 → 레벨 1 고정(circle-click) → 레벨 2~10 랜덤(연속 중복 방지)
+function _pickStage(n) {
+  if (_forcedStageId) {
+    const stage = gameStages.find(s => s.id === _forcedStageId);
+    _forcedStageId = null;
+    if (stage) { _lastStageId = stage.id; return stage; }
+  }
+  if (n === 1) {
+    _lastStageId = null;
+    return gameStages.find(s => s.id === 'circle-click');
+  }
+  const nonCircle  = gameStages.filter(s => s.id !== 'circle-click');
+  const pool       = nonCircle.filter(s => s.id !== _lastStageId);
+  const candidates = pool.length > 0 ? pool : nonCircle;
+  const stage      = candidates[Math.floor(Math.random() * candidates.length)];
+  _lastStageId = stage.id;
+  return stage;
+}
+
+function _handleStageFail(reason) {
+  if (reason === 'timeout')   showLevel2TimeOver();
+  // 'ad-click' 분기는 광고 연동 시 여기에 추가
 }
 
 /* ════════ Web Audio API ════════ */
@@ -1354,29 +1455,38 @@ function startLevel(n) {
   clearLevel1Timers();
   document.getElementById('level1-ad-result').classList.remove('active');
   document.getElementById('level-clear-overlay').classList.remove('active');
+  document.getElementById('level2-timeover').classList.remove('active');
   showScreen('screen-level1');
   document.getElementById('stats-bar').classList.add('active');
   document.getElementById('current-level-display').textContent = n;
 
   gameScore       = 0;
-  level1TimeLeft  = 30;
   isLevel1Running = true;
   updateLevel1UI();
 
-  const gameId   = n === 1 ? 'circle-click' : _pickRandomGame();
-  const game     = MINI_GAMES[gameId];
+  const stage    = _pickStage(n);
   const gameArea = document.getElementById('game-area');
-  document.getElementById('level1-msg').textContent = `레벨 ${n}: ${game.label}`;
-  _activeGameCleanup = game.start(gameArea, pts => { gameScore += pts; updateLevel1UI(); }) || null;
 
-  level1Timer = setInterval(() => {
-    if (!isLevel1Running) return;
-    level1TimeLeft--;
-    document.getElementById('timer-display').textContent = level1TimeLeft;
-    if (level1TimeLeft <= 0) endLevelClear();
-  }, 1000);
+  document.getElementById('level1-msg').textContent = `레벨 ${n}: ${stage.label}`;
+  level1TimeLeft = stage.timerDuration;
+  document.getElementById('timer-display').textContent = level1TimeLeft;
 
-  scheduleAdPopup();
+  const stageInst = stage.init(gameArea, {
+    onScore:   (pts)    => { gameScore += pts; updateLevel1UI(); },
+    onSuccess: ()       => { endLevelClear(); },
+    onFail:    (reason) => { isLevel1Running = false; _handleStageFail(reason); }
+  });
+  _activeGameCleanup = () => stageInst.cleanup();
+
+  if (stage.usesAdSystem) {
+    level1Timer = setInterval(() => {
+      if (!isLevel1Running) return;
+      level1TimeLeft--;
+      document.getElementById('timer-display').textContent = level1TimeLeft;
+      if (level1TimeLeft <= 0) endLevelClear();
+    }, 1000);
+    scheduleAdPopup();
+  }
 }
 
 function startLevel1() { startLevel(1); }
@@ -1387,6 +1497,18 @@ function restartLevel1() {
   startLevel(currentLevel);
 }
 window.restartLevel1 = restartLevel1;
+
+function showLevel2TimeOver() {
+  const nb = document.getElementById('level2-timeover-nickname');
+  if (nb) nb.textContent = playerNickname || '';
+  document.getElementById('level2-timeover').classList.add('active');
+}
+
+function restartLevel2() {
+  document.getElementById('level2-timeover').classList.remove('active');
+  startLevel(currentLevel);
+}
+window.restartLevel2 = restartLevel2;
 
 function clearLevel1Timers() {
   if (level1Timer)  { clearInterval(level1Timer); level1Timer  = null; }
@@ -1780,19 +1902,30 @@ window.closeRankingModal = closeRankingModal;
   /* ── 패널 열기/닫기 ── */
   window.devShowPanel = function () {
     document.getElementById('dev-panel').classList.add('active');
+    // gameStages가 로드된 시점에 select 옵션 채우기
+    const sel = document.getElementById('dev-game-select');
+    if (sel && typeof gameStages !== 'undefined' && !sel.options.length) {
+      gameStages.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value       = s.id;
+        opt.textContent = s.label;
+        sel.appendChild(opt);
+      });
+    }
   };
   window.devHidePanel = function () {
     document.getElementById('dev-panel').classList.remove('active');
   };
 
-  /* ── 레벨 이동 ── */
-  window.devJumpToLevel = function (n) {
+  /* ── 게임 즉시 시작 ── */
+  window.devStartGame = function (stageId) {
     if (!window._DEV.unlocked) return;
-    if (n < 1 || n > 10) { _devToast('레벨은 1~10'); return; }
-    if (typeof startLevel === 'function') {
-      startLevel(n);
-      _devToast('레벨 ' + n + ' 이동');
-    }
+    if (!stageId) { _devToast('게임을 선택하세요'); return; }
+    _forcedStageId = stageId;
+    startLevel(Math.max(currentLevel || 1, 1));
+    devHidePanel();
+    const stage = typeof gameStages !== 'undefined' && gameStages.find(s => s.id === stageId);
+    _devToast('▶ ' + (stage ? stage.label : stageId));
   };
 
   /* ── 무적 모드 ── */
