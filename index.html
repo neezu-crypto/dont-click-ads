@@ -1364,7 +1364,7 @@ const MINI_GAMES = {
 const gameStages = [
   // ── MINI_GAMES 래핑 (circle-click만 광고 시스템 포함 / 20초, 나머지 30초) ──
   ...Object.entries(MINI_GAMES).map(([id, game]) => {
-    const timerDuration = (id === 'circle-click' || id === 'whack-mole' || id === 'rapid-tap') ? 20 : 30;
+    const timerDuration = (id === 'circle-click' || id === 'whack-mole' || id === 'rapid-tap' || id === 'odd-one-out') ? 20 : 30;
     return {
       id,
       label: game.label,
