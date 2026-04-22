@@ -831,7 +831,7 @@
   import { getAnalytics }     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js';
   import { getDatabase, ref, get, set, update, onValue, query, orderByChild, limitToFirst, limitToLast }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously }
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
   const firebaseConfig = {
@@ -856,6 +856,12 @@
     currentUser: () => _devAuthInst.currentUser,
   };
   window._signInAnonymously = () => signInAnonymously(_devAuthInst);
+  window._getCurrentUser    = () => _devAuthInst.currentUser;
+
+  /* 기존 로그인 세션 복원: 이전 방문에서 발급된 UID를 재사용 */
+  onAuthStateChanged(_devAuthInst, (user) => {
+    if (user) { window.playerUid = user.uid; }
+  });
 
   window._db             = database;
   window._dbRef          = ref;
@@ -1704,8 +1710,10 @@ async function submitNickname() {
   error.textContent = '';
   playerNickname = name;
 
-  /* 익명 로그인 후 UID를 플레이어 식별자로 사용 */
-  if (window._signInAnonymously) {
+  /* 기존 세션 UID 재사용, 없으면 새 익명 로그인 */
+  if (window._getCurrentUser && window._getCurrentUser()) {
+    playerUid = window._getCurrentUser().uid;
+  } else if (window._signInAnonymously) {
     try {
       const cred = await window._signInAnonymously();
       playerUid = cred.user.uid;
