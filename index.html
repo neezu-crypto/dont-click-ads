@@ -700,7 +700,7 @@
   <div class="timeover-icon">⏰</div>
   <h2>타임 오버!</h2>
   <div class="nickname-badge" id="level2-timeover-nickname"></div>
-  <p>60초 안에 공을 목표 지점까지 옮기지 못했습니다.<br>다시 도전해볼까요?</p>
+  <p id="level2-timeover-msg">시간 안에 목표를 달성하지 못했습니다.<br>다시 도전해볼까요?</p>
   <button class="btn-restart" onclick="restartLevel2()">레벨 재시작</button>
 </div>
 
@@ -1601,7 +1601,7 @@ function _pickStage(n) {
 }
 
 function _handleStageFail(reason) {
-  if (reason === 'timeout')   showLevel2TimeOver();
+  if (reason === 'timeout')   showLevel2TimeOver(_lastStageId === 'ball-drag' ? '제한 시간 안에 공을 목표 지점까지 옮기지 못했습니다.<br>다시 도전해볼까요?' : null);
   if (reason === 'ad-caught') showLevel2AdCaught();
   if (reason === 'ad-click')  showAdClickGameOver();
 }
@@ -1917,9 +1917,11 @@ function restartLevel1() {
 }
 window.restartLevel1 = restartLevel1;
 
-function showLevel2TimeOver() {
+function showLevel2TimeOver(msg) {
   const nb = document.getElementById('level2-timeover-nickname');
   if (nb) nb.textContent = playerNickname || '';
+  const msgEl = document.getElementById('level2-timeover-msg');
+  if (msgEl) msgEl.innerHTML = msg || '시간 안에 목표를 달성하지 못했습니다.<br>다시 도전해볼까요?';
   document.getElementById('level2-timeover').classList.add('active');
 }
 
