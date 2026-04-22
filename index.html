@@ -1677,25 +1677,28 @@ const gameStages = [
 ];
 
 let _lastStageId   = null;
+let _usedStageIds  = new Set(); // 현재 게임런에서 이미 등장한 스테이지 ID
 let _forcedStageId = null; // devStartGame()이 설정하면 다음 _pickStage 호출에서 1회 소비
 
 // 레벨에 맞는 스테이지를 선택합니다.
-// Dev 강제 지정 → 레벨 1 고정(circle-click) → 레벨 2~10 랜덤(연속 중복 방지)
+// Dev 강제 지정 → 레벨 1 고정(circle-click) → 레벨 2~10 랜덤(중복 없음)
 function _pickStage(n) {
   if (_forcedStageId) {
     const stage = gameStages.find(s => s.id === _forcedStageId);
     _forcedStageId = null;
-    if (stage) { _lastStageId = stage.id; return stage; }
+    if (stage) { _lastStageId = stage.id; _usedStageIds.add(stage.id); return stage; }
   }
   if (n === 1) {
     _lastStageId = null;
+    _usedStageIds = new Set();
     return gameStages.find(s => s.id === 'circle-click');
   }
   const nonCircle  = gameStages.filter(s => s.id !== 'circle-click');
-  const pool       = nonCircle.filter(s => s.id !== _lastStageId);
-  const candidates = pool.length > 0 ? pool : nonCircle;
+  const pool       = nonCircle.filter(s => !_usedStageIds.has(s.id));
+  const candidates = pool.length > 0 ? pool : nonCircle; // 모두 소진 시 전체에서 선택
   const stage      = candidates[Math.floor(Math.random() * candidates.length)];
   _lastStageId = stage.id;
+  _usedStageIds.add(stage.id);
   return stage;
 }
 
