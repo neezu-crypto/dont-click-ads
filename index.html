@@ -1021,29 +1021,95 @@ const MINI_GAMES = {
 
   'rapid-tap': {
     label: '사라지기 전에 클릭!',
-    start(area, score) {
+    failOnTimeout: true,
+    start(area, score, onFail, onSuccess) {
       area.innerHTML = '';
+      const TARGET = 10;
+      let clickCount = 0;
+      let ended = false;
       let tid;
+
+      const prog = document.createElement('div');
+      prog.style.cssText = 'position:absolute;top:10px;right:12px;color:#888;font-size:0.85rem;pointer-events:none;user-select:none;z-index:5';
+      prog.textContent = `0 / ${TARGET}`;
+      area.appendChild(prog);
+
+      /* ── 커서 추적 광고 ── */
+      const ad = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
+      const cursorAd = document.createElement('div');
+      cursorAd.style.cssText = `
+        display:none;position:fixed;width:72px;height:72px;border-radius:50%;overflow:hidden;
+        cursor:pointer;border:2px solid #ff4400;
+        box-shadow:0 0 14px #ff440099,0 0 4px #fff3;
+        z-index:999;transform:translate(-50%,-50%);
+        background-size:cover;background-position:center;pointer-events:auto;transition:box-shadow 0.2s;
+      `;
+      if (ad) cursorAd.style.backgroundImage = `url('${ad.imgUrl}')`;
+      document.body.appendChild(cursorAd);
+
+      let cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+      let tx = cx, ty = cy;
+      let raf = null;
+      const LERP = 0.055;
+      function onMove(e) { tx = e.clientX; ty = e.clientY; }
+      function adTick() {
+        cx += (tx - cx) * LERP;
+        cy += (ty - cy) * LERP;
+        cursorAd.style.left = cx + 'px';
+        cursorAd.style.top  = cy + 'px';
+        if (!ended) raf = requestAnimationFrame(adTick);
+      }
+      document.addEventListener('mousemove', onMove);
+      cursorAd.style.left = cx + 'px';
+      cursorAd.style.top  = cy + 'px';
+      cursorAd.style.display = 'block';
+      raf = requestAnimationFrame(adTick);
+
+      cursorAd.onclick = () => {
+        if (!isLevel1Running || ended) return;
+        ended = true;
+        clearTimeout(tid);
+        if (ad) window.open(ad.landingUrl, '_blank');
+        if (typeof recordAdClick === 'function') recordAdClick();
+        if (typeof playFailSound  === 'function') playFailSound();
+        isLevel1Running = false;
+        onFail('ad-click');
+      };
+
+      function cleanupAd() {
+        ended = true;
+        document.removeEventListener('mousemove', onMove);
+        if (raf) { cancelAnimationFrame(raf); raf = null; }
+        cursorAd.remove();
+      }
+
       function spawn() {
-        if (!isLevel1Running) return;
+        if (!isLevel1Running || ended) return;
         if (area.querySelectorAll('.g-rt').length >= 3) { tid = setTimeout(spawn, 300); return; }
         const sz = 44 + Math.random() * 36;
         const d  = document.createElement('div');
         d.className = 'g-rt';
-        d.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:radial-gradient(circle,#00ffaa,#008855);left:${Math.random()*(area.clientWidth-sz)}px;top:${Math.random()*(area.clientHeight-sz)}px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:bold;color:#000;transition:transform 1s,opacity 1s;box-shadow:0 0 10px #00ffaa66`;
+        d.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:radial-gradient(circle,#00ffaa,#008855);left:${Math.random()*(area.clientWidth-sz)}px;top:${Math.random()*(area.clientHeight-sz)}px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:bold;color:#000;transition:opacity 0.15s;box-shadow:0 0 10px #00ffaa66`;
         d.textContent = '+15';
         area.appendChild(d);
-        requestAnimationFrame(() => { d.style.transform = 'scale(0.05)'; d.style.opacity = '0'; });
-        const rm = setTimeout(() => d.remove(), 950);
+        const rm = setTimeout(() => { d.style.opacity = '0'; setTimeout(() => d.remove(), 150); }, 800);
         d.onclick = () => {
           clearTimeout(rm); d.remove();
-          if (!isLevel1Running) return;
+          if (!isLevel1Running || ended) return;
           score(15); playSuccessSound();
+          clickCount++;
+          prog.textContent = `${clickCount} / ${TARGET}`;
+          if (clickCount >= TARGET) {
+            ended = true;
+            clearTimeout(tid);
+            cleanupAd();
+            setTimeout(() => onSuccess(), 300);
+          }
         };
         tid = setTimeout(spawn, 500 + Math.random() * 500);
       }
       spawn();
-      return () => { clearTimeout(tid); area.innerHTML = ''; };
+      return () => { cleanupAd(); clearTimeout(tid); area.innerHTML = ''; };
     }
   },
 
@@ -1301,7 +1367,7 @@ const MINI_GAMES = {
 const gameStages = [
   // ── MINI_GAMES 래핑 (circle-click만 광고 시스템 포함 / 20초, 나머지 30초) ──
   ...Object.entries(MINI_GAMES).map(([id, game]) => {
-    const timerDuration = (id === 'circle-click' || id === 'whack-mole') ? 20 : 30;
+    const timerDuration = (id === 'circle-click' || id === 'whack-mole' || id === 'rapid-tap') ? 20 : 30;
     return {
       id,
       label: game.label,
