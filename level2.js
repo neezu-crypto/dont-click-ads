@@ -455,7 +455,7 @@ const Level2Module = (() => {
     }
 
     _rmListeners();
-    setTimeout(() => { if (_onSuccess) _onSuccess(500); }, 400);
+    setTimeout(() => { if (_onSuccess) _onSuccess(100); }, 400);
   }
 
   function _rmListeners() {
