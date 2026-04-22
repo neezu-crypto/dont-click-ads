@@ -1224,16 +1224,27 @@ const MINI_GAMES = {
 // callbacks: { onScore(pts), onSuccess(), onFail(reason) }
 const gameStages = [
   // ── MINI_GAMES 래핑 (circle-click만 광고 시스템 포함 / 20초, 나머지 30초) ──
-  ...Object.entries(MINI_GAMES).map(([id, game]) => ({
-    id,
-    label: game.label,
-    timerDuration: id === 'circle-click' ? 20 : 30,
-    usesAdSystem: id === 'circle-click',
-    init(area, { onScore, onFail }) {
-      const cleanupFn = game.start(area, onScore, onFail) || (() => {});
-      return { cleanup() { cleanupFn(); area.innerHTML = ''; } };
-    }
-  })),
+  ...Object.entries(MINI_GAMES).map(([id, game]) => {
+    const timerDuration = id === 'circle-click' ? 20 : 30;
+    return {
+      id,
+      label: game.label,
+      timerDuration,
+      usesAdSystem: id === 'circle-click',
+      init(area, { onScore, onSuccess, onFail }) {
+        let timeLeft = timerDuration;
+        const timerEl = document.getElementById('timer-display');
+        const countdownId = setInterval(() => {
+          if (!isLevel1Running) { clearInterval(countdownId); return; }
+          timeLeft--;
+          timerEl.textContent = timeLeft;
+          if (timeLeft <= 0) { clearInterval(countdownId); onSuccess(); }
+        }, 1000);
+        const cleanupFn = game.start(area, onScore, onFail) || (() => {});
+        return { cleanup() { clearInterval(countdownId); cleanupFn(); area.innerHTML = ''; } };
+      }
+    };
+  }),
 
   // ── 숫자 순서 클릭 (자체 타이머, 25클릭 클리어, 타임아웃/광고클릭 = 게임오버) ──
   {
@@ -1823,12 +1834,6 @@ function startLevel(n) {
   _activeGameCleanup = () => stageInst.cleanup();
 
   if (stage.usesAdSystem) {
-    level1Timer = setInterval(() => {
-      if (!isLevel1Running) return;
-      level1TimeLeft--;
-      document.getElementById('timer-display').textContent = level1TimeLeft;
-      if (level1TimeLeft <= 0) endLevelClear();
-    }, 1000);
     scheduleAdPopup();
   }
 }
