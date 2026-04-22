@@ -1220,11 +1220,11 @@ const MINI_GAMES = {
 // 인터페이스: { id, label, timerDuration, usesAdSystem, init(area, callbacks) → { cleanup() } }
 // callbacks: { onScore(pts), onSuccess(), onFail(reason) }
 const gameStages = [
-  // ── MINI_GAMES 래핑 (circle-click만 광고 시스템 포함, 30초) ──
+  // ── MINI_GAMES 래핑 (circle-click만 광고 시스템 포함 / 20초, 나머지 30초) ──
   ...Object.entries(MINI_GAMES).map(([id, game]) => ({
     id,
     label: game.label,
-    timerDuration: 30,
+    timerDuration: id === 'circle-click' ? 20 : 30,
     usesAdSystem: id === 'circle-click',
     init(area, { onScore, onFail }) {
       const cleanupFn = game.start(area, onScore, onFail) || (() => {});
