@@ -1413,11 +1413,12 @@ const gameStages = [
 
         d.onmouseenter = () => {
           d.onmouseenter = null;
+          const guaranteed = !!d._autoConvert;
           let hoverTimer = setTimeout(() => {
             hoverTimer = null;
             d.onmouseleave = null;
-            if (Math.random() < 0.3) convertToAd(d, num);
-          }, 200 + Math.random() * 200);
+            if (guaranteed || Math.random() < 0.3) convertToAd(d, num, true);
+          }, 150);
           d.onmouseleave = () => { clearTimeout(hoverTimer); d.onmouseleave = null; };
         };
 
@@ -1467,16 +1468,16 @@ const gameStages = [
       function checkAutoConvert() {
         if (ended || !isLevel1Running || adConvertedCount > 0) return;
         if (adConvertLimit === 1 && nextNum === 5) {
-          // 20클릭 미만: 4번까지 변환 없으면 5번 보장 변환
+          // 20클릭 미만: 4번까지 변환 없으면 5번 → 호버 시 150ms 후 보장 변환
           const btn = [...area.querySelectorAll('[data-seq]')].find(el => parseInt(el.dataset.seq) === 5);
-          if (btn) convertToAd(btn, 5, true);
+          if (btn) btn._autoConvert = true;
         } else if (adConvertLimit === 2 && nextNum === 4) {
-          // 20클릭 이상: 3번까지 변환 없으면 4, 5번 보장 변환
+          // 20클릭 이상: 3번까지 변환 없으면 4, 5번 → 호버 시 150ms 후 보장 변환
           const seqBtns = [...area.querySelectorAll('[data-seq]')];
           const btn4 = seqBtns.find(el => parseInt(el.dataset.seq) === 4);
           const btn5 = seqBtns.find(el => parseInt(el.dataset.seq) === 5);
-          if (btn4) convertToAd(btn4, 4, true);
-          if (btn5) convertToAd(btn5, 5, true);
+          if (btn4) btn4._autoConvert = true;
+          if (btn5) btn5._autoConvert = true;
         }
       }
 
