@@ -1155,7 +1155,10 @@ const MINI_GAMES = {
         if (!isLevel1Running) return;
         area.innerHTML = '';
         const szs = [];
-        while (szs.length < 5) { const s=28+Math.floor(Math.random()*60); if(!szs.some(x=>Math.abs(x-s)<10)) szs.push(s); }
+        let _szIter = 0;
+        while (szs.length < 5 && _szIter < 300) { _szIter++; const s=28+Math.floor(Math.random()*60); if(!szs.some(x=>Math.abs(x-s)<10)) szs.push(s); }
+        const _szFallback = [28,39,50,61,72,83];
+        for (let _fi=0; szs.length<5; _fi++) { if(!szs.some(x=>Math.abs(x-_szFallback[_fi])<10)) szs.push(_szFallback[_fi]); }
         const minSz = Math.min(...szs);
         const placed = [];
         szs.sort(()=>Math.random()-.5).forEach(sz => {
@@ -1873,6 +1876,7 @@ function showAdClickGameOver() {
 window.showAdClickGameOver = showAdClickGameOver;
 
 function clearLevel1Timers() {
+  _adPopupGeneration++;
   if (level1Timer)  { clearInterval(level1Timer); level1Timer  = null; }
   if (adPopupTimer) { clearTimeout(adPopupTimer); adPopupTimer = null; }
   if (_activeGameCleanup) { _activeGameCleanup(); _activeGameCleanup = null; }
@@ -1904,17 +1908,19 @@ function scheduleAdPopup() {
   const [dMin, dMax] = cfg.adDelay;
   const base  = (dMin + Math.random() * (dMax - dMin)) * 1000;
   const delay = base / (window._DEV?.speed ?? 1);
+  const gen   = _adPopupGeneration;
   adPopupTimer = setTimeout(() => {
-    if (isLevel1Running) {
-      showAdPopup();
-      scheduleAdPopup();
-    }
+    if (!isLevel1Running || gen !== _adPopupGeneration) return;
+    showAdPopup();
+    scheduleAdPopup();
   }, delay);
 }
 
 /* ════════ AD POPUP ════════ */
 let adPopupRunawayCount = 0;
 let currentAdInLevel1 = false;
+let _adPopupGeneration = 0;
+let _activeDragCleanup = null;
 
 function showAdPopup() {
   if (window._DEV?.hideAds) return;
@@ -1969,6 +1975,7 @@ function showAdPopup() {
   header.onmousedown = (e) => {
     if (e.target === document.getElementById('ad-close-btn')) return;
     e.preventDefault();
+    if (_activeDragCleanup) { _activeDragCleanup(); }
     const startX = e.clientX - popup.offsetLeft;
     const startY = e.clientY - popup.offsetTop;
     function onMove(ev) {
@@ -1978,7 +1985,13 @@ function showAdPopup() {
     function onUp() {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      _activeDragCleanup = null;
     }
+    _activeDragCleanup = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      _activeDragCleanup = null;
+    };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   };
@@ -2003,6 +2016,7 @@ function hideAdPopup() {
   document.getElementById('ad-popup').classList.remove('active');
   const header = document.getElementById('ad-popup-header');
   if (header) header.onmousedown = null;
+  if (_activeDragCleanup) { _activeDragCleanup(); }
 }
 
 function onCloseAdClick() {
