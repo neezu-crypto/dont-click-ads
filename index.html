@@ -265,8 +265,10 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      cursor: default;
+      cursor: grab;
+      user-select: none;
     }
+    #ad-popup-header:active { cursor: grabbing; }
     #ad-close-btn {
       cursor: pointer;
       font-size: 1.1rem;
@@ -1959,6 +1961,25 @@ function showAdPopup() {
   popup.classList.add('active');
   playAdSound();
 
+  /* 드래그로 팝업 이동 */
+  const header = document.getElementById('ad-popup-header');
+  header.onmousedown = (e) => {
+    if (e.target === document.getElementById('ad-close-btn')) return;
+    e.preventDefault();
+    const startX = e.clientX - popup.offsetLeft;
+    const startY = e.clientY - popup.offsetTop;
+    function onMove(ev) {
+      popup.style.left = (ev.clientX - startX) + 'px';
+      popup.style.top  = (ev.clientY - startY) + 'px';
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   body.onclick = (e) => {
     e.preventDefault();
     if (window._DEV?.godMode) { _devToast('무적 모드: 광고 클릭 무시'); hideAdPopup(); return; }
@@ -1977,6 +1998,8 @@ function showAdPopup() {
 
 function hideAdPopup() {
   document.getElementById('ad-popup').classList.remove('active');
+  const header = document.getElementById('ad-popup-header');
+  if (header) header.onmousedown = null;
 }
 
 function onCloseAdClick() {
