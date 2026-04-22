@@ -1050,7 +1050,7 @@ const MINI_GAMES = {
       let cx = window.innerWidth / 2, cy = window.innerHeight / 2;
       let tx = cx, ty = cy;
       let raf = null;
-      const LERP = 0.055;
+      const LERP = 0.0495;
       function onMove(e) { tx = e.clientX; ty = e.clientY; }
       function adTick() {
         cx += (tx - cx) * LERP;
@@ -1092,7 +1092,7 @@ const MINI_GAMES = {
         d.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:radial-gradient(circle,#00ffaa,#008855);left:${Math.random()*(area.clientWidth-sz)}px;top:${Math.random()*(area.clientHeight-sz)}px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:bold;color:#000;transition:opacity 0.15s;box-shadow:0 0 10px #00ffaa66`;
         d.textContent = '+15';
         area.appendChild(d);
-        const rm = setTimeout(() => { d.style.opacity = '0'; setTimeout(() => d.remove(), 150); }, 800);
+        const rm = setTimeout(() => { d.style.opacity = '0'; setTimeout(() => d.remove(), 150); }, 960);
         d.onclick = () => {
           clearTimeout(rm); d.remove();
           if (!isLevel1Running || ended) return;
