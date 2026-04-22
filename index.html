@@ -1337,7 +1337,8 @@ const gameStages = [
       let seqTimer    = null;
       let timeLeft    = 30;
       let ended       = false;
-      let adConverted = false; // 라운드당 1회 제한
+      let adConvertedCount = 0; // 라운드당 변환 횟수
+      let adConvertLimit   = 1; // 20회 클릭 이전: 1, 이후: 2
 
       // 진행 표시
       const prog = document.createElement('div');
@@ -1421,24 +1422,31 @@ const gameStages = [
         return d;
       }
 
-      function convertToAd(d, num) {
-        if (ended || !isLevel1Running || adConverted) return;
+      function convertToAd(triggerD, triggerNum) {
+        if (ended || !isLevel1Running || adConvertedCount >= adConvertLimit) return;
         const ad = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
         if (!ad) return;
-        adConverted = true;
+        adConvertedCount++;
 
-        delete d.dataset.seq;
-        d.dataset.adbait = '1';
-        d.style.background = ad.imgUrl
+        // 현재 화면의 seq 버튼 중 랜덤 선택 (호버한 버튼 제외 우선)
+        const candidates = [...area.querySelectorAll('[data-seq]')].filter(el => el !== triggerD);
+        const target = candidates.length > 0
+          ? candidates[Math.floor(Math.random() * candidates.length)]
+          : triggerD;
+        const targetNum = parseInt(target.dataset.seq);
+
+        delete target.dataset.seq;
+        target.dataset.adbait = '1';
+        target.style.background = ad.imgUrl
           ? `url(${ad.imgUrl}) center/cover`
           : 'radial-gradient(circle,#ff8844,#cc3300)';
-        d.style.boxShadow = '0 0 14px #ff440088';
-        d.style.border    = '2px solid #ff4400';
-        d.style.fontSize  = '0';
-        d.textContent     = '';
-        d.onclick = null;
-        d.onmouseenter = null;
-        d.onmousedown = () => {
+        target.style.boxShadow = '0 0 14px #ff440088';
+        target.style.border    = '2px solid #ff4400';
+        target.style.fontSize  = '0';
+        target.textContent     = '';
+        target.onclick      = null;
+        target.onmouseenter = null;
+        target.onmousedown = () => {
           if (!isLevel1Running || ended) return;
           ended = true;
           clearInterval(seqTimer);
@@ -1450,13 +1458,13 @@ const gameStages = [
         };
 
         const exclude = allOccupied();
-        exclude.push({ x: parseFloat(d.style.left), y: parseFloat(d.style.top) });
-        area.appendChild(makeBtn(num, randPos(exclude)));
+        exclude.push({ x: parseFloat(target.style.left), y: parseFloat(target.style.top) });
+        area.appendChild(makeBtn(targetNum, randPos(exclude)));
       }
 
       function spawn() {
         area.querySelectorAll('[data-seq],[data-adbait]').forEach(el => el.remove());
-        nextNum = 1; adConverted = false;
+        nextNum = 1; adConvertedCount = 0; adConvertLimit = totalClicks >= 20 ? 2 : 1;
         const placed = [];
         for (let i = 1; i <= 5; i++) {
           const pos = randPos(placed);
