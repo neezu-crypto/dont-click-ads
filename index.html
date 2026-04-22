@@ -1782,6 +1782,7 @@ function showScreen(id) {
 
 /* ════════ OPENING ════════ */
 function goToNickname() {
+  playSuccessSound();
   if (typeof window._removeOpeningCursorAd === 'function') window._removeOpeningCursorAd();
   showScreen('screen-nickname');
   document.getElementById('nickname-input').focus();
@@ -1799,6 +1800,7 @@ async function submitNickname() {
     input.focus();
     return;
   }
+  playSuccessSound();
   error.textContent = '';
   playerNickname = name;
 
