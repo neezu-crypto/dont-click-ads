@@ -1690,7 +1690,7 @@ function _tOnBtnFirstHover() {
 
     // 이후 마우스 접근 시 부드러운 회피 루프 시작
     _tRafId = requestAnimationFrame(_tBtnTick);
-  }, 200);
+  }, 200 + Math.random() * 200);
 }
 
 function _tOnScreenMouseMove(e) {
