@@ -2236,7 +2236,7 @@ window.closeRankingModal = closeRankingModal;
     if (!window._devAuth) { _devToast('Firebase 아직 로딩 중...'); return; }
 
     const existing = window._devAuth.currentUser();
-    if (existing) { _devCheckAndUnlock(existing); return; }
+    if (existing && !existing.isAnonymous) { _devCheckAndUnlock(existing); return; }
 
     window._devAuth.signIn()
       .then(result => _devCheckAndUnlock(result.user))
