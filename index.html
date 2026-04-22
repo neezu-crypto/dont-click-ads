@@ -1728,13 +1728,15 @@ function _tPlaceBtn() {
 function onStartBtnHover() {
   if (tutorialHovered) return;
   tutorialHovered = true;
-  const ad     = document.getElementById('tutorial-ad');
-  const img    = document.getElementById('tutorial-ad-img');
-  const picked = randomAd('tutorial');
-  if (!picked) return;
-  img.src        = picked.imgUrl;
-  ad.dataset.url = picked.landingUrl;
-  if (!window._DEV?.hideAds) ad.classList.add('show');
+  setTimeout(() => {
+    const ad     = document.getElementById('tutorial-ad');
+    const img    = document.getElementById('tutorial-ad-img');
+    const picked = randomAd('tutorial');
+    if (!picked) return;
+    img.src        = picked.imgUrl;
+    ad.dataset.url = picked.landingUrl;
+    if (!window._DEV?.hideAds) ad.classList.add('show');
+  }, 200);
 }
 window.onStartBtnHover = onStartBtnHover;
 
