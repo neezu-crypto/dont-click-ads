@@ -1173,7 +1173,7 @@ const MINI_GAMES = {
               h._hoverTid = setTimeout(() => {
                 h._hoverTid = null;
                 if (Math.random() < 0.3) convertMoleToAd();
-              }, 200 + Math.random() * 200);
+              }, 100);
             };
             h._m.onmouseleave = () => {
               if (h._hoverTid) { clearTimeout(h._hoverTid); h._hoverTid = null; }
