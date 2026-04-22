@@ -1012,7 +1012,7 @@ const MINI_GAMES = {
         score(10); playSuccessSound(); move();
         if (Math.random() < 0.2) showAdPopup();
       };
-      return () => { area.innerHTML = ''; };
+      return () => {};
     }
   },
 
@@ -1106,7 +1106,7 @@ const MINI_GAMES = {
         tid = setTimeout(spawn, 500 + Math.random() * 500);
       }
       spawn();
-      return () => { cleanupAd(); clearTimeout(tid); area.innerHTML = ''; };
+      return () => { cleanupAd(); clearTimeout(tid); };
     }
   },
 
@@ -1140,7 +1140,7 @@ const MINI_GAMES = {
         tid = setTimeout(refresh, 5000);
       }
       refresh();
-      return () => { clearTimeout(tid); area.innerHTML = ''; };
+      return () => { clearTimeout(tid); };
     }
   },
 
@@ -1253,7 +1253,7 @@ const MINI_GAMES = {
         tid = setTimeout(tick, 700+Math.random()*500);
       }
       tick();
-      return () => { ended = true; clearTimeout(tid); area.innerHTML = ''; };
+      return () => { ended = true; clearTimeout(tid); };
     }
   },
 
@@ -1281,7 +1281,7 @@ const MINI_GAMES = {
         clearTimeout(tid); arm();
       };
       arm();
-      return () => { clearTimeout(tid); area.innerHTML=''; };
+      return () => { clearTimeout(tid); };
     }
   },
 
@@ -1317,7 +1317,7 @@ const MINI_GAMES = {
         });
       }
       round();
-      return () => { clearTimeout(roundTid); area.innerHTML=''; };
+      return () => { clearTimeout(roundTid); };
     }
   },
 
@@ -1352,7 +1352,7 @@ const MINI_GAMES = {
         }
       }
       round();
-      return () => { clearTimeout(roundTid); area.innerHTML=''; };
+      return () => { clearTimeout(roundTid); };
     }
   },
 };
@@ -1380,7 +1380,7 @@ const gameStages = [
           if (timeLeft <= 0) { clearInterval(countdownId); game.failOnTimeout ? onFail('timeout') : onSuccess(); }
         }, 1000);
         const cleanupFn = game.start(area, onScore, onFail, onSuccess) || (() => {});
-        return { cleanup() { clearInterval(countdownId); cleanupFn(); area.innerHTML = ''; } };
+        return { cleanup() { clearInterval(countdownId); cleanupFn(); } };
       }
     };
   }),
@@ -1560,7 +1560,6 @@ const gameStages = [
         cleanup() {
           ended = true;
           clearInterval(seqTimer);
-          area.innerHTML = '';
         }
       };
     }
@@ -1578,7 +1577,7 @@ const gameStages = [
         (bonus) => { onScore(bonus); onSuccess(); },
         onFail
       );
-      return { cleanup() { cleanupFn && cleanupFn(); area.innerHTML = ''; } };
+      return { cleanup() { cleanupFn && cleanupFn(); } };
     }
   },
 
@@ -1668,7 +1667,7 @@ const gameStages = [
       }
       next();
       startQuestionTimer();
-      return { cleanup() { ended = true; clearInterval(questionTimer); area.innerHTML = ''; } };
+      return { cleanup() { ended = true; clearInterval(questionTimer); } };
     }
   }
 ];
