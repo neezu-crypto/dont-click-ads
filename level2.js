@@ -11,7 +11,7 @@ const Level2Module = (() => {
   const WALL_T       = 3;   // 벽 두께 (셀 경계 양쪽에 각 WALL_T px)
   const BALL_R       = 12;  // 공 반지름 (고정)
   const AD_R           = Math.round(BALL_R * 1.44); // 광고 반지름
-  const AD_SPAWN_DELAY = 10_000; // 10초 후 광고 출현
+  const AD_SPAWN_DELAY = 8_000; // 8초 후 광고 출현
   const PATH_INTERVAL  = 100;   // 경로 기록 간격 (ms)
   const AD_SPEED_MULT  = 1.2;   // 플레이어 경로 재생 속도 배율 (1.2 = 20% 빠름)
 
@@ -420,6 +420,7 @@ const Level2Module = (() => {
       const sy = MAZE_PAD + (_sCell.r + 0.5) * _CELL;
       if (Math.hypot(_ballPos.x - sx, _ballPos.y - sy) > _CELL * 0.6) {
         _adTimerStarted = true;
+        _startPathRecording();
         _adSpawnTimeout = setTimeout(_spawnAd, AD_SPAWN_DELAY);
       }
     }
@@ -532,8 +533,6 @@ const Level2Module = (() => {
 
     window.addEventListener('keydown', _onKeyDown);
     window.addEventListener('keyup',   _onKeyUp);
-
-    _startPathRecording();
 
     _startTimer(t.timer);
 
