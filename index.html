@@ -1074,53 +1074,6 @@ const MINI_GAMES = {
     }
   },
 
-  'math-tap': {
-    label: '정답을 빨리 클릭!',
-    start(area, score) {
-      area.innerHTML = '';
-      let tid;
-      const qEl   = document.createElement('div');
-      const bWrap = document.createElement('div');
-      qEl.style.cssText   = 'position:absolute;top:28%;left:50%;transform:translate(-50%,-50%);font-size:2.2rem;font-weight:bold;color:#fff;text-align:center;white-space:nowrap;user-select:none';
-      bWrap.style.cssText = 'position:absolute;bottom:36px;left:50%;transform:translateX(-50%);display:flex;gap:14px';
-      area.appendChild(qEl); area.appendChild(bWrap);
-      function next() {
-        const a = 1+Math.floor(Math.random()*20), b = 1+Math.floor(Math.random()*20);
-        const ops = [{s:'+',f:(a,b)=>a+b},{s:'-',f:(a,b)=>a-b},{s:'×',f:(a,b)=>a*b}];
-        const op  = ops[Math.floor(Math.random()*ops.length)];
-        const ans = op.f(a, b);
-        qEl.textContent = `${a} ${op.s} ${b} = ?`;
-        const wrongs = new Set();
-        while (wrongs.size < 2) { const w = ans+(Math.floor(Math.random()*9)-4); if(w!==ans) wrongs.add(w); }
-        bWrap.innerHTML = '';
-        [...wrongs, ans].sort(() => Math.random()-.5).forEach(v => {
-          const btn = document.createElement('button');
-          btn.textContent = v;
-          btn.style.cssText = 'width:72px;height:52px;font-size:1.2rem;border:2px solid #444;background:#1a1a1a;color:#fff;border-radius:10px;cursor:pointer';
-          btn.onmouseenter = () => btn.style.background = '#2a2a2a';
-          btn.onmouseleave = () => btn.style.background = '#1a1a1a';
-          btn.onclick = () => {
-            if (!isLevel1Running) return;
-            if (v === ans) {
-              score(20); playSuccessSound(); if (Math.random()<.15) showAdPopup();
-              clearTimeout(tid); next();
-            } else {
-              const ad = randomAd('level1') || randomAd('all');
-              if (ad) { window.open(ad.landingUrl, '_blank'); }
-              recordAdClick();
-              playFailSound();
-              clearLevel1Timers();
-              showAdClickGameOver();
-            }
-          };
-          bWrap.appendChild(btn);
-        });
-        tid = setTimeout(next, 5000);
-      }
-      next();
-      return () => { clearTimeout(tid); area.innerHTML = ''; };
-    }
-  },
 
 
   'whack-mole': {
@@ -1445,6 +1398,92 @@ const gameStages = [
         onFail
       );
       return { cleanup() { cleanupFn && cleanupFn(); area.innerHTML = ''; } };
+    }
+  },
+
+  // ── 정답을 빨리 클릭! (광고팝업 없음, 10문제 정답 시 클리어) ──
+  {
+    id: 'math-tap',
+    label: '정답을 빨리 클릭!',
+    timerDuration: 60,
+    usesAdSystem: false,
+    init(area, { onScore, onSuccess, onFail }) {
+      area.innerHTML = '';
+      let tid;
+      let ended        = false;
+      let correctCount = 0;
+      const TARGET     = 10;
+      let timeLeft     = 60;
+
+      const prog = document.createElement('div');
+      prog.style.cssText = 'position:absolute;top:10px;right:12px;color:#888;font-size:0.85rem;pointer-events:none;user-select:none;z-index:5';
+      prog.textContent = `0 / ${TARGET}`;
+      area.appendChild(prog);
+
+      const mathTimer = setInterval(() => {
+        if (ended) return;
+        timeLeft--;
+        document.getElementById('timer-display').textContent = timeLeft;
+        if (timeLeft <= 0) {
+          ended = true;
+          clearInterval(mathTimer);
+          onFail('timeout');
+        }
+      }, 1000);
+
+      const qEl   = document.createElement('div');
+      const bWrap = document.createElement('div');
+      qEl.style.cssText   = 'position:absolute;top:28%;left:50%;transform:translate(-50%,-50%);font-size:2.2rem;font-weight:bold;color:#fff;text-align:center;white-space:nowrap;user-select:none';
+      bWrap.style.cssText = 'position:absolute;bottom:36px;left:50%;transform:translateX(-50%);display:flex;gap:14px';
+      area.appendChild(qEl); area.appendChild(bWrap);
+
+      function next() {
+        if (ended) return;
+        const a = 1+Math.floor(Math.random()*20), b = 1+Math.floor(Math.random()*20);
+        const ops = [{s:'+',f:(a,b)=>a+b},{s:'-',f:(a,b)=>a-b},{s:'×',f:(a,b)=>a*b}];
+        const op  = ops[Math.floor(Math.random()*ops.length)];
+        const ans = op.f(a, b);
+        qEl.textContent = `${a} ${op.s} ${b} = ?`;
+        const wrongs = new Set();
+        while (wrongs.size < 2) { const w = ans+(Math.floor(Math.random()*9)-4); if(w!==ans) wrongs.add(w); }
+        bWrap.innerHTML = '';
+        [...wrongs, ans].sort(() => Math.random()-.5).forEach(v => {
+          const btn = document.createElement('button');
+          btn.textContent = v;
+          btn.style.cssText = 'width:72px;height:52px;font-size:1.2rem;border:2px solid #444;background:#1a1a1a;color:#fff;border-radius:10px;cursor:pointer';
+          btn.onmouseenter = () => btn.style.background = '#2a2a2a';
+          btn.onmouseleave = () => btn.style.background = '#1a1a1a';
+          btn.onclick = () => {
+            if (ended || !isLevel1Running) return;
+            if (v === ans) {
+              correctCount++;
+              prog.textContent = `${correctCount} / ${TARGET}`;
+              onScore(20); playSuccessSound();
+              clearTimeout(tid);
+              if (correctCount >= TARGET) {
+                ended = true;
+                clearInterval(mathTimer);
+                setTimeout(() => onSuccess(), 350);
+              } else {
+                next();
+              }
+            } else {
+              ended = true;
+              clearInterval(mathTimer);
+              clearTimeout(tid);
+              const ad = randomAd('level1') || randomAd('all');
+              if (ad) { window.open(ad.landingUrl, '_blank'); }
+              recordAdClick();
+              playFailSound();
+              onFail('ad-click');
+            }
+          };
+          bWrap.appendChild(btn);
+        });
+        tid = setTimeout(next, 5000);
+      }
+      next();
+      return { cleanup() { ended = true; clearInterval(mathTimer); clearTimeout(tid); area.innerHTML = ''; } };
     }
   }
 ];
