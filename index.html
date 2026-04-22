@@ -1676,19 +1676,21 @@ function _tOnBtnFirstHover() {
   if (_tActive) return;
   _tActive = true;
 
-  // 광고 노출
-  onStartBtnHover();
+  setTimeout(() => {
+    // 광고 노출
+    onStartBtnHover();
 
-  // 첫 호버: 아래 고정 위치로 순간이동
-  const SH = window.innerHeight;
-  const tx = _tBtnX;
-  const ty = Math.min(_tBtnY + 220, SH - T_BTN_H / 2);
-  _tBtnX = tx; _tBtnY = ty;
-  _tTgtX = tx; _tTgtY = ty;
-  _tPlaceBtn();
+    // 첫 호버: 아래 고정 위치로 순간이동
+    const SH = window.innerHeight;
+    const tx = _tBtnX;
+    const ty = Math.min(_tBtnY + 220, SH - T_BTN_H / 2);
+    _tBtnX = tx; _tBtnY = ty;
+    _tTgtX = tx; _tTgtY = ty;
+    _tPlaceBtn();
 
-  // 이후 마우스 접근 시 부드러운 회피 루프 시작
-  _tRafId = requestAnimationFrame(_tBtnTick);
+    // 이후 마우스 접근 시 부드러운 회피 루프 시작
+    _tRafId = requestAnimationFrame(_tBtnTick);
+  }, 200);
 }
 
 function _tOnScreenMouseMove(e) {
@@ -1730,15 +1732,13 @@ function _tPlaceBtn() {
 function onStartBtnHover() {
   if (tutorialHovered) return;
   tutorialHovered = true;
-  setTimeout(() => {
-    const ad     = document.getElementById('tutorial-ad');
-    const img    = document.getElementById('tutorial-ad-img');
-    const picked = randomAd('tutorial');
-    if (!picked) return;
-    img.src        = picked.imgUrl;
-    ad.dataset.url = picked.landingUrl;
-    if (!window._DEV?.hideAds) ad.classList.add('show');
-  }, 200);
+  const ad     = document.getElementById('tutorial-ad');
+  const img    = document.getElementById('tutorial-ad-img');
+  const picked = randomAd('tutorial');
+  if (!picked) return;
+  img.src        = picked.imgUrl;
+  ad.dataset.url = picked.landingUrl;
+  if (!window._DEV?.hideAds) ad.classList.add('show');
 }
 window.onStartBtnHover = onStartBtnHover;
 
