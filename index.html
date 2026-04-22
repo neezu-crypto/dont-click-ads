@@ -1402,6 +1402,8 @@ const gameStages = [
               setTimeout(() => onSuccess(), 350);
             } else if (nextNum > 5) {
               setTimeout(spawn, 350);
+            } else {
+              checkAutoConvert();
             }
           } else {
             d.style.background = 'radial-gradient(circle,#ff4444,#cc0000)';
@@ -1414,7 +1416,7 @@ const gameStages = [
           let hoverTimer = setTimeout(() => {
             hoverTimer = null;
             d.onmouseleave = null;
-            convertToAd(d, num);
+            if (Math.random() < 0.3) convertToAd(d, num);
           }, 200 + Math.random() * 200);
           d.onmouseleave = () => { clearTimeout(hoverTimer); d.onmouseleave = null; };
         };
@@ -1422,14 +1424,14 @@ const gameStages = [
         return d;
       }
 
-      function convertToAd(triggerD, triggerNum) {
+      function convertToAd(triggerD, triggerNum, forceDirect = false) {
         if (ended || !isLevel1Running || adConvertedCount >= adConvertLimit) return;
         const ad = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
         if (!ad) return;
         adConvertedCount++;
 
-        // 현재 화면의 seq 버튼 중 랜덤 선택 (호버한 버튼 제외 우선)
-        const candidates = [...area.querySelectorAll('[data-seq]')].filter(el => el !== triggerD);
+        // forceDirect=true면 triggerD 자체를, 아니면 다른 랜덤 버튼을 변환
+        const candidates = forceDirect ? [] : [...area.querySelectorAll('[data-seq]')].filter(el => el !== triggerD);
         const target = candidates.length > 0
           ? candidates[Math.floor(Math.random() * candidates.length)]
           : triggerD;
@@ -1460,6 +1462,22 @@ const gameStages = [
         const exclude = allOccupied();
         exclude.push({ x: parseFloat(target.style.left), y: parseFloat(target.style.top) });
         area.appendChild(makeBtn(targetNum, randPos(exclude)));
+      }
+
+      function checkAutoConvert() {
+        if (ended || !isLevel1Running || adConvertedCount > 0) return;
+        if (adConvertLimit === 1 && nextNum === 5) {
+          // 20클릭 미만: 4번까지 변환 없으면 5번 보장 변환
+          const btn = [...area.querySelectorAll('[data-seq]')].find(el => parseInt(el.dataset.seq) === 5);
+          if (btn) convertToAd(btn, 5, true);
+        } else if (adConvertLimit === 2 && nextNum === 4) {
+          // 20클릭 이상: 3번까지 변환 없으면 4, 5번 보장 변환
+          const seqBtns = [...area.querySelectorAll('[data-seq]')];
+          const btn4 = seqBtns.find(el => parseInt(el.dataset.seq) === 4);
+          const btn5 = seqBtns.find(el => parseInt(el.dataset.seq) === 5);
+          if (btn4) convertToAd(btn4, 4, true);
+          if (btn5) convertToAd(btn5, 5, true);
+        }
       }
 
       function spawn() {
