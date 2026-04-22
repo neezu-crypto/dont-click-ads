@@ -1079,9 +1079,18 @@ const MINI_GAMES = {
 
   'whack-mole': {
     label: '두더지를 잡아라! 빨간 건 피해!',
-    start(area, score) {
+    start(area, score, onFail, onSuccess) {
       area.innerHTML = '';
+      const TARGET = 10;
+      let greenCount = 0;
+      let ended = false;
       const holes = []; let tid;
+
+      const prog = document.createElement('div');
+      prog.style.cssText = 'position:absolute;top:10px;right:12px;color:#888;font-size:0.85rem;pointer-events:none;user-select:none;z-index:5';
+      prog.textContent = `0 / ${TARGET}`;
+      area.appendChild(prog);
+
       const grid = document.createElement('div');
       grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:22px;width:100%;height:100%;box-sizing:border-box';
       area.appendChild(grid);
@@ -1094,7 +1103,7 @@ const MINI_GAMES = {
         grid.appendChild(hole); holes.push(hole);
       }
       function tick() {
-        if (!isLevel1Running) return;
+        if (!isLevel1Running || ended) return;
         const active = holes.filter(h=>h._active);
         if (active.length) { const h=active[Math.floor(Math.random()*active.length)]; h._m.style.bottom='-100%'; h._active=false; }
         const free = holes.filter(h=>!h._active);
@@ -1105,16 +1114,25 @@ const MINI_GAMES = {
           h._m.textContent = h._red ? '💀' : '🐹';
           h._m.style.bottom = '5%'; h._active = true;
           h.onclick = () => {
-            if (!h._active || !isLevel1Running) return;
+            if (!h._active || !isLevel1Running || ended) return;
             h._m.style.bottom = '-100%'; h._active = false;
             if (h._red) { score(-10); }
-            else { score(10); playSuccessSound(); }
+            else {
+              score(10); playSuccessSound();
+              greenCount++;
+              prog.textContent = `${greenCount} / ${TARGET}`;
+              if (greenCount >= TARGET) {
+                ended = true;
+                clearTimeout(tid);
+                setTimeout(() => onSuccess(), 300);
+              }
+            }
           };
         }
         tid = setTimeout(tick, 700+Math.random()*500);
       }
       tick();
-      return () => { clearTimeout(tid); area.innerHTML = ''; };
+      return () => { ended = true; clearTimeout(tid); area.innerHTML = ''; };
     }
   },
 
@@ -1225,7 +1243,7 @@ const MINI_GAMES = {
 const gameStages = [
   // ── MINI_GAMES 래핑 (circle-click만 광고 시스템 포함 / 20초, 나머지 30초) ──
   ...Object.entries(MINI_GAMES).map(([id, game]) => {
-    const timerDuration = id === 'circle-click' ? 20 : 30;
+    const timerDuration = (id === 'circle-click' || id === 'whack-mole') ? 20 : 30;
     return {
       id,
       label: game.label,
@@ -1240,7 +1258,7 @@ const gameStages = [
           timerEl.textContent = timeLeft;
           if (timeLeft <= 0) { clearInterval(countdownId); onSuccess(); }
         }, 1000);
-        const cleanupFn = game.start(area, onScore, onFail) || (() => {});
+        const cleanupFn = game.start(area, onScore, onFail, onSuccess) || (() => {});
         return { cleanup() { clearInterval(countdownId); cleanupFn(); area.innerHTML = ''; } };
       }
     };
