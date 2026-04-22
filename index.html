@@ -1105,29 +1105,80 @@ const MINI_GAMES = {
       function tick() {
         if (!isLevel1Running || ended) return;
         const active = holes.filter(h=>h._active);
-        if (active.length) { const h=active[Math.floor(Math.random()*active.length)]; h._m.style.bottom='-100%'; h._active=false; }
+        if (active.length) {
+          const h = active[Math.floor(Math.random()*active.length)];
+          if (h._hoverTid) { clearTimeout(h._hoverTid); h._hoverTid = null; }
+          h._m.style.bottom = '-100%'; h._m.style.boxShadow = ''; h._m.style.border = '';
+          h._active = false; h._ad = null; h._m.onmouseenter = null; h._m.onmouseleave = null;
+        }
         const free = holes.filter(h=>!h._active);
         if (free.length) {
           const h = free[Math.floor(Math.random()*free.length)];
           h._red = Math.random() < 0.3;
+          h._ad = null;
+          h._hoverTid = null;
           h._m.style.background = h._red ? 'radial-gradient(circle,#ff6666,#cc2222)' : 'radial-gradient(circle,#88cc44,#448800)';
           h._m.textContent = h._red ? '💀' : '🐹';
           h._m.style.bottom = '5%'; h._active = true;
-          h.onclick = () => {
+
+          function convertMoleToAd() {
+            if (!h._active || ended || h._ad) return;
+            const ad = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
+            if (!ad) return;
+            h._ad = ad;
+            h._m.style.background = ad.imgUrl ? `url(${ad.imgUrl}) center/cover` : 'radial-gradient(circle,#ff8844,#cc3300)';
+            h._m.style.boxShadow = '0 0 14px #ff440088';
+            h._m.style.border = '2px solid #ff4400';
+            h._m.textContent = '';
+            h.onmousedown = () => {
+              if (!h._active || !isLevel1Running || ended) return;
+              ended = true;
+              clearTimeout(tid);
+              h._m.style.bottom = '-100%'; h._active = false;
+              window.open(ad.landingUrl, '_blank');
+              if (typeof recordAdClick === 'function') recordAdClick();
+              if (typeof playFailSound === 'function') playFailSound();
+              isLevel1Running = false;
+              onFail('ad-click');
+            };
+          }
+
+          h.onmousedown = () => {
             if (!h._active || !isLevel1Running || ended) return;
+            if (h._hoverTid) { clearTimeout(h._hoverTid); h._hoverTid = null; }
+            if (h._red) {
+              ended = true;
+              clearTimeout(tid);
+              h._m.style.bottom = '-100%'; h._active = false;
+              if (typeof playFailSound === 'function') playFailSound();
+              isLevel1Running = false;
+              onFail('ad-click');
+              return;
+            }
             h._m.style.bottom = '-100%'; h._active = false;
-            if (h._red) { score(-10); }
-            else {
-              score(10); playSuccessSound();
-              greenCount++;
-              prog.textContent = `${greenCount} / ${TARGET}`;
-              if (greenCount >= TARGET) {
-                ended = true;
-                clearTimeout(tid);
-                setTimeout(() => onSuccess(), 300);
-              }
+            h._m.style.boxShadow = ''; h._m.style.border = '';
+            score(10); playSuccessSound();
+            greenCount++;
+            prog.textContent = `${greenCount} / ${TARGET}`;
+            if (greenCount >= TARGET) {
+              ended = true;
+              clearTimeout(tid);
+              setTimeout(() => onSuccess(), 300);
             }
           };
+
+          if (!h._red) {
+            h._m.onmouseenter = () => {
+              if (!h._active || ended || h._ad) return;
+              h._hoverTid = setTimeout(() => {
+                h._hoverTid = null;
+                if (Math.random() < 0.3) convertMoleToAd();
+              }, 200 + Math.random() * 200);
+            };
+            h._m.onmouseleave = () => {
+              if (h._hoverTid) { clearTimeout(h._hoverTid); h._hoverTid = null; }
+            };
+          }
         }
         tid = setTimeout(tick, 700+Math.random()*500);
       }
