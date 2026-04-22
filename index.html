@@ -1406,37 +1406,42 @@ const gameStages = [
   {
     id: 'math-tap',
     label: '정답을 빨리 클릭!',
-    timerDuration: 60,
+    timerDuration: 8,
     usesAdSystem: false,
     init(area, { onScore, onSuccess, onFail }) {
       area.innerHTML = '';
-      let tid;
-      let ended        = false;
-      let correctCount = 0;
-      const TARGET     = 10;
-      let timeLeft     = 60;
+      let questionTimer = null;
+      let ended         = false;
+      let correctCount  = 0;
+      const TARGET      = 10;
+      const Q_TIME      = 8;
 
       const prog = document.createElement('div');
       prog.style.cssText = 'position:absolute;top:10px;right:12px;color:#888;font-size:0.85rem;pointer-events:none;user-select:none;z-index:5';
       prog.textContent = `0 / ${TARGET}`;
       area.appendChild(prog);
 
-      const mathTimer = setInterval(() => {
-        if (ended) return;
-        timeLeft--;
-        document.getElementById('timer-display').textContent = timeLeft;
-        if (timeLeft <= 0) {
-          ended = true;
-          clearInterval(mathTimer);
-          onFail('timeout');
-        }
-      }, 1000);
-
       const qEl   = document.createElement('div');
       const bWrap = document.createElement('div');
       qEl.style.cssText   = 'position:absolute;top:28%;left:50%;transform:translate(-50%,-50%);font-size:2.2rem;font-weight:bold;color:#fff;text-align:center;white-space:nowrap;user-select:none';
       bWrap.style.cssText = 'position:absolute;bottom:36px;left:50%;transform:translateX(-50%);display:flex;gap:14px';
       area.appendChild(qEl); area.appendChild(bWrap);
+
+      function startQuestionTimer() {
+        clearInterval(questionTimer);
+        let timeLeft = Q_TIME;
+        document.getElementById('timer-display').textContent = timeLeft;
+        questionTimer = setInterval(() => {
+          if (ended) return;
+          timeLeft--;
+          document.getElementById('timer-display').textContent = timeLeft;
+          if (timeLeft <= 0) {
+            ended = true;
+            clearInterval(questionTimer);
+            onFail('timeout');
+          }
+        }, 1000);
+      }
 
       function next() {
         if (ended) return;
@@ -1460,18 +1465,17 @@ const gameStages = [
               correctCount++;
               prog.textContent = `${correctCount} / ${TARGET}`;
               onScore(20); playSuccessSound();
-              clearTimeout(tid);
+              clearInterval(questionTimer);
               if (correctCount >= TARGET) {
                 ended = true;
-                clearInterval(mathTimer);
                 setTimeout(() => onSuccess(), 350);
               } else {
                 next();
+                startQuestionTimer();
               }
             } else {
               ended = true;
-              clearInterval(mathTimer);
-              clearTimeout(tid);
+              clearInterval(questionTimer);
               const ad = randomAd('level1') || randomAd('all');
               if (ad) { window.open(ad.landingUrl, '_blank'); }
               recordAdClick();
@@ -1481,10 +1485,10 @@ const gameStages = [
           };
           bWrap.appendChild(btn);
         });
-        tid = setTimeout(next, 5000);
       }
       next();
-      return { cleanup() { ended = true; clearInterval(mathTimer); clearTimeout(tid); area.innerHTML = ''; } };
+      startQuestionTimer();
+      return { cleanup() { ended = true; clearInterval(questionTimer); area.innerHTML = ''; } };
     }
   }
 ];
