@@ -1079,6 +1079,7 @@ const MINI_GAMES = {
 
   'whack-mole': {
     label: '두더지를 잡아라! 빨간 건 피해!',
+    failOnTimeout: true,
     start(area, score, onFail, onSuccess) {
       area.innerHTML = '';
       const TARGET = 10;
@@ -1307,7 +1308,7 @@ const gameStages = [
           if (!isLevel1Running) { clearInterval(countdownId); return; }
           timeLeft--;
           timerEl.textContent = timeLeft;
-          if (timeLeft <= 0) { clearInterval(countdownId); onSuccess(); }
+          if (timeLeft <= 0) { clearInterval(countdownId); game.failOnTimeout ? onFail('timeout') : onSuccess(); }
         }, 1000);
         const cleanupFn = game.start(area, onScore, onFail, onSuccess) || (() => {});
         return { cleanup() { clearInterval(countdownId); cleanupFn(); area.innerHTML = ''; } };
