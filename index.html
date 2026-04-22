@@ -209,30 +209,38 @@
     #level1-ad-result {
       display: none;
       position: fixed;
-      inset: 0;
-      background: #000;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 320px;
+      max-width: 560px;
+      width: max-content;
+      background: rgba(10,10,20,0.97);
+      border: 1px solid #333;
+      border-top: none;
+      border-radius: 0 0 16px 16px;
+      box-shadow: 0 6px 32px rgba(0,0,0,0.7);
       z-index: 300;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 24px;
+      gap: 10px;
       text-align: center;
-      padding: 24px;
+      padding: 18px 36px 22px;
     }
     #level1-ad-result.active { display: flex; }
-    #level1-ad-result h2 { font-size: 2.2rem; color: #ff4444; }
+    #level1-ad-result h2 { font-size: 1.6rem; color: #ff4444; margin: 0; }
     #level1-ad-result .result-score {
-      font-size: 3.5rem;
+      font-size: 2.2rem;
       font-weight: bold;
       color: #ffcc00;
-      text-shadow: 0 0 20px #ffcc0088;
+      text-shadow: 0 0 16px #ffcc0088;
     }
-    #level1-ad-result p { font-size: 1.1rem; color: #aaa; max-width: 420px; }
+    #level1-ad-result p { font-size: 0.9rem; color: #aaa; max-width: 420px; margin: 0; }
     #level1-ad-result .nickname-badge {
-      font-size: 1rem;
+      font-size: 0.85rem;
       color: #888;
       background: #1a1a1a;
-      padding: 6px 18px;
+      padding: 4px 14px;
       border-radius: 20px;
       border: 1px solid #333;
     }
@@ -543,68 +551,57 @@
     }
     #stats-bar.active { display: flex; gap: 24px; align-items: center; }
 
-    /* ─── LEVEL 2 TIME OVER OVERLAY ─── */
-    #level2-timeover, #level2-adcaught {
+    /* ─── GAME OVER OVERLAY (공통 상단 배너) ─── */
+    #level2-timeover, #level2-adcaught, #game-adclick {
       display: none;
       position: fixed;
-      inset: 0;
-      background: #000;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 320px;
+      max-width: 560px;
+      width: max-content;
+      background: rgba(10,10,20,0.97);
+      border: 1px solid #333;
+      border-top: none;
+      border-radius: 0 0 16px 16px;
+      box-shadow: 0 6px 32px rgba(0,0,0,0.7);
       z-index: 300;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 24px;
+      gap: 10px;
       text-align: center;
-      padding: 24px;
+      padding: 18px 36px 22px;
     }
     #level2-timeover.active { display: flex; }
-    #level2-timeover h2 { font-size: 2.2rem; color: #ff8800; text-shadow: 0 0 20px #ff880066; }
-    #level2-timeover .timeover-icon { font-size: 4rem; }
-    #level2-timeover p { font-size: 1.1rem; color: #aaa; max-width: 420px; line-height: 1.6; }
+    #level2-timeover h2 { font-size: 1.6rem; color: #ff8800; text-shadow: 0 0 14px #ff880066; margin: 0; }
+    #level2-timeover .timeover-icon { font-size: 2.4rem; }
+    #level2-timeover p { font-size: 0.9rem; color: #aaa; max-width: 420px; line-height: 1.5; margin: 0; }
     #level2-timeover .nickname-badge {
-      font-size: 1rem;
-      color: #888;
-      background: #1a1a1a;
-      padding: 6px 18px;
-      border-radius: 20px;
-      border: 1px solid #333;
+      font-size: 0.85rem; color: #888;
+      background: #1a1a1a; padding: 4px 14px;
+      border-radius: 20px; border: 1px solid #333;
     }
     #level2-adcaught.active { display: flex; }
-    #level2-adcaught h2 { font-size: 2.2rem; color: #ff4422; text-shadow: 0 0 20px #ff442266; }
-    #level2-adcaught .timeover-icon { font-size: 4rem; }
-    #level2-adcaught p { font-size: 1.1rem; color: #aaa; max-width: 420px; line-height: 1.6; }
+    #level2-adcaught h2 { font-size: 1.6rem; color: #ff4422; text-shadow: 0 0 14px #ff442266; margin: 0; }
+    #level2-adcaught .timeover-icon { font-size: 2.4rem; }
+    #level2-adcaught p { font-size: 0.9rem; color: #aaa; max-width: 420px; line-height: 1.5; margin: 0; }
     #level2-adcaught .nickname-badge {
-      font-size: 1rem;
-      color: #888;
-      background: #1a1a1a;
-      padding: 6px 18px;
-      border-radius: 20px;
-      border: 1px solid #333;
+      font-size: 0.85rem; color: #888;
+      background: #1a1a1a; padding: 4px 14px;
+      border-radius: 20px; border: 1px solid #333;
     }
     @keyframes adPulse {
       from { box-shadow: 0 0 14px #ff440099, 0 0 28px #ff440044; transform: scale(1); }
       to   { box-shadow: 0 0 22px #ff4400cc, 0 0 44px #ff440077; transform: scale(1.06); }
     }
-    #game-adclick {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: #000;
-      z-index: 300;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 24px;
-      text-align: center;
-      padding: 24px;
-    }
     #game-adclick.active { display: flex; }
-    #game-adclick h2 { font-size: 2.2rem; color: #ff4422; text-shadow: 0 0 20px #ff442266; }
-    #game-adclick .timeover-icon { font-size: 4rem; }
-    #game-adclick p { font-size: 1.1rem; color: #aaa; max-width: 420px; line-height: 1.6; }
+    #game-adclick h2 { font-size: 1.6rem; color: #ff4422; text-shadow: 0 0 14px #ff442266; margin: 0; }
+    #game-adclick .timeover-icon { font-size: 2.4rem; }
+    #game-adclick p { font-size: 0.9rem; color: #aaa; max-width: 420px; line-height: 1.5; margin: 0; }
     #game-adclick .nickname-badge {
-      font-size: 1rem; color: #888;
-      background: #1a1a1a; padding: 6px 18px;
+      font-size: 0.85rem; color: #888;
+      background: #1a1a1a; padding: 4px 14px;
       border-radius: 20px; border: 1px solid #333;
     }
   </style>
