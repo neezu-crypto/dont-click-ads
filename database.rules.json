@@ -7,15 +7,18 @@
     },
 
     "players": {
-      ".read":  true,
-      ".write": true
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['nickname','clicks','createdAt','updatedAt']) && newData.child('nickname').isString() && newData.child('nickname').val().length >= 1 && newData.child('nickname').val().length <= 16 && newData.child('clicks').isNumber() && newData.child('clicks').val() >= 0"
+      }
     },
 
     "rankings": {
       ".read": true,
-      "$entry": {
-        ".write": true,
-        ".validate": "newData.hasChildren(['nickname','score','totalTime','clearedAt']) && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 10000 && newData.child('totalTime').isNumber() && newData.child('totalTime').val() >= 290 && newData.child('nickname').isString() && newData.child('nickname').val().length <= 20"
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['nickname','score','totalTime','clearedAt']) && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 10000 && newData.child('totalTime').isNumber() && newData.child('totalTime').val() >= 290 && newData.child('nickname').isString() && newData.child('nickname').val().length >= 1 && newData.child('nickname').val().length <= 20"
       }
     },
 
