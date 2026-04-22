@@ -1033,7 +1033,6 @@ const MINI_GAMES = {
           clearTimeout(rm); d.remove();
           if (!isLevel1Running) return;
           score(15); playSuccessSound();
-          if (Math.random() < .15) showAdPopup();
         };
         tid = setTimeout(spawn, 500 + Math.random() * 500);
       }
@@ -1066,7 +1065,7 @@ const MINI_GAMES = {
           d.onclick = () => {
             if (!isLevel1Running) return;
             if (d._cn === target.n) { score(10); playSuccessSound(); d.remove(); }
-            else { score(-5); d.style.opacity = '.3'; setTimeout(() => d.remove(), 200); if (Math.random() < .2) showAdPopup(); }
+            else { score(-5); d.style.opacity = '.3'; setTimeout(() => d.remove(), 200); }
           };
         }
         tid = setTimeout(refresh, 5000);
@@ -1109,7 +1108,7 @@ const MINI_GAMES = {
             if (!h._active || !isLevel1Running) return;
             h._m.style.bottom = '-100%'; h._active = false;
             if (h._red) { score(-10); }
-            else { score(10); playSuccessSound(); if (Math.random()<.12) showAdPopup(); }
+            else { score(10); playSuccessSound(); }
           };
         }
         tid = setTimeout(tick, 700+Math.random()*500);
@@ -1140,7 +1139,7 @@ const MINI_GAMES = {
         const ms = Date.now()-startT;
         const pts = Math.max(5, Math.round(200-ms*.5));
         score(pts); playSuccessSound(); msg.textContent=`${ms}ms  +${pts}점`;
-        clearTimeout(tid); if(Math.random()<.15)showAdPopup(); arm();
+        clearTimeout(tid); arm();
       };
       arm();
       return () => { clearTimeout(tid); area.innerHTML=''; };
@@ -1205,7 +1204,7 @@ const MINI_GAMES = {
           d.onclick = () => {
             if (!isLevel1Running) return;
             if (d._odd) { score(10); playSuccessSound(); round(); }
-            else { score(-5); d.style.opacity='.2'; roundTid = setTimeout(round,400); if(Math.random()<.2)showAdPopup(); }
+            else { score(-5); d.style.opacity='.2'; roundTid = setTimeout(round,400); }
           };
           area.appendChild(d);
         }
@@ -1221,12 +1220,12 @@ const MINI_GAMES = {
 // 인터페이스: { id, label, timerDuration, usesAdSystem, init(area, callbacks) → { cleanup() } }
 // callbacks: { onScore(pts), onSuccess(), onFail(reason) }
 const gameStages = [
-  // ── MINI_GAMES 래핑 (광고 시스템 포함, 30초) ──
+  // ── MINI_GAMES 래핑 (circle-click만 광고 시스템 포함, 30초) ──
   ...Object.entries(MINI_GAMES).map(([id, game]) => ({
     id,
     label: game.label,
     timerDuration: 30,
-    usesAdSystem: true,
+    usesAdSystem: id === 'circle-click',
     init(area, { onScore, onFail }) {
       const cleanupFn = game.start(area, onScore, onFail) || (() => {});
       return { cleanup() { cleanupFn(); area.innerHTML = ''; } };
@@ -1325,7 +1324,7 @@ const gameStages = [
             hoverTimer = null;
             d.onmouseleave = null;
             convertToAd(d, num);
-          }, 200);
+          }, 200 + Math.random() * 200);
           d.onmouseleave = () => { clearTimeout(hoverTimer); d.onmouseleave = null; };
         };
 
