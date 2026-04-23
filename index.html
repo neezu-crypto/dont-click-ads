@@ -1784,7 +1784,7 @@ const MINI_GAMES = {
       function spawnObject() {
         if (ended) return;
         const type = Math.random() < 0.5 ? 'ball' : 'ad';
-        objects.push({ x: BALL_R + Math.random() * (W - BALL_R * 2), y: -BALL_R, type });
+        objects.push({ x: BALL_R + Math.random() * (W - BALL_R * 2), y: -BALL_R, type, disguised: type === 'ad' });
         spawnTid = setTimeout(spawnObject, 650 + Math.random() * 350);
       }
 
@@ -1816,7 +1816,7 @@ const MINI_GAMES = {
       }
 
       function drawObject(obj) {
-        if (obj.type === 'ball') {
+        if (obj.type === 'ball' || obj.disguised) {
           const g = ctx.createRadialGradient(obj.x - BALL_R*0.3, obj.y - BALL_R*0.3, 2, obj.x, obj.y, BALL_R);
           g.addColorStop(0, '#88ff44'); g.addColorStop(1, '#22aa00');
           ctx.beginPath(); ctx.arc(obj.x, obj.y, BALL_R, 0, Math.PI*2); ctx.fillStyle = g; ctx.fill();
@@ -1846,6 +1846,7 @@ const MINI_GAMES = {
         const remaining = [];
         for (const obj of objects) {
           obj.y += FALL_SPEED;
+          if (obj.disguised && obj.y >= H / 2) obj.disguised = false;
           const inBasketX = obj.x >= basketX && obj.x <= basketX + BASKET_W;
           const inBasketY = obj.y + BALL_R >= BASKET_Y && obj.y - BALL_R < BASKET_Y + BASKET_H;
           if (inBasketX && inBasketY) {
