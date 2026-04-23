@@ -1553,6 +1553,15 @@ const MINI_GAMES = {
         ctx.beginPath(); ctx.arc(ballX, ballY, BALL_R * 0.65, Math.PI - 0.6, Math.PI + 0.6); ctx.stroke();
       }
 
+      function drawImgCover(img, cx, cy, r) {
+        const iw = img.naturalWidth  || img.width  || 1;
+        const ih = img.naturalHeight || img.height || 1;
+        const d  = r * 2;
+        const scale = Math.max(d / iw, d / ih);
+        const sw = d / scale, sh = d / scale;
+        ctx.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, cx - r, cy - r, d, d);
+      }
+
       function drawOrbitAd(ax, ay) {
         // Orbit track
         ctx.beginPath(); ctx.arc(HOOP_X, HOOP_Y, AD_ORBIT_R, 0, Math.PI * 2);
@@ -1564,11 +1573,11 @@ const MINI_GAMES = {
         ctx.beginPath(); ctx.arc(ax, ay, AD_R + 3, 0, Math.PI * 2);
         ctx.strokeStyle = '#ff4400aa'; ctx.lineWidth = 2; ctx.stroke();
         ctx.restore();
-        // Image (clipped circle)
+        // Image (clipped circle, cover fit)
         ctx.save();
         ctx.beginPath(); ctx.arc(ax, ay, AD_R, 0, Math.PI * 2); ctx.clip();
         if (adImgLoaded) {
-          ctx.drawImage(adImg, ax - AD_R, ay - AD_R, AD_R * 2, AD_R * 2);
+          drawImgCover(adImg, ax, ay, AD_R);
         } else {
           ctx.fillStyle = '#cc2200'; ctx.fill();
           ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
@@ -1669,7 +1678,7 @@ const MINI_GAMES = {
         // Redraw ad circle on top of hoop rim
         ctx.save();
         ctx.beginPath(); ctx.arc(adX, adY, AD_R, 0, Math.PI * 2); ctx.clip();
-        if (adImgLoaded) { ctx.drawImage(adImg, adX - AD_R, adY - AD_R, AD_R * 2, AD_R * 2); }
+        if (adImgLoaded) { drawImgCover(adImg, adX, adY, AD_R); }
         else { ctx.fillStyle = '#cc2200'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('AD', adX, adY + 4); ctx.textAlign = 'left'; }
         ctx.restore();
         ctx.save();
