@@ -2032,8 +2032,8 @@ const MINI_GAMES = {
         const dist = Math.hypot(dx, dy);
         if (dist < 6) return;
         const power = Math.min(dist / MAX_PULL, 1);
-        cue.vx = (dx / dist) * power * 15;
-        cue.vy = (dy / dist) * power * 15;
+        cue.vx = (dx / dist) * power * 22.5;
+        cue.vy = (dy / dist) * power * 22.5;
       }
 
       canvas.addEventListener('mousedown', e => onDown(e));
