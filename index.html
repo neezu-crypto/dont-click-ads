@@ -2006,6 +2006,7 @@ const MINI_GAMES = {
       const balls = [cue, ...rackPos.map((p, i) => ({ x: p.x, y: p.y, vx: 0, vy: 0, r: BALL_R, type: types[i], pocketed: false }))];
 
       let aiming = false, aimX = 0, aimY = 0;
+      let _lastCollideSound = 0;
 
       function isMoving() { return balls.some(b => !b.pocketed && (Math.abs(b.vx) >= MIN_V || Math.abs(b.vy) >= MIN_V)); }
 
@@ -2034,6 +2035,7 @@ const MINI_GAMES = {
         const power = Math.min(dist / MAX_PULL, 1);
         cue.vx = (dx / dist) * power * 22.5;
         cue.vy = (dy / dist) * power * 22.5;
+        if (typeof playPoolCueHitSound === 'function') playPoolCueHitSound();
       }
 
       canvas.addEventListener('mousedown', e => onDown(e));
@@ -2056,6 +2058,11 @@ const MINI_GAMES = {
         if (dot <= 0) return;
         a.vx -= dot * nx; a.vy -= dot * ny;
         b.vx += dot * nx; b.vy += dot * ny;
+        const now = performance.now();
+        if (dot > 0.5 && now - _lastCollideSound > 80) {
+          _lastCollideSound = now;
+          if (typeof playPoolBallCollideSound === 'function') playPoolBallCollideSound(dot);
+        }
       }
 
       let gameOver = false;
@@ -2097,7 +2104,7 @@ const MINI_GAMES = {
         for (let i = 0; i < balls.length; i++) {
           for (let j = i + 1; j < balls.length; j++) collide(balls[i], balls[j]);
         }
-        if (!ended && balls.filter(b => b.type === 'green').every(b => b.pocketed)) {
+        if (!ended && balls.filter(b => b.type === 'green' && b.pocketed).length >= 4) {
           ended = true;
           onSuccess();
           return true;
@@ -2171,7 +2178,7 @@ const MINI_GAMES = {
         ctx.fillStyle = '#fff';
         ctx.font = `bold ${Math.max(11, Math.round(H * 0.048))}px sans-serif`;
         ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-        ctx.fillText(`🟢 ${6 - rem}/6`, PAD + 6, PAD + 4);
+        ctx.fillText(`🟢 ${Math.min(balls.filter(b => b.type === 'green' && b.pocketed).length, 4)}/4`, PAD + 6, PAD + 4);
         ctx.textAlign = 'right';
         ctx.fillText(`⚠️ AD ${balls.filter(b => b.type === 'ad' && !b.pocketed).length}개 주의`, W - PAD - 6, PAD + 4);
         if (!isMoving() && !cue.pocketed && !ended) {
@@ -2740,6 +2747,41 @@ function playTutorialFailBeep() {
   gain.gain.setValueAtTime(0.15, now + 0.45);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
   osc.start(now); osc.stop(now + 0.6);
+}
+
+function playPoolCueHitSound() {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 3);
+    const src  = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    src.buffer = buf;
+    src.connect(gain); gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.55, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    src.start(now);
+  } catch(e) {}
+}
+
+function playPoolBallCollideSound(intensity) {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const vol = Math.min(0.4, 0.08 + intensity * 0.06);
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2.5);
+    const src  = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    src.buffer = buf;
+    src.connect(gain); gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(vol, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    src.start(now);
+  } catch(e) {}
 }
 
 /* ════════ 화면 전환 ════════ */
