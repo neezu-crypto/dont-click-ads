@@ -1731,6 +1731,180 @@ const MINI_GAMES = {
       };
     }
   },
+
+  'catch-basket': {
+    label: '바구니로 초록공을 받아라!',
+    failOnTimeout: true,
+    start(area, score, onFail, onSuccess) {
+      area.innerHTML = '';
+      let ended = false;
+
+      const canvas = document.createElement('canvas');
+      const W = canvas.width  = area.clientWidth  || 420;
+      const H = canvas.height = area.clientHeight || 320;
+      canvas.style.cssText = 'position:absolute;left:0;top:0;display:block';
+      area.appendChild(canvas);
+      const ctx = canvas.getContext('2d');
+
+      const TARGET     = 10;
+      const BALL_R     = 14;
+      const FALL_SPEED = 3.2;
+      const BASKET_W   = 90;
+      const BASKET_H   = 26;
+      const BASKET_Y   = H * 0.82;
+
+      const catchAd = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
+      const adImg = new Image();
+      let adImgLoaded = false;
+      if (catchAd && catchAd.imgUrl) { adImg.onload = () => { adImgLoaded = true; }; adImg.src = catchAd.imgUrl; }
+
+      let basketX = W / 2 - BASKET_W / 2;
+      let dragging = false, dragOffsetX = 0;
+      let caught = 0;
+      let objects = [];
+      let spawnTid, raf;
+
+      const prog = document.createElement('div');
+      prog.style.cssText = 'position:absolute;top:10px;right:12px;color:#888;font-size:0.85rem;pointer-events:none;user-select:none;z-index:5';
+      prog.textContent = `0 / ${TARGET}`;
+      area.appendChild(prog);
+
+      function spawnObject() {
+        if (ended) return;
+        const type = Math.random() < 0.5 ? 'ball' : 'ad';
+        objects.push({ x: BALL_R + Math.random() * (W - BALL_R * 2), y: -BALL_R, type });
+        spawnTid = setTimeout(spawnObject, 650 + Math.random() * 350);
+      }
+
+      function drawImgCover(img, cx, cy, r) {
+        const iw = img.naturalWidth, ih = img.naturalHeight;
+        if (!iw || !ih) return;
+        const d = r * 2, scale = Math.max(d / iw, d / ih);
+        const sw = d / scale, sh = d / scale;
+        ctx.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, cx - r, cy - r, d, d);
+      }
+
+      function drawBasket() {
+        ctx.beginPath();
+        ctx.moveTo(basketX + 6,            BASKET_Y);
+        ctx.lineTo(basketX + BASKET_W - 6, BASKET_Y);
+        ctx.lineTo(basketX + BASKET_W,     BASKET_Y + BASKET_H);
+        ctx.lineTo(basketX,                BASKET_Y + BASKET_H);
+        ctx.closePath();
+        ctx.fillStyle = '#8B4513'; ctx.fill();
+        ctx.strokeStyle = '#A0522D'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(basketX, BASKET_Y); ctx.lineTo(basketX + BASKET_W, BASKET_Y); ctx.stroke();
+        ctx.strokeStyle = '#6B3410'; ctx.lineWidth = 1;
+        for (let i = 1; i < 3; i++) {
+          ctx.beginPath();
+          ctx.moveTo(basketX + 4,            BASKET_Y + (BASKET_H / 3) * i);
+          ctx.lineTo(basketX + BASKET_W - 4, BASKET_Y + (BASKET_H / 3) * i);
+          ctx.stroke();
+        }
+      }
+
+      function drawObject(obj) {
+        if (obj.type === 'ball') {
+          const g = ctx.createRadialGradient(obj.x - BALL_R*0.3, obj.y - BALL_R*0.3, 2, obj.x, obj.y, BALL_R);
+          g.addColorStop(0, '#88ff44'); g.addColorStop(1, '#22aa00');
+          ctx.beginPath(); ctx.arc(obj.x, obj.y, BALL_R, 0, Math.PI*2); ctx.fillStyle = g; ctx.fill();
+          ctx.strokeStyle = '#00880044'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(obj.x, obj.y, BALL_R, 0, Math.PI*2); ctx.stroke();
+        } else {
+          ctx.save();
+          ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 8;
+          ctx.beginPath(); ctx.arc(obj.x, obj.y, BALL_R + 2, 0, Math.PI*2);
+          ctx.strokeStyle = '#ff4400aa'; ctx.lineWidth = 2; ctx.stroke();
+          ctx.restore();
+          ctx.save();
+          ctx.beginPath(); ctx.arc(obj.x, obj.y, BALL_R, 0, Math.PI*2); ctx.clip();
+          if (adImgLoaded) { drawImgCover(adImg, obj.x, obj.y, BALL_R); }
+          else { ctx.fillStyle = '#cc2200'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('AD', obj.x, obj.y + 3); ctx.textAlign = 'left'; }
+          ctx.restore();
+          ctx.beginPath(); ctx.arc(obj.x, obj.y, BALL_R, 0, Math.PI*2);
+          ctx.strokeStyle = '#ff4400'; ctx.lineWidth = 2; ctx.stroke();
+        }
+      }
+
+      function gameLoop() {
+        if (ended) return;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, W, H);
+
+        const remaining = [];
+        for (const obj of objects) {
+          obj.y += FALL_SPEED;
+          const inBasketX = obj.x >= basketX && obj.x <= basketX + BASKET_W;
+          const inBasketY = obj.y + BALL_R >= BASKET_Y && obj.y - BALL_R < BASKET_Y + BASKET_H;
+          if (inBasketX && inBasketY) {
+            if (obj.type === 'ad') {
+              ended = true;
+              clearTimeout(spawnTid);
+              if (catchAd) window.open(catchAd.landingUrl, '_blank');
+              if (typeof recordAdClick === 'function') recordAdClick();
+              if (typeof playFailSound  === 'function') playFailSound();
+              isLevel1Running = false;
+              cancelAnimationFrame(raf);
+              onFail('ad-click');
+              return;
+            } else {
+              caught++;
+              prog.textContent = `${caught} / ${TARGET}`;
+              if (typeof playSuccessSound === 'function') playSuccessSound();
+              score(10);
+              if (caught >= TARGET) {
+                ended = true;
+                clearTimeout(spawnTid);
+                setTimeout(onSuccess, 400);
+              }
+            }
+            continue;
+          }
+          if (obj.y - BALL_R <= H) remaining.push(obj);
+        }
+        objects = remaining;
+
+        drawBasket();
+        objects.forEach(drawObject);
+
+        if (!ended) raf = requestAnimationFrame(gameLoop);
+      }
+
+      function getXY(e) {
+        const r = canvas.getBoundingClientRect();
+        return { x: (e.clientX - r.left) * (canvas.width / r.width), y: (e.clientY - r.top) * (canvas.height / r.height) };
+      }
+
+      canvas.addEventListener('mousedown', e => {
+        if (!isLevel1Running || ended) return;
+        const p = getXY(e);
+        if (p.x >= basketX - 10 && p.x <= basketX + BASKET_W + 10 && p.y >= BASKET_Y - 10 && p.y <= BASKET_Y + BASKET_H + 10) {
+          dragging = true; dragOffsetX = p.x - basketX;
+        }
+      });
+      function onDocMove(e) {
+        if (!dragging) return;
+        basketX = Math.max(0, Math.min(W - BASKET_W, getXY(e).x - dragOffsetX));
+      }
+      function onDocUp() { dragging = false; }
+      document.addEventListener('mousemove', onDocMove);
+      document.addEventListener('mouseup',   onDocUp);
+      function toME(type, t) { canvas.dispatchEvent(new MouseEvent(type, { clientX: t.clientX, clientY: t.clientY, bubbles: true })); }
+      canvas.addEventListener('touchstart',  e => { e.preventDefault(); toME('mousedown', e.touches[0]); },       { passive: false });
+      canvas.addEventListener('touchmove',   e => { e.preventDefault(); toME('mousemove', e.touches[0]); },       { passive: false });
+      canvas.addEventListener('touchend',    e => { e.preventDefault(); toME('mouseup',   e.changedTouches[0]); }, { passive: false });
+
+      spawnObject();
+      gameLoop();
+      return () => {
+        ended = true;
+        clearTimeout(spawnTid);
+        cancelAnimationFrame(raf);
+        document.removeEventListener('mousemove', onDocMove);
+        document.removeEventListener('mouseup',   onDocUp);
+      };
+    }
+  },
 };
 
 /* ════════ GAME STAGES REGISTRY ════════ */
@@ -1740,7 +1914,7 @@ const MINI_GAMES = {
 const gameStages = [
   // ── MINI_GAMES 래핑 (circle-click만 광고 시스템 포함 / 20초, 나머지 30초) ──
   ...Object.entries(MINI_GAMES).map(([id, game]) => {
-    const timerDuration = (id === 'circle-click' || id === 'whack-mole' || id === 'rapid-tap' || id === 'odd-one-out' || id === 'color-rush' || id === 'reaction-speed' || id === 'size-click' || id === 'basketball') ? 20 : 30;
+    const timerDuration = (id === 'circle-click' || id === 'whack-mole' || id === 'rapid-tap' || id === 'odd-one-out' || id === 'color-rush' || id === 'reaction-speed' || id === 'size-click' || id === 'basketball' || id === 'catch-basket') ? 20 : 30;
     return {
       id,
       label: game.label,
