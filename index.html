@@ -2204,10 +2204,22 @@ window.onDaysInput = onDaysInput;
 
 function showAdInquiryModal() {
   playSuccessSound();
-  document.getElementById('inquiry-nickname').value = playerNickname || '';
-  document.getElementById('inquiry-soopid').value   = '';
-  document.getElementById('inquiry-days').value     = '';
-  document.getElementById('ad-inquiry-error').textContent = '';
+  _inquirySubmitted = false;
+  const nicknameEl = document.getElementById('inquiry-nickname');
+  const soopIdEl   = document.getElementById('inquiry-soopid');
+  const daysEl     = document.getElementById('inquiry-days');
+  const submitBtn  = document.querySelector('#ad-inquiry-modal .btn-primary');
+  const errEl      = document.getElementById('ad-inquiry-error');
+  nicknameEl.disabled = false;
+  soopIdEl.disabled   = false;
+  daysEl.disabled     = false;
+  submitBtn.disabled  = false;
+  submitBtn.textContent = '신청하기';
+  errEl.style.color = '';
+  errEl.textContent = '';
+  nicknameEl.value = playerNickname || '';
+  soopIdEl.value   = '';
+  daysEl.value     = '';
   document.getElementById('inquiry-profile-preview').style.display = 'none';
   document.getElementById('inquiry-price-display').style.display   = 'none';
   document.getElementById('ad-inquiry-modal').classList.add('active');
@@ -2219,12 +2231,19 @@ function closeAdInquiryModal() {
 }
 window.closeAdInquiryModal = closeAdInquiryModal;
 
+let _inquirySubmitted = false;
+
 function submitAdInquiry() {
-  const nickname = document.getElementById('inquiry-nickname').value.trim();
-  const soopId   = document.getElementById('inquiry-soopid').value.trim();
-  const daysVal  = document.getElementById('inquiry-days').value;
+  const nicknameEl = document.getElementById('inquiry-nickname');
+  const soopIdEl   = document.getElementById('inquiry-soopid');
+  const daysEl     = document.getElementById('inquiry-days');
+  const submitBtn  = document.querySelector('#ad-inquiry-modal .btn-primary');
+  const errEl      = document.getElementById('ad-inquiry-error');
+
+  const nickname = nicknameEl.value.trim();
+  const soopId   = soopIdEl.value.trim();
+  const daysVal  = daysEl.value;
   const days     = parseInt(daysVal, 10);
-  const errEl    = document.getElementById('ad-inquiry-error');
 
   if (!nickname)                          { errEl.textContent = '닉네임을 입력해주세요.'; return; }
   if (!soopId)                            { errEl.textContent = '수프 아이디를 입력해주세요.'; return; }
@@ -2232,27 +2251,42 @@ function submitAdInquiry() {
     errEl.textContent = '광고 기간을 1~30일 사이로 입력해주세요.'; return;
   }
 
-  playSuccessSound();
   errEl.textContent = '';
+  nicknameEl.disabled = true;
+  soopIdEl.disabled   = true;
+  daysEl.disabled     = true;
+  submitBtn.disabled  = true;
+  submitBtn.textContent = '신청 중…';
 
-  if (window._db && window._dbSet && window._dbRef) {
-    const key = Date.now();
-    window._dbSet(window._dbRef(window._db, `adInquiries/${key}`), {
-      nickname, soopId, days, totalStarBalloons: days * 25, createdAt: key
-    });
-  }
+  const save = (window._db && window._dbSet && window._dbRef)
+    ? (() => { const key = Date.now(); return window._dbSet(window._dbRef(window._db, `adInquiries/${key}`), { nickname, soopId, days, totalStarBalloons: days * 25, createdAt: key }); })()
+    : Promise.resolve();
 
-  closeAdInquiryModal();
-  window.open(
-    'https://st.sooplive.com/app/gift_starballoon.php?szBjId=skftodwocks2&szWork=BJ_STATION&sys_type=web&location=station',
-    '_blank'
-  );
+  save.then(() => {
+    playSuccessSound();
+    _inquirySubmitted = true;
+    submitBtn.textContent = '신청 완료 ✓';
+    errEl.style.color = '#44cc88';
+    errEl.textContent = '신청이 접수되었습니다. 후원 페이지로 이동합니다.';
+    window.open(
+      'https://st.sooplive.com/app/gift_starballoon.php?szBjId=skftodwocks2&szWork=BJ_STATION&sys_type=web&location=station',
+      '_blank'
+    );
+  }).catch(() => {
+    errEl.style.color = '';
+    errEl.textContent = '신청 중 오류가 발생했습니다. 다시 시도해주세요.';
+    nicknameEl.disabled = false;
+    soopIdEl.disabled   = false;
+    daysEl.disabled     = false;
+    submitBtn.disabled  = false;
+    submitBtn.textContent = '신청하기';
+  });
 }
 window.submitAdInquiry = submitAdInquiry;
 
-/* 모달 외부 클릭 시 닫기 */
+/* 모달 외부 클릭 시 닫기 (신청 완료 후에는 닫히지 않음) */
 document.getElementById('ad-inquiry-modal').addEventListener('click', function(e) {
-  if (e.target === this) closeAdInquiryModal();
+  if (e.target === this && !_inquirySubmitted) closeAdInquiryModal();
 });
 
 function showAdClickGameOver() {
