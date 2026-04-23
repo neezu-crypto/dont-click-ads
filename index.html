@@ -2261,7 +2261,7 @@ const gameStages = [
 
       const img = document.createElement('img');
       img.src = window._quizStageImageUrl || '';
-      img.style.cssText = 'max-width:88%;max-height:52%;object-fit:contain;border-radius:10px;box-shadow:0 4px 28px #0009';
+      img.style.cssText = 'max-width:100%;max-height:68%;object-fit:contain;border-radius:10px;box-shadow:0 4px 28px #0009';
 
       const inputRow = document.createElement('div');
       inputRow.style.cssText = 'display:flex;gap:10px;align-items:center';
@@ -3022,6 +3022,7 @@ function showLevel1AdResult() {
 /* ════════ Firebase 기록 ════════ */
 function savePlayerToDb(data) {
   if (!window._db) return;
+  if (playerUid.startsWith('user_')) return; // 익명 로그인 실패 시 sessionId 폴백 — DB 쓰기 불가
   window._dbSet(window._dbRef(window._db, 'players/' + playerUid), data);
 }
 
