@@ -241,16 +241,15 @@ const BadmintonModule = (() => {
         }
 
         // 아웃 판정
-        if (_sY > H + 12) { _awardPoint('ai');     return; }
-        if (_sY < -12)    { _awardPoint('player');  return; }
+        if (_sY > H + 12) { _awardPoint('ai'); }
+        else if (_sY < -12) { _awardPoint('player'); }
 
         // 네트 통과 후 역방향으로 돌아오는 셔틀 아웃 처리
         // 플레이어가 쳤는데 다시 플레이어 쪽으로 내려오면 → 네트 안친 것
-        if (_lastHitter === 'player' && _sY > NET_Y + 5 && _sVY > 0) {
-          _awardPoint('ai'); return;
-        }
-        if (_lastHitter === 'ai' && _sY < NET_Y - 5 && _sVY < 0) {
-          _awardPoint('player'); return;
+        else if (_lastHitter === 'player' && _sY > NET_Y + 5 && _sVY > 0) {
+          _awardPoint('ai');
+        } else if (_lastHitter === 'ai' && _sY < NET_Y - 5 && _sVY < 0) {
+          _awardPoint('player');
         }
 
         // 플레이어 히트 판정
