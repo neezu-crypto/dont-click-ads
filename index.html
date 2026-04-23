@@ -1502,6 +1502,7 @@ const MINI_GAMES = {
     start(area, score, onFail, onSuccess) {
       area.innerHTML = '';
       let ended = false;
+      let _lastRimSoundT = 0;
 
       const canvas = document.createElement('canvas');
       const W = canvas.width  = area.clientWidth  || 420;
@@ -1688,6 +1689,8 @@ const MINI_GAMES = {
               vy = (vy - 2 * dot * ny) * 0.55;
               ballX = rim.x + nx * (BALL_R + RIM_R + 1);
               ballY = rim.y + ny * (BALL_R + RIM_R + 1);
+              const now = Date.now();
+              if (now - _lastRimSoundT > 150) { _lastRimSoundT = now; playRimBounceSound(); }
             }
           });
 
@@ -2394,6 +2397,23 @@ let audioCtx = null;
 function getAudioCtx() {
   if (!audioCtx) audioCtx = new AudioCtx();
   return audioCtx;
+}
+
+function playRimBounceSound() {
+  const ctx = getAudioCtx();
+  const now = ctx.currentTime;
+  [320, 640].forEach((freq, i) => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, now + i * 0.01);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.5, now + i * 0.01 + 0.18);
+    gain.gain.setValueAtTime(0.18, now + i * 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.01 + 0.2);
+    osc.start(now + i * 0.01);
+    osc.stop(now + i * 0.01 + 0.22);
+  });
 }
 
 function playAdSound() {
