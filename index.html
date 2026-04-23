@@ -1525,9 +1525,9 @@ const MINI_GAMES = {
       const AD_SPEED   = 0.0456; // rad/frame, clockwise
       let adAngle = -Math.PI / 2; // start at top of orbit
       const orbitAd = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
-      const adImg = new Image();
-      let adImgLoaded = false;
-      if (orbitAd && orbitAd.imgUrl) { adImg.onload = () => { adImgLoaded = true; }; adImg.src = orbitAd.imgUrl; }
+      const adImg = (orbitAd?.imgUrl && window._preloadedImgs?.[orbitAd.imgUrl]) || new Image();
+      let adImgLoaded = !!(adImg.complete && adImg.naturalWidth > 0);
+      if (orbitAd && orbitAd.imgUrl && !adImgLoaded) { adImg.onload = () => { adImgLoaded = true; }; adImg.src = orbitAd.imgUrl; }
 
       let ballX = W * 0.22, ballY = H * 0.72;
       let prevBallY = ballY;
@@ -1778,9 +1778,9 @@ const MINI_GAMES = {
       const BASKET_Y   = H * 0.82;
 
       const catchAd = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
-      const adImg = new Image();
-      let adImgLoaded = false;
-      if (catchAd && catchAd.imgUrl) { adImg.onload = () => { adImgLoaded = true; }; adImg.src = catchAd.imgUrl; }
+      const adImg = (catchAd?.imgUrl && window._preloadedImgs?.[catchAd.imgUrl]) || new Image();
+      let adImgLoaded = !!(adImg.complete && adImg.naturalWidth > 0);
+      if (catchAd && catchAd.imgUrl && !adImgLoaded) { adImg.onload = () => { adImgLoaded = true; }; adImg.src = catchAd.imgUrl; }
 
       let basketX = W / 2 - BASKET_W / 2;
       let dragging = false, dragOffsetX = 0;
