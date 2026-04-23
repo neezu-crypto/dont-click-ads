@@ -2237,7 +2237,7 @@ const gameStages = [
     };
   }),
 
-  // ── 숫자 순서 클릭 (자체 타이머, 25클릭 클리어, 타임아웃/광고클릭 = 게임오버) ──
+  // ── 숫자 순서 클릭 (자체 타이머, 20클릭 클리어, 타임아웃/광고클릭 = 게임오버) ──
   {
     id: 'sequence-tap',
     label: '숫자를 순서대로 클릭! (1→5)',
@@ -2247,7 +2247,7 @@ const gameStages = [
       area.innerHTML = '';
       let nextNum     = 1;
       let totalClicks = 0;
-      const TARGET    = 25;
+      const TARGET    = 20;
       const SZ        = 56;
       let seqTimer    = null;
       let timeLeft    = 30;
