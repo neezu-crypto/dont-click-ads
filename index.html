@@ -1789,8 +1789,14 @@ const MINI_GAMES = {
       }
 
       function drawImgCover(img, cx, cy, r) {
-        const iw = img.naturalWidth, ih = img.naturalHeight;
-        if (!iw || !ih) return;
+        const iw = img.naturalWidth  || img.width  || 0;
+        const ih = img.naturalHeight || img.height || 0;
+        if (!iw || !ih) {
+          ctx.fillStyle = '#cc2200'; ctx.fill();
+          ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center'; ctx.fillText('AD', cx, cy + 4); ctx.textAlign = 'left';
+          return;
+        }
         const d = r * 2, scale = Math.max(d / iw, d / ih);
         const sw = d / scale, sh = d / scale;
         ctx.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, cx - r, cy - r, d, d);
