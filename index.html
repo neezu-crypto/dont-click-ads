@@ -1956,7 +1956,7 @@ const MINI_GAMES = {
 const gameStages = [
   // ── MINI_GAMES 래핑 (circle-click만 광고 시스템 포함 / 20초, 나머지 30초) ──
   ...Object.entries(MINI_GAMES).map(([id, game]) => {
-    const timerDuration = (id === 'circle-click' || id === 'whack-mole' || id === 'rapid-tap' || id === 'odd-one-out' || id === 'color-rush' || id === 'reaction-speed' || id === 'size-click' || id === 'basketball' || id === 'catch-basket') ? 20 : 30;
+    const timerDuration = id === 'catch-basket' ? 25 : (id === 'circle-click' || id === 'whack-mole' || id === 'rapid-tap' || id === 'odd-one-out' || id === 'color-rush' || id === 'reaction-speed' || id === 'size-click' || id === 'basketball') ? 20 : 30;
     return {
       id,
       label: game.label,
@@ -2397,9 +2397,9 @@ function _pickStage(n) {
 }
 
 function _handleStageFail(reason) {
-  if (reason === 'timeout')    showLevel2TimeOver(_lastStageId === 'ball-drag' ? '제한 시간 안에 공을 목표 지점까지 옮기지 못했습니다.<br>다시 도전해볼까요?' : null);
+  if (reason === 'timeout')    showLevel2TimeOver(_lastStageId === 'ball-drag' ? '제한 시간 안에 공을 목표 지점까지 옮기지 못했습니다.<br>다시 도전해볼까요?' : _lastStageId === 'basketball' ? '농구공을 골인하지 못했습니다!' : null);
   if (reason === 'ad-caught')  showLevel2AdCaught();
-  if (reason === 'ad-click')   showAdClickGameOver();
+  if (reason === 'ad-click')   showAdClickGameOver(_lastStageId === 'basketball' ? '농구공을 골인하지 못했습니다!' : null);
   if (reason === 'quiz-wrong') showAdClickGameOver('오답입니다.<br>레벨 1부터 다시 도전해보세요.');
 }
 
