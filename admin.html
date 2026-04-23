@@ -1086,7 +1086,7 @@ window._renderInquiries = function (data) {
       <td data-label="수프ID" class="url-cell">${inq.soopId ? `<a href="${esc(soopLandingUrl(inq.soopId))}" target="_blank" rel="noopener noreferrer" style="color:#ff8833;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(inq.soopId)}</a>` : '—'}</td>
       <td data-label="기간/별풍선">
         <span>${esc(String(inq.days || '?'))}일</span><br>
-        <span class="inq-star">★ ${esc(String(inq.totalStarBalloons || (inq.days * 25) || '?'))}개</span>
+        <span class="inq-star">★ ${esc(String(inq.totalStarBalloons || (inq.days * 20) || '?'))}개</span>
       </td>
       <td data-label="신청일" class="inq-meta">${dateStr}</td>
       <td data-label="상태">${inqStatusBadge(status)}${inq.reason ? `<br><span class="inq-meta" title="${esc(inq.reason)}">${esc(inq.reason.slice(0, 20))}${inq.reason.length > 20 ? '…' : ''}</span>` : ''}</td>

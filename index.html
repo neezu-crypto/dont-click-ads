@@ -810,7 +810,7 @@
     <div id="inquiry-price-display" style="display:none;background:#111;border:1px solid #333;border-radius:8px;padding:10px 14px;font-size:0.9rem;line-height:1.7">
       <div style="display:flex;justify-content:space-between">
         <span style="color:#aaa">단가</span>
-        <span style="color:#fff">별풍선 25개 / 1일</span>
+        <span style="color:#fff">별풍선 20개 / 1일</span>
       </div>
       <div style="display:flex;justify-content:space-between">
         <span style="color:#aaa">광고 기간</span>
@@ -2783,7 +2783,7 @@ function onDaysInput(val) {
     return;
   }
   document.getElementById('inquiry-days-display').textContent  = `${days}일`;
-  document.getElementById('inquiry-total-display').textContent = `별풍선 ${days * 25}개`;
+  document.getElementById('inquiry-total-display').textContent = `별풍선 ${days * 20}개`;
   priceEl.style.display = 'block';
 }
 window.onDaysInput = onDaysInput;
@@ -2845,7 +2845,7 @@ function submitAdInquiry() {
   submitBtn.textContent = '신청 중…';
 
   const save = (window._db && window._dbSet && window._dbRef)
-    ? (() => { const key = Date.now(); return window._dbSet(window._dbRef(window._db, `adInquiries/${key}`), { nickname, soopId, days, totalStarBalloons: days * 25, createdAt: key }); })()
+    ? (() => { const key = Date.now(); return window._dbSet(window._dbRef(window._db, `adInquiries/${key}`), { nickname, soopId, days, totalStarBalloons: days * 20, createdAt: key }); })()
     : Promise.resolve();
 
   save.then(() => {
