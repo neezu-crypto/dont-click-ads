@@ -208,3 +208,58 @@ exports.deleteInquiry = onCall(async (request) => {
   await db.ref(`adInquiries/${id}`).remove();
   return { success: true };
 });
+
+/* ════════════════════════════════════════
+   setQuizStage — 퀴즈 스테이지 이미지/정답 설정 (관리자 전용)
+════════════════════════════════════════ */
+exports.setQuizStage = onCall(async (request) => {
+  assertAdmin(request.auth);
+
+  const { imageUrl, answer } = request.data;
+  assertString(imageUrl, 'imageUrl');
+  assertString(answer,   'answer');
+
+  await getDatabase().ref('quizStage').set({
+    imageUrl:  imageUrl.trim(),
+    answer:    answer.trim(),
+    updatedAt: Date.now(),
+  });
+
+  return { success: true };
+});
+
+/* ════════════════════════════════════════
+   getQuizStage — 퀴즈 스테이지 조회 (관리자 전용)
+════════════════════════════════════════ */
+exports.getQuizStage = onCall(async (request) => {
+  assertAdmin(request.auth);
+
+  const snap = await getDatabase().ref('quizStage').once('value');
+  if (!snap.exists()) return { imageUrl: '', answer: '' };
+
+  const { imageUrl, answer } = snap.val();
+  return { imageUrl: imageUrl || '', answer: answer || '' };
+});
+
+/* ════════════════════════════════════════
+   checkQuizAnswer — 퀴즈 정답 확인 (플레이어용, 정답 비공개)
+════════════════════════════════════════ */
+exports.checkQuizAnswer = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
+  }
+
+  const { answer } = request.data;
+  if (typeof answer !== 'string' || !answer.trim()) {
+    throw new HttpsError('invalid-argument', '정답을 입력해주세요.');
+  }
+
+  const snap = await getDatabase().ref('quizStage/answer').once('value');
+  if (!snap.exists()) {
+    throw new HttpsError('not-found', '퀴즈가 설정되지 않았습니다.');
+  }
+
+  const stored  = snap.val().trim();
+  const correct = stored.toLowerCase() === answer.trim().toLowerCase();
+  return { correct, answer: correct ? null : stored };
+});

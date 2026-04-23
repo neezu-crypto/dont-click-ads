@@ -949,6 +949,8 @@
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
   import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+  import { getFunctions, httpsCallable }
+    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
 
   const firebaseConfig = {
     apiKey:            'AIzaSyBksTHiQp0lhMoszgi2HEyLR0EZICDoM5I',
@@ -1000,6 +1002,16 @@
       window._initOpeningCursorAd(window.randomAd('opening'));
     }
   });
+
+  /* ── 퀴즈 스테이지 이미지 URL 실시간 동기화 ── */
+  window._quizStageImageUrl = '';
+  onValue(ref(database, 'quizStage/imageUrl'), snapshot => {
+    window._quizStageImageUrl = snapshot.val() || '';
+  });
+
+  /* ── 퀴즈 정답 확인 (Cloud Function 호출, 정답 클라이언트에 비공개) ── */
+  const _fnCheckQuizAnswer = httpsCallable(getFunctions(app), 'checkQuizAnswer');
+  window._checkQuizAnswer  = (answer) => _fnCheckQuizAnswer({ answer }).then(r => r.data);
 </script>
 
 <!-- ════════════════════ LEVEL 2 MODULE ════════════════════ -->
@@ -2218,6 +2230,112 @@ const gameStages = [
       next();
       startQuestionTimer();
       return { cleanup() { ended = true; clearInterval(questionTimer); } };
+    }
+  },
+
+  // ── 이미지 퀴즈 (정답은 서버에 저장, 클라이언트에 노출 안 됨) ──
+  {
+    id: 'image-quiz',
+    label: '사진 속 장소가 어디일까요?',
+    timerDuration: 60,
+    usesAdSystem: false,
+    init(area, { onScore, onSuccess, onFail }) {
+      area.innerHTML = '';
+      let ended    = false;
+      let timeLeft = 60;
+
+      const timerEl     = document.getElementById('timer-display');
+      const countdownId = setInterval(() => {
+        if (ended || !isLevel1Running) { clearInterval(countdownId); return; }
+        timeLeft--;
+        timerEl.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          ended = true;
+          clearInterval(countdownId);
+          onFail('timeout');
+        }
+      }, 1000);
+
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px';
+
+      const img = document.createElement('img');
+      img.src = window._quizStageImageUrl || '';
+      img.style.cssText = 'max-width:88%;max-height:52%;object-fit:contain;border-radius:10px;box-shadow:0 4px 28px #0009';
+
+      const inputRow = document.createElement('div');
+      inputRow.style.cssText = 'display:flex;gap:10px;align-items:center';
+
+      const input = document.createElement('input');
+      input.type        = 'text';
+      input.placeholder = '정답을 입력하세요…';
+      input.autocomplete = 'off';
+      input.style.cssText = 'padding:12px 16px;font-size:1rem;border:2px solid #444;border-radius:8px;background:#1a1a1a;color:#fff;outline:none;width:240px;text-align:center;transition:border-color 0.15s';
+      input.addEventListener('focus', () => { input.style.borderColor = '#2266ff'; });
+      input.addEventListener('blur',  () => { input.style.borderColor = '#444'; });
+
+      const submitBtn = document.createElement('button');
+      submitBtn.textContent = '제출';
+      submitBtn.style.cssText = 'padding:12px 22px;font-size:1rem;background:#2266ff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap;transition:background 0.15s';
+      submitBtn.onmouseenter = () => { if (!submitBtn.disabled) submitBtn.style.background = '#1144cc'; };
+      submitBtn.onmouseleave = () => { if (!submitBtn.disabled) submitBtn.style.background = '#2266ff'; };
+
+      const errorEl = document.createElement('div');
+      errorEl.style.cssText = 'color:#ff4444;font-size:0.9rem;min-height:1.3em;text-align:center';
+
+      inputRow.appendChild(input);
+      inputRow.appendChild(submitBtn);
+      wrap.appendChild(img);
+      wrap.appendChild(inputRow);
+      wrap.appendChild(errorEl);
+      area.appendChild(wrap);
+
+      async function doSubmit() {
+        if (ended || !isLevel1Running) return;
+        const ans = input.value.trim();
+        if (!ans) { input.focus(); return; }
+        submitBtn.disabled    = true;
+        submitBtn.textContent = '확인 중…';
+        submitBtn.style.background = '#555';
+        errorEl.textContent   = '';
+        try {
+          const result = await window._checkQuizAnswer(ans);
+          if (!ended && result.correct) {
+            ended = true;
+            clearInterval(countdownId);
+            if (typeof playSuccessSound === 'function') playSuccessSound();
+            onScore(50);
+            setTimeout(() => onSuccess(), 500);
+          } else if (!ended) {
+            ended = true;
+            clearInterval(countdownId);
+            isLevel1Running = false;
+            if (typeof playAdSound === 'function') playAdSound();
+            errorEl.style.color   = '#ffcc00';
+            errorEl.textContent   = `정답: ${result.answer}`;
+            inputRow.style.display = 'none';
+            setTimeout(() => onFail('ad-click'), 1500);
+          }
+        } catch (_) {
+          if (!ended) {
+            errorEl.textContent   = '오류가 발생했습니다. 다시 시도해보세요.';
+            submitBtn.disabled    = false;
+            submitBtn.textContent = '제출';
+            submitBtn.style.background = '#2266ff';
+          }
+        }
+      }
+
+      submitBtn.onclick = doSubmit;
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') doSubmit(); });
+      setTimeout(() => input.focus(), 100);
+
+      return {
+        cleanup() {
+          ended = true;
+          clearInterval(countdownId);
+        }
+      };
     }
   }
 ];

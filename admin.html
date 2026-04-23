@@ -595,6 +595,48 @@
     </table>
   </div>
 
+  <!-- ════════════════════ 퀴즈 스테이지 관리 ════════════════════ -->
+  <hr class="section-divider" />
+
+  <div class="section-header">
+    <h2>퀴즈 스테이지 관리</h2>
+  </div>
+
+  <div class="form-card">
+    <h2>현재 퀴즈 이미지</h2>
+    <div id="quiz-current-wrap" style="margin-bottom:16px;display:none">
+      <img id="quiz-current-img" src="" alt="퀴즈 이미지"
+           style="max-width:100%;max-height:260px;object-fit:contain;border-radius:8px;border:1px solid #333"
+           onerror="this.style.opacity=0.15" />
+      <div id="quiz-current-url" style="font-size:0.78rem;color:#555;margin-top:6px;word-break:break-all"></div>
+    </div>
+    <div id="quiz-no-image-msg" style="color:#555;font-size:0.85rem;margin-bottom:16px">
+      퀴즈가 아직 설정되지 않았습니다.
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>이미지 URL <span style="color:#cc3333">*</span></label>
+        <input id="qz-img" type="url" placeholder="https://example.com/photo.jpg"
+               oninput="onQuizImgInput(this.value)" />
+      </div>
+      <div class="form-group full">
+        <label>정답 <span style="color:#cc3333">*</span></label>
+        <input id="qz-answer" type="text" placeholder="정답을 입력하세요 (대소문자 무시)" />
+      </div>
+    </div>
+
+    <div id="qz-img-preview-wrap" style="margin-top:12px;display:none">
+      <img id="qz-img-preview-img" src="" alt="미리보기"
+           style="max-width:100%;max-height:200px;object-fit:contain;border-radius:6px;border:1px solid #333;opacity:0.8" />
+    </div>
+
+    <div class="form-actions" style="margin-top:16px">
+      <button class="btn btn-add" onclick="submitQuizStage()">저장</button>
+      <button class="btn" style="background:#1e1e1e;color:#888;border:1px solid #333" onclick="loadQuizStageForEdit()">현재 정답 불러오기</button>
+    </div>
+  </div>
+
 </div><!-- /#dashboard -->
 
 <div id="status-bar"></div>
@@ -630,8 +672,9 @@
   const auth = getAuth(app);
   const db   = getDatabase(app);
 
-  let adsUnsubscribe     = null;
-  let inquiryUnsubscribe = null;
+  let adsUnsubscribe        = null;
+  let inquiryUnsubscribe    = null;
+  let quizStageUnsubscribe  = null;
 
   function isAdmin(user) {
     return user && typeof user.email === 'string' &&
@@ -654,13 +697,22 @@
         window._renderInquiries(window._inquiriesCache);
       });
     }
+    if (!quizStageUnsubscribe) {
+      quizStageUnsubscribe = onValue(ref(db, 'quizStage/imageUrl'), snapshot => {
+        window._quizImageUrlCache = snapshot.val() || '';
+        if (typeof window._renderQuizStage === 'function') {
+          window._renderQuizStage(window._quizImageUrlCache);
+        }
+      });
+    }
   }
 
   function showLogin() {
     document.getElementById('dashboard').style.display = 'none';
     document.getElementById('login-screen').classList.add('visible');
-    if (adsUnsubscribe)     { adsUnsubscribe();     adsUnsubscribe     = null; }
-    if (inquiryUnsubscribe) { inquiryUnsubscribe(); inquiryUnsubscribe = null; }
+    if (adsUnsubscribe)       { adsUnsubscribe();       adsUnsubscribe       = null; }
+    if (inquiryUnsubscribe)   { inquiryUnsubscribe();   inquiryUnsubscribe   = null; }
+    if (quizStageUnsubscribe) { quizStageUnsubscribe(); quizStageUnsubscribe = null; }
   }
 
   /* ── Auth 상태 감지: 페이지 로드 직후 실행 ── */
@@ -693,12 +745,14 @@
   const _call = (name) => httpsCallable(fns, name);
 
   window._fbOps = {
-    addAd:           (data)           => _call('addAd')(data),
-    updateAd:        (id, data)       => _call('updateAd')({ id, ...data }),
-    deleteAd:        (id)             => _call('deleteAd')({ id }),
-    approveInquiry:  (id)             => _call('approveInquiry')({ id }),
-    rejectInquiry:   (id, reason)     => _call('rejectInquiry')({ id, reason: reason || '' }),
-    deleteInquiry:   (id)             => _call('deleteInquiry')({ id }),
+    addAd:           (data)             => _call('addAd')(data),
+    updateAd:        (id, data)         => _call('updateAd')({ id, ...data }),
+    deleteAd:        (id)               => _call('deleteAd')({ id }),
+    approveInquiry:  (id)               => _call('approveInquiry')({ id }),
+    rejectInquiry:   (id, reason)       => _call('rejectInquiry')({ id, reason: reason || '' }),
+    deleteInquiry:   (id)               => _call('deleteInquiry')({ id }),
+    setQuizStage:    (imageUrl, answer) => _call('setQuizStage')({ imageUrl, answer }),
+    getQuizStage:    ()                 => _call('getQuizStage')({}),
   };
 </script>
 
@@ -1071,6 +1125,72 @@ function deleteInquiry(id) {
     .catch(e => showStatus('오류: ' + (e.message || e.details), 'err'));
 }
 window.deleteInquiry = deleteInquiry;
+
+/* ════════════════════════════════════════
+   퀴즈 스테이지 관리
+════════════════════════════════════════ */
+window._renderQuizStage = function (imageUrl) {
+  const wrap    = document.getElementById('quiz-current-wrap');
+  const img     = document.getElementById('quiz-current-img');
+  const urlDisp = document.getElementById('quiz-current-url');
+  const noMsg   = document.getElementById('quiz-no-image-msg');
+  if (imageUrl) {
+    img.src          = imageUrl;
+    img.style.opacity = '1';
+    urlDisp.textContent = imageUrl;
+    wrap.style.display  = 'block';
+    noMsg.style.display = 'none';
+  } else {
+    wrap.style.display  = 'none';
+    noMsg.style.display = 'block';
+  }
+};
+
+let _qzImgTimer = null;
+function onQuizImgInput(val) {
+  clearTimeout(_qzImgTimer);
+  const wrap = document.getElementById('qz-img-preview-wrap');
+  const img  = document.getElementById('qz-img-preview-img');
+  if (!val.trim()) { wrap.style.display = 'none'; return; }
+  _qzImgTimer = setTimeout(() => {
+    img.src = val.trim();
+    wrap.style.display = 'block';
+  }, 400);
+}
+window.onQuizImgInput = onQuizImgInput;
+
+function submitQuizStage() {
+  const imageUrl = document.getElementById('qz-img').value.trim();
+  const answer   = document.getElementById('qz-answer').value.trim();
+  if (!imageUrl) { showStatus('이미지 URL을 입력해주세요.', 'err'); return; }
+  if (!answer)   { showStatus('정답을 입력해주세요.', 'err'); return; }
+
+  window._fbOps.setQuizStage(imageUrl, answer)
+    .then(() => {
+      showStatus('퀴즈 스테이지가 저장되었습니다.', 'ok');
+      document.getElementById('qz-answer').value = '';
+    })
+    .catch(e => showStatus('오류: ' + (e.message || e.details), 'err'));
+}
+window.submitQuizStage = submitQuizStage;
+
+function loadQuizStageForEdit() {
+  window._fbOps.getQuizStage()
+    .then(r => {
+      const { imageUrl, answer } = r.data;
+      document.getElementById('qz-img').value    = imageUrl || '';
+      document.getElementById('qz-answer').value = answer   || '';
+      if (imageUrl) {
+        const wrap = document.getElementById('qz-img-preview-wrap');
+        const img  = document.getElementById('qz-img-preview-img');
+        img.src = imageUrl;
+        wrap.style.display = 'block';
+      }
+      showStatus('현재 퀴즈 정보를 불러왔습니다.', 'ok');
+    })
+    .catch(e => showStatus('오류: ' + (e.message || e.details), 'err'));
+}
+window.loadQuizStageForEdit = loadQuizStageForEdit;
 </script>
 
 </body>

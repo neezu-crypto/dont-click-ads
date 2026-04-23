@@ -30,6 +30,21 @@
       }
     },
 
+    "quizStage": {
+      "imageUrl": {
+        ".read":  true,
+        ".write": false
+      },
+      "answer": {
+        ".read":  false,
+        ".write": false
+      },
+      "updatedAt": {
+        ".read":  false,
+        ".write": false
+      }
+    },
+
     "$other": {
       ".read":  false,
       ".write": false
