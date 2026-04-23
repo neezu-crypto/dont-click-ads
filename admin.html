@@ -983,6 +983,12 @@ function soopImgUrl(id) {
   return `https://stimg.sooplive.com/LOGO/${s.slice(0, 2)}/${s}/${s}.jpg`;
 }
 
+function soopLandingUrl(id) {
+  const s = String(id || '').trim().toLowerCase();
+  if (!s) return '';
+  return `https://www.sooplive.com/station/${s}`;
+}
+
 window._renderInquiries = function (data) {
   const entries = Object.entries(data).sort((a, b) => b[1].createdAt - a[1].createdAt);
   const pending = entries.filter(([, v]) => !v.status || v.status === 'pending');
@@ -1023,7 +1029,7 @@ window._renderInquiries = function (data) {
         <img class="inq-thumb" src="${esc(imgSrc)}" onerror="this.style.opacity=0.1" />
       </td>
       <td data-label="닉네임">${esc(inq.nickname || '—')}</td>
-      <td data-label="수프ID" class="url-cell">${esc(inq.soopId || '—')}</td>
+      <td data-label="수프ID" class="url-cell">${inq.soopId ? `<a href="${esc(soopLandingUrl(inq.soopId))}" target="_blank" rel="noopener noreferrer" style="color:#ff8833;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(inq.soopId)}</a>` : '—'}</td>
       <td data-label="기간/별풍선">
         <span>${esc(String(inq.days || '?'))}일</span><br>
         <span class="inq-star">★ ${esc(String(inq.totalStarBalloons || (inq.days * 25) || '?'))}개</span>
