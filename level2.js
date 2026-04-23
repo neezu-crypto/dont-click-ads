@@ -13,7 +13,7 @@ const Level2Module = (() => {
   const AD_R           = Math.round(BALL_R * 1.44); // 광고 반지름
   const AD_SPAWN_DELAY = 8_000; // 8초 후 광고 출현
   const PATH_INTERVAL  = 100;   // 경로 기록 간격 (ms)
-  const AD_SPEED_MULT  = 1.2;   // 플레이어 경로 재생 속도 배율 (1.2 = 20% 빠름)
+  const AD_SPEED_MULT  = 1.44;  // 플레이어 경로 재생 속도 배율 (1.44 = 44% 빠름)
 
   // 레벨별 난이도: 셀 크기가 작을수록 더 많은 셀 → 복잡한 미로
   const TIERS = [
