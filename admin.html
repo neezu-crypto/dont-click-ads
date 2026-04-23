@@ -676,10 +676,11 @@
             <th>점수</th>
             <th>소요시간</th>
             <th>달성일</th>
+            <th>삭제</th>
           </tr>
         </thead>
         <tbody id="ranking-tbody">
-          <tr class="empty-row"><td colspan="5">로그인 후 랭킹이 표시됩니다.</td></tr>
+          <tr class="empty-row"><td colspan="6">로그인 후 랭킹이 표시됩니다.</td></tr>
         </tbody>
       </table>
     </div>
@@ -695,7 +696,7 @@
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-  import { getDatabase, ref, onValue, get, query, orderByChild, limitToLast }
+  import { getDatabase, ref, onValue, get, query, orderByChild, limitToLast, remove }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
   import { getFunctions, httpsCallable }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
@@ -802,6 +803,10 @@
         .map(([uid, r]) => ({ uid, ...r }))
         .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     } catch (e) { return null; }
+  };
+
+  window._deleteRanking = async function (uid) {
+    await remove(ref(db, 'rankings/' + uid));
   };
 
   window._fbOps = {
@@ -1239,14 +1244,14 @@ window.submitQuizStage = submitQuizStage;
 ════════════════════════════════════════ */
 async function loadRanking() {
   const tbody = document.getElementById('ranking-tbody');
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="5">불러오는 중…</td></tr>`;
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="6">불러오는 중…</td></tr>`;
   const rows = await window._loadRanking();
   if (!rows) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">랭킹을 불러오지 못했습니다.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">랭킹을 불러오지 못했습니다.</td></tr>`;
     return;
   }
   if (!rows.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">아직 랭킹 데이터가 없습니다.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">아직 랭킹 데이터가 없습니다.</td></tr>`;
     return;
   }
   const medals = ['🥇', '🥈', '🥉'];
@@ -1260,16 +1265,51 @@ async function loadRanking() {
       ? `${Math.floor(r.totalTime / 60)}분 ${r.totalTime % 60}초`
       : '—';
     const rankClass = rank <= 3 ? `rank-${rank}` : '';
-    return `<tr class="${rankClass}">
+    return `<tr class="${rankClass}" data-uid="${esc(r.uid)}">
       <td data-label="순위"><span class="rank-num">${medal || rank}</span></td>
       <td data-label="닉네임">${esc(r.nickname || '—')}</td>
       <td data-label="점수" class="rank-score">${(r.score ?? 0).toLocaleString()}</td>
       <td data-label="소요시간">${timeStr}</td>
       <td data-label="달성일" style="font-size:0.82rem;color:#555">${dateStr}</td>
+      <td data-label="삭제">
+        <button class="btn-del-rank" onclick="deleteRankingRow(this,'${esc(r.uid)}','${esc(r.nickname || '—')}')"
+          style="padding:3px 10px;font-size:0.75rem;border:1px solid #7a1a1a;border-radius:5px;background:#2a0a0a;color:#ff6666;cursor:pointer">
+          삭제
+        </button>
+      </td>
     </tr>`;
   }).join('');
 }
 window.loadRanking = loadRanking;
+
+async function deleteRankingRow(btn, uid, nickname) {
+  if (!confirm(`"${nickname}" 의 랭킹을 삭제하시겠습니까?`)) return;
+  btn.disabled    = true;
+  btn.textContent = '삭제 중…';
+  try {
+    await window._deleteRanking(uid);
+    const tr = btn.closest('tr');
+    tr.style.transition = 'opacity 0.25s';
+    tr.style.opacity    = '0';
+    setTimeout(() => { tr.remove(); renumberRanking(); }, 260);
+    showStatus(`"${nickname}" 랭킹이 삭제되었습니다.`, 'ok');
+  } catch (e) {
+    btn.disabled    = false;
+    btn.textContent = '삭제';
+    showStatus('삭제 실패: ' + (e.message || e), 'err');
+  }
+}
+window.deleteRankingRow = deleteRankingRow;
+
+function renumberRanking() {
+  const medals = ['🥇', '🥈', '🥉'];
+  document.querySelectorAll('#ranking-tbody tr').forEach((tr, i) => {
+    const rank = i + 1;
+    tr.className = rank <= 3 ? `rank-${rank}` : '';
+    const numEl = tr.querySelector('.rank-num');
+    if (numEl) numEl.textContent = medals[i] || rank;
+  });
+}
 
 function loadQuizStageForEdit() {
   window._fbOps.getQuizStage()
