@@ -696,7 +696,7 @@
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-  import { getDatabase, ref, onValue, get, query, orderByChild, limitToLast, remove }
+  import { getDatabase, ref, onValue, get, query, orderByChild, limitToLast }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
   import { getFunctions, httpsCallable }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
@@ -805,9 +805,7 @@
     } catch (e) { return null; }
   };
 
-  window._deleteRanking = async function (uid) {
-    await remove(ref(db, 'rankings/' + uid));
-  };
+  window._deleteRanking = (uid) => _call('deleteRanking')({ uid });
 
   window._fbOps = {
     addAd:           (data)             => _call('addAd')(data),
@@ -816,6 +814,7 @@
     approveInquiry:  (id)               => _call('approveInquiry')({ id }),
     rejectInquiry:   (id, reason)       => _call('rejectInquiry')({ id, reason: reason || '' }),
     deleteInquiry:   (id)               => _call('deleteInquiry')({ id }),
+    deleteRanking:   (uid)              => _call('deleteRanking')({ uid }),
     setQuizStage:    (imageUrl, answer) => _call('setQuizStage')({ imageUrl, answer }),
     getQuizStage:    ()                 => _call('getQuizStage')({}),
   };

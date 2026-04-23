@@ -242,6 +242,27 @@ exports.getQuizStage = onCall(async (request) => {
 });
 
 /* ════════════════════════════════════════
+   deleteRanking — 랭킹 항목 삭제 (관리자 전용)
+════════════════════════════════════════ */
+exports.deleteRanking = onCall(async (request) => {
+  assertAdmin(request.auth);
+
+  const { uid } = request.data;
+  if (typeof uid !== 'string' || !uid.trim()) {
+    throw new HttpsError('invalid-argument', 'uid가 필요합니다.');
+  }
+
+  const db   = getDatabase();
+  const snap = await db.ref(`rankings/${uid}`).once('value');
+  if (!snap.exists()) {
+    throw new HttpsError('not-found', '해당 랭킹 항목을 찾을 수 없습니다.');
+  }
+
+  await db.ref(`rankings/${uid}`).remove();
+  return { success: true };
+});
+
+/* ════════════════════════════════════════
    checkQuizAnswer — 퀴즈 정답 확인 (플레이어용, 정답 비공개)
 ════════════════════════════════════════ */
 exports.checkQuizAnswer = onCall(async (request) => {
