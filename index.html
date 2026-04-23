@@ -1613,7 +1613,7 @@ const MINI_GAMES = {
             let pvy = Math.sin(angle) * dist * SPEED_SCALE;
             ctx.strokeStyle = '#ffffff2a'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 5]);
             ctx.beginPath(); let px = ballX, py = ballY; ctx.moveTo(px, py);
-            for (let i = 0; i < 55; i++) {
+            for (let i = 0; i < 27; i++) {
               pvy += GRAVITY; px += pvx; py += pvy;
               if (px < 0 || px > W || py > H) break;
               ctx.lineTo(px, py);
