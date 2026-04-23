@@ -2216,7 +2216,7 @@ const MINI_GAMES = {
 const gameStages = [
   // ── MINI_GAMES 래핑 (circle-click만 광고 시스템 포함 / 20초, 나머지 30초) ──
   ...Object.entries(MINI_GAMES).map(([id, game]) => {
-    const timerDuration = id === 'pool' ? 90 : id === 'catch-basket' ? 25 : (id === 'circle-click' || id === 'rapid-tap' || id === 'odd-one-out' || id === 'color-rush' || id === 'reaction-speed' || id === 'size-click' || id === 'basketball') ? 20 : id === 'whack-mole' ? 25 : 30;
+    const timerDuration = id === 'pool' ? 90 : id === 'catch-basket' ? 30 : id === 'basketball' ? 25 : (id === 'circle-click' || id === 'rapid-tap' || id === 'odd-one-out' || id === 'color-rush' || id === 'reaction-speed' || id === 'size-click') ? 20 : id === 'whack-mole' ? 25 : 30;
     return {
       id,
       label: game.label,
@@ -2241,7 +2241,7 @@ const gameStages = [
   {
     id: 'sequence-tap',
     label: '숫자를 순서대로 클릭! (1→5)',
-    timerDuration: 35,
+    timerDuration: 40,
     usesAdSystem: false,
     init(area, { onScore, onSuccess, onFail }) {
       area.innerHTML = '';
