@@ -20,9 +20,10 @@ const BadmintonModule = (() => {
   const DECEL      = 0.9935;  // 공기 저항
 
   // AI
-  const AI_SPD_IDLE  = 1.8;  // 셔틀이 내 쪽에 없을 때 복귀 속도
-  const AI_SPD_CHASE = 3.0;  // 셔틀 추적 속도
-  const AI_MISS_PROB = 0.06; // 히트 실수 확률 (낮을수록 정확)
+  const AI_SPD_IDLE  = 1.8;   // 셔틀이 내 쪽에 없을 때 복귀 속도
+  const AI_SPD_MIN   = 2.0;   // 추적 최저 속도 (플레이어가 느릴 때 하한)
+  const AI_MISS_PROB = 0.06;  // 히트 실수 확률 (낮을수록 정확)
+  const AI_SPD_RATIO = 0.9;   // 플레이어 최고속도 대비 AI 속도 비율
 
   // 상태
   let _area, _canvas, _ctx;
@@ -42,8 +43,9 @@ const BadmintonModule = (() => {
   let _pHitCd = 0;
 
   // AI 라켓
-  let _aRacket = { x: W / 2, y: 72 };
-  let _aHitCd  = 0;
+  let _aRacket      = { x: W / 2, y: 72 };
+  let _aHitCd       = 0;
+  let _playerPeakSpd = 3.5;  // 플레이어 최고속도 추적값 (초기 기본값)
 
   // 셔틀콕
   let _sX = W / 2, _sY = NET_Y + 60;
@@ -110,7 +112,7 @@ const BadmintonModule = (() => {
     _sActive = false;
     _pHitCd  = 0;
     _aHitCd  = 0;
-    _lastHitter = null;
+    _lastHitter  = null;
 
     if (_serving === 'player') {
       _sX = _pRacket.x;
@@ -180,14 +182,15 @@ const BadmintonModule = (() => {
       return;
     }
 
-    // 셔틀 추적
+    // 셔틀 추적 — 플레이어 최고속도의 90% (최저 AI_SPD_MIN 보장)
+    const aiSpd = Math.max(AI_SPD_MIN, _playerPeakSpd * AI_SPD_RATIO);
     const tx = Math.max(PAD + 22, Math.min(W - PAD - 22, _sX));
     const ty = Math.max(PAD + 18, Math.min(NET_Y - 18, _sY + 8));
     const dx = tx - _aRacket.x;
     const dy = ty - _aRacket.y;
     const d  = Math.hypot(dx, dy);
     if (d > 0.5) {
-      const spd = Math.min(AI_SPD_CHASE, d);
+      const spd = Math.min(aiSpd, d);
       _aRacket.x += (dx / d) * spd;
       _aRacket.y += (dy / d) * spd;
     }
@@ -217,6 +220,10 @@ const BadmintonModule = (() => {
 
     if (_pHitCd > 0) _pHitCd--;
     if (_aHitCd > 0) _aHitCd--;
+
+    // 라운드 내 플레이어 최고 드래그 속도 갱신 (감쇠 없음)
+    const _curPlayerSpd = Math.hypot(_pvx, _pvy);
+    if (_curPlayerSpd > _playerPeakSpd) _playerPeakSpd = _curPlayerSpd;
 
     if (_sActive) {
       if (_phase === 'rally') {
@@ -663,6 +670,7 @@ const BadmintonModule = (() => {
     _pHitCd  = 0; _aHitCd = 0;
     _lastHitter = null;
     _dragging = false; _pvx = 0; _pvy = 0;
+    _playerPeakSpd = 3.5;
     _pRacket  = { x: W / 2, y: H - 72 };
     _aRacket  = { x: W / 2, y: 72 };
     _flashes.length = 0;
