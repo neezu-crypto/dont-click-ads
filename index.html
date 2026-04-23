@@ -1562,11 +1562,13 @@ const MINI_GAMES = {
         ctx.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, cx - r, cy - r, d, d);
       }
 
-      function drawOrbitAd(ax, ay) {
-        // Orbit track
+      function drawOrbitTrack() {
         ctx.beginPath(); ctx.arc(HOOP_X, HOOP_Y, AD_ORBIT_R, 0, Math.PI * 2);
         ctx.strokeStyle = '#ff440020'; ctx.lineWidth = 1;
         ctx.setLineDash([3, 5]); ctx.stroke(); ctx.setLineDash([]);
+      }
+
+      function drawAdCircle(ax, ay) {
         // Glow ring
         ctx.save();
         ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 12;
@@ -1671,21 +1673,11 @@ const MINI_GAMES = {
           if (ballY > H + BALL_R * 2 || ballX < -BALL_R * 2 || ballX > W + BALL_R * 2) resetBall();
         }
 
-        // Render: orbit track + hoop, then ball, then ad on top
-        drawOrbitAd(adX, adY); // draws orbit track first
+        // Render order: track → hoop → ball → ad (ad always on top)
+        drawOrbitTrack();
         drawHoop();
         drawBall();
-        // Redraw ad circle on top of hoop rim
-        ctx.save();
-        ctx.beginPath(); ctx.arc(adX, adY, AD_R, 0, Math.PI * 2); ctx.clip();
-        if (adImgLoaded) { drawImgCover(adImg, adX, adY, AD_R); }
-        else { ctx.fillStyle = '#cc2200'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('AD', adX, adY + 4); ctx.textAlign = 'left'; }
-        ctx.restore();
-        ctx.save();
-        ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 12;
-        ctx.beginPath(); ctx.arc(adX, adY, AD_R, 0, Math.PI * 2);
-        ctx.strokeStyle = '#ff4400'; ctx.lineWidth = 2; ctx.stroke();
-        ctx.restore();
+        drawAdCircle(adX, adY);
 
         if (scored) {
           ctx.fillStyle = 'rgba(0,255,170,0.88)'; ctx.font = 'bold 34px sans-serif';
