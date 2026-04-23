@@ -22,6 +22,14 @@
       }
     },
 
+    "adInquiries": {
+      ".read": false,
+      "$key": {
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.hasChildren(['nickname','soopId','days','totalStarBalloons','createdAt']) && newData.child('nickname').isString() && newData.child('nickname').val().length >= 1 && newData.child('nickname').val().length <= 20 && newData.child('soopId').isString() && newData.child('soopId').val().length >= 1 && newData.child('soopId').val().length <= 30 && newData.child('days').isNumber() && newData.child('days').val() >= 1 && newData.child('days').val() <= 30 && newData.child('totalStarBalloons').isNumber() && newData.child('createdAt').isNumber()"
+      }
+    },
+
     "$other": {
       ".read":  false,
       ".write": false

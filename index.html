@@ -364,8 +364,8 @@
       border: 1px solid #333;
       border-radius: 14px;
       padding: 36px 32px;
-      width: 340px;
-      max-width: 90vw;
+      width: 370px;
+      max-width: 92vw;
       display: flex;
       flex-direction: column;
       gap: 14px;
@@ -393,6 +393,9 @@
       box-sizing: border-box;
     }
     #ad-inquiry-modal input:focus { outline: none; border-color: #ffcc00; }
+    #ad-inquiry-modal input[type=number]::-webkit-inner-spin-button,
+    #ad-inquiry-modal input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    #ad-inquiry-modal input[type=number] { -moz-appearance: textfield; }
     #ad-inquiry-modal .modal-buttons {
       display: flex;
       gap: 10px;
@@ -790,10 +793,34 @@
 <!-- 광고 문의 모달 -->
 <div id="ad-inquiry-modal">
   <div class="modal-box">
-    <h3>📢 광고 문의하기</h3>
-    <p>광고를 진행하고 싶으시면 아래 정보를 입력 후 신청해주세요.<br>신청 후 후원 페이지가 열립니다.</p>
+    <h3>📢 광고 신청하기</h3>
+    <p>아래 정보를 입력하시면 후원 페이지로 이동합니다.</p>
     <input id="inquiry-nickname" type="text" maxlength="20" placeholder="닉네임" />
-    <input id="inquiry-soopid"   type="text" maxlength="30" placeholder="수프 아이디 (sooplive)" />
+    <div style="position:relative">
+      <input id="inquiry-soopid" type="text" maxlength="30" placeholder="수프 아이디 (sooplive)" oninput="onSoopIdInput(this.value)" />
+      <div id="inquiry-profile-preview" style="display:none;margin-top:8px;display:flex;align-items:center;gap:10px;display:none">
+        <img id="inquiry-profile-img" src="" alt="프로필" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid #ffcc00;background:#222;" onerror="this.style.display='none'" onload="this.style.display='block'" />
+        <span id="inquiry-profile-id" style="font-size:0.88rem;color:#ffcc00"></span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <input id="inquiry-days" type="number" min="1" max="30" placeholder="광고 기간 (1~30일)" oninput="onDaysInput(this.value)" style="flex:1" />
+      <span style="font-size:0.82rem;color:#aaa;white-space:nowrap">일</span>
+    </div>
+    <div id="inquiry-price-display" style="display:none;background:#111;border:1px solid #333;border-radius:8px;padding:10px 14px;font-size:0.9rem;line-height:1.7">
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#aaa">단가</span>
+        <span style="color:#fff">별풍선 25개 / 1일</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#aaa">광고 기간</span>
+        <span id="inquiry-days-display" style="color:#fff"></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid #333;margin-top:6px;padding-top:6px">
+        <span style="color:#ffcc00;font-weight:bold">총 후원단가</span>
+        <span id="inquiry-total-display" style="color:#ffcc00;font-weight:bold"></span>
+      </div>
+    </div>
     <p id="ad-inquiry-error"></p>
     <div class="modal-buttons">
       <button class="btn-primary" style="flex:1" onclick="submitAdInquiry()">신청하기</button>
@@ -2140,11 +2167,49 @@ function restartFromLevel1() {
 window.restartFromLevel1 = restartFromLevel1;
 
 /* ════════ AD INQUIRY MODAL ════════ */
+function soopProfileImgUrl(id) {
+  if (!id) return '';
+  return `https://stimg.sooplive.com/LOGO/${id.slice(0, 2)}/${id}/${id}.jpg`;
+}
+
+let _soopIdDebounceTimer = null;
+function onSoopIdInput(val) {
+  const id = val.trim().toLowerCase();
+  const preview = document.getElementById('inquiry-profile-preview');
+  const img     = document.getElementById('inquiry-profile-img');
+  const label   = document.getElementById('inquiry-profile-id');
+  if (!id) { preview.style.display = 'none'; return; }
+  clearTimeout(_soopIdDebounceTimer);
+  _soopIdDebounceTimer = setTimeout(() => {
+    img.style.display = 'none';
+    img.src = soopProfileImgUrl(id);
+    label.textContent = id;
+    preview.style.display = 'flex';
+  }, 400);
+}
+window.onSoopIdInput = onSoopIdInput;
+
+function onDaysInput(val) {
+  const days = parseInt(val, 10);
+  const priceEl = document.getElementById('inquiry-price-display');
+  if (!val || isNaN(days) || days < 1 || days > 30) {
+    priceEl.style.display = 'none';
+    return;
+  }
+  document.getElementById('inquiry-days-display').textContent  = `${days}일`;
+  document.getElementById('inquiry-total-display').textContent = `별풍선 ${days * 25}개`;
+  priceEl.style.display = 'block';
+}
+window.onDaysInput = onDaysInput;
+
 function showAdInquiryModal() {
   playSuccessSound();
   document.getElementById('inquiry-nickname').value = playerNickname || '';
   document.getElementById('inquiry-soopid').value   = '';
+  document.getElementById('inquiry-days').value     = '';
   document.getElementById('ad-inquiry-error').textContent = '';
+  document.getElementById('inquiry-profile-preview').style.display = 'none';
+  document.getElementById('inquiry-price-display').style.display   = 'none';
   document.getElementById('ad-inquiry-modal').classList.add('active');
 }
 window.showAdInquiryModal = showAdInquiryModal;
@@ -2157,17 +2222,24 @@ window.closeAdInquiryModal = closeAdInquiryModal;
 function submitAdInquiry() {
   const nickname = document.getElementById('inquiry-nickname').value.trim();
   const soopId   = document.getElementById('inquiry-soopid').value.trim();
+  const daysVal  = document.getElementById('inquiry-days').value;
+  const days     = parseInt(daysVal, 10);
   const errEl    = document.getElementById('ad-inquiry-error');
 
-  if (!nickname) { errEl.textContent = '닉네임을 입력해주세요.'; return; }
-  if (!soopId)   { errEl.textContent = '수프 아이디를 입력해주세요.'; return; }
+  if (!nickname)                          { errEl.textContent = '닉네임을 입력해주세요.'; return; }
+  if (!soopId)                            { errEl.textContent = '수프 아이디를 입력해주세요.'; return; }
+  if (!daysVal || isNaN(days) || days < 1 || days > 30) {
+    errEl.textContent = '광고 기간을 1~30일 사이로 입력해주세요.'; return;
+  }
 
   playSuccessSound();
   errEl.textContent = '';
 
   if (window._db && window._dbSet && window._dbRef) {
     const key = Date.now();
-    window._dbSet(window._dbRef(window._db, `adInquiries/${key}`), { nickname, soopId, createdAt: key });
+    window._dbSet(window._dbRef(window._db, `adInquiries/${key}`), {
+      nickname, soopId, days, totalStarBalloons: days * 25, createdAt: key
+    });
   }
 
   closeAdInquiryModal();

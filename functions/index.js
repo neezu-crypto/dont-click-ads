@@ -115,3 +115,96 @@ exports.deleteAd = onCall(async (request) => {
   await getDatabase().ref(`ads/${id}`).remove();
   return { success: true };
 });
+
+/* ════════════════════════════════════════
+   approveInquiry — 광고 신청 승인
+   → /adInquiries/{id} 읽어서 /ads에 자동 등록
+════════════════════════════════════════ */
+exports.approveInquiry = onCall(async (request) => {
+  assertAdmin(request.auth);
+
+  const { id } = request.data;
+  if (typeof id !== 'string' || !id.trim()) {
+    throw new HttpsError('invalid-argument', 'id가 필요합니다.');
+  }
+
+  const db   = getDatabase();
+  const snap = await db.ref(`adInquiries/${id}`).once('value');
+  if (!snap.exists()) throw new HttpsError('not-found', '신청을 찾을 수 없습니다.');
+
+  const inq = snap.val();
+  if (inq.status === 'approved') {
+    throw new HttpsError('already-exists', '이미 승인된 신청입니다.');
+  }
+
+  const soopId     = String(inq.soopId).trim().toLowerCase();
+  const imgUrl     = `https://stimg.sooplive.com/LOGO/${soopId.slice(0, 2)}/${soopId}/${soopId}.jpg`;
+  const landingUrl = `https://www.sooplive.com/station/${soopId}`;
+
+  const days       = Number(inq.days) || 1;
+  const expiresAt  = new Date(inq.createdAt + days * 86400000).toISOString().slice(0, 10);
+
+  const adRef = db.ref('ads').push();
+  await adRef.set({
+    imgUrl,
+    landingUrl,
+    expiresAt,
+    type:      'all',
+    active:    true,
+    nickname:  inq.nickname || '',
+    soopId,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+
+  await db.ref(`adInquiries/${id}`).update({
+    status:     'approved',
+    approvedAt: Date.now(),
+    adId:       adRef.key,
+  });
+
+  return { success: true, adId: adRef.key };
+});
+
+/* ════════════════════════════════════════
+   rejectInquiry — 광고 신청 거절
+════════════════════════════════════════ */
+exports.rejectInquiry = onCall(async (request) => {
+  assertAdmin(request.auth);
+
+  const { id, reason } = request.data;
+  if (typeof id !== 'string' || !id.trim()) {
+    throw new HttpsError('invalid-argument', 'id가 필요합니다.');
+  }
+
+  const db   = getDatabase();
+  const snap = await db.ref(`adInquiries/${id}`).once('value');
+  if (!snap.exists()) throw new HttpsError('not-found', '신청을 찾을 수 없습니다.');
+
+  await db.ref(`adInquiries/${id}`).update({
+    status:     'rejected',
+    rejectedAt: Date.now(),
+    reason:     (typeof reason === 'string' && reason.trim()) ? reason.trim() : null,
+  });
+
+  return { success: true };
+});
+
+/* ════════════════════════════════════════
+   deleteInquiry — 광고 신청 삭제
+════════════════════════════════════════ */
+exports.deleteInquiry = onCall(async (request) => {
+  assertAdmin(request.auth);
+
+  const { id } = request.data;
+  if (typeof id !== 'string' || !id.trim()) {
+    throw new HttpsError('invalid-argument', 'id가 필요합니다.');
+  }
+
+  const db   = getDatabase();
+  const snap = await db.ref(`adInquiries/${id}`).once('value');
+  if (!snap.exists()) throw new HttpsError('not-found', '신청을 찾을 수 없습니다.');
+
+  await db.ref(`adInquiries/${id}`).remove();
+  return { success: true };
+});
