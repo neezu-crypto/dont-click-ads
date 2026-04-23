@@ -1029,6 +1029,9 @@
 <!-- ════════════════════ LEVEL 2 MODULE ════════════════════ -->
 <script src="level2.js"></script>
 
+<!-- ════════════════════ BADMINTON MODULE ════════════════════ -->
+<script src="badminton.js"></script>
+
 <!-- ════════════════════ GAME LOGIC ════════════════════ -->
 <script>
 /* ════════ OPENING CURSOR AD ════════ */
@@ -2627,7 +2630,19 @@ const gameStages = [
         }
       };
     }
-  }
+  },
+
+  // ── 배드민턴 1대1 대결 ──
+  {
+    id: 'badminton',
+    label: '배드민턴 대결! (5점 선취 승리)',
+    timerDuration: 120,
+    usesAdSystem: false,
+    init(area, { onScore, onSuccess, onFail }) {
+      const cleanupFn = BadmintonModule.start(area, onScore, onSuccess, onFail);
+      return { cleanup() { cleanupFn && cleanupFn(); } };
+    }
+  },
 ];
 
 let _lastStageId   = null;
