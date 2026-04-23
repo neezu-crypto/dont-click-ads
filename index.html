@@ -1380,16 +1380,25 @@ const MINI_GAMES = {
           };
 
           if (!h._red) {
-            h._m.onmouseenter = () => {
-              if (!h._active || ended || h._ad) return;
+            const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+            if (isMobile) {
+              const delay = 200;
               h._hoverTid = setTimeout(() => {
                 h._hoverTid = null;
                 if (Math.random() < 0.3) convertMoleToAd();
-              }, 100);
-            };
-            h._m.onmouseleave = () => {
-              if (h._hoverTid) { clearTimeout(h._hoverTid); h._hoverTid = null; }
-            };
+              }, delay);
+            } else {
+              h._m.onmouseenter = () => {
+                if (!h._active || ended || h._ad) return;
+                h._hoverTid = setTimeout(() => {
+                  h._hoverTid = null;
+                  if (Math.random() < 0.3) convertMoleToAd();
+                }, 100);
+              };
+              h._m.onmouseleave = () => {
+                if (h._hoverTid) { clearTimeout(h._hoverTid); h._hoverTid = null; }
+              };
+            }
           }
         }
         tid = setTimeout(tick, 700+Math.random()*500);
