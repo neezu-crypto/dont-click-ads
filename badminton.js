@@ -114,6 +114,10 @@ const BadmintonModule = (() => {
     _aHitCd  = 0;
     _lastHitter  = null;
 
+    // AI 라켓을 플레이어 라켓의 네트 대칭 위치로 이동
+    _aRacket.x = _pRacket.x;
+    _aRacket.y = 2 * NET_Y - _pRacket.y;
+
     if (_serving === 'player') {
       _sX = _pRacket.x;
       _sY = H - 105;
