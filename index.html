@@ -1001,6 +1001,15 @@
       window._cursorAdInited = true;
       window._initOpeningCursorAd(window.randomAd('opening'));
     }
+    /* 모든 광고 이미지 브라우저 캐시에 미리 로딩 */
+    window._adsCache.forEach(ad => {
+      if (ad.imgUrl && !window._preloadedImgs?.[ad.imgUrl]) {
+        if (!window._preloadedImgs) window._preloadedImgs = {};
+        const img = new Image();
+        img.src = ad.imgUrl;
+        window._preloadedImgs[ad.imgUrl] = img;
+      }
+    });
   });
 
   /* ── 퀴즈 스테이지 이미지 URL 실시간 동기화 ── */
