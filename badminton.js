@@ -20,9 +20,9 @@ const BadmintonModule = (() => {
   const DECEL      = 0.9935;  // 공기 저항
 
   // AI
-  const AI_SPD_IDLE  = 1.4;  // 셔틀이 내 쪽에 없을 때 복귀 속도
-  const AI_SPD_CHASE = 2.0;  // 셔틀 추적 속도
-  const AI_MISS_PROB = 0.12; // 초보 수준: 히트 타이밍에 약간의 실수 확률
+  const AI_SPD_IDLE  = 1.8;  // 셔틀이 내 쪽에 없을 때 복귀 속도
+  const AI_SPD_CHASE = 3.0;  // 셔틀 추적 속도
+  const AI_MISS_PROB = 0.06; // 히트 실수 확률 (낮을수록 정확)
 
   // 상태
   let _area, _canvas, _ctx;
@@ -130,8 +130,8 @@ const BadmintonModule = (() => {
         // AI가 자동 서브
         _serveTO = setTimeout(() => {
           if (_ended || _phase !== 'serve_wait') return;
-          _sVX = (Math.random() - 0.5) * 4;
-          _sVY = 3.8 + Math.random() * 1.5;
+          _sVX = (Math.random() - 0.5) * 5;
+          _sVY = 4.5 + Math.random() * 1.5;
           _lastHitter = 'ai';
           _phase = 'rally';
         }, 900);
@@ -159,10 +159,10 @@ const BadmintonModule = (() => {
       _aHitCd = HIT_CD;
       return; // 히트 실패 → 셔틀 그대로 통과
     }
-    const power = 4.8 + Math.random() * 2.2;
+    const power = 5.5 + Math.random() * 2.5;
     _sVY = power;
-    _sVX = (_sX - W / 2) * 0.04 + (Math.random() - 0.5) * 2.5;
-    _sVX = Math.max(-6, Math.min(6, _sVX));
+    _sVX = (_sX - W / 2) * 0.06 + (Math.random() - 0.5) * 1.5;
+    _sVX = Math.max(-7, Math.min(7, _sVX));
     _aHitCd    = HIT_CD;
     _lastHitter = 'ai';
     _flashHit(_aRacket.x, _aRacket.y, '#ff6655');
