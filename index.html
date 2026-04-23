@@ -3283,6 +3283,16 @@ window.closeRankingModal = closeRankingModal;
   /* ── Ctrl+Enter 트리거 ── */
   document.addEventListener('keydown', function (e) {
     if (e.ctrlKey && e.key === 'Enter') _devLogin();
+    if (e.key === 'r' || e.key === 'R' || e.key === 'ㄱ') {
+      if (!window._DEV.unlocked) return;
+      const active = document.querySelector('.screen.active');
+      if (!active) return;
+      const id = active.id;
+      if (id !== 'screen-opening' && id !== 'screen-nickname') {
+        startLevel(currentLevel);
+        _devToast('R — 현재 레벨 재시작');
+      }
+    }
   });
 
   function _devLogin() {
