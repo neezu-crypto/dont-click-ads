@@ -1405,7 +1405,7 @@ const MINI_GAMES = {
       }
       circle.onclick = () => {
         if (!isLevel1Running) return;
-        if (!waiting) { msg.textContent='너무 빨라요!'; return; }
+        if (!waiting) { score(-10); playFailSound(); msg.textContent='너무 빨라요!  -10점'; return; }
         const ms = Date.now()-startT;
         const pts = Math.max(5, Math.round(200-ms*.5));
         score(pts); playSuccessSound(); msg.textContent=`${ms}ms  +${pts}점`;
