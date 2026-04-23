@@ -23,7 +23,7 @@ const BadmintonModule = (() => {
   const AI_SPD_IDLE  = 1.8;   // 셔틀이 내 쪽에 없을 때 복귀 속도
   const AI_SPD_MIN   = 2.0;   // 추적 최저 속도 (플레이어가 느릴 때 하한)
   const AI_MISS_PROB = 0.06;  // 히트 실수 확률 (낮을수록 정확)
-  const AI_SPD_RATIO = 0.9;   // 플레이어 최고속도 대비 AI 속도 비율
+  const AI_SPD_RATIO = 0.9;   // 플레이어 현재속도 대비 AI 속도 비율 (매 프레임)
 
   // 상태
   let _area, _canvas, _ctx;
@@ -45,7 +45,7 @@ const BadmintonModule = (() => {
   // AI 라켓
   let _aRacket      = { x: W / 2, y: 72 };
   let _aHitCd       = 0;
-  let _playerPeakSpd = 3.5;  // 플레이어 최고속도 추적값 (초기 기본값)
+  let _lastHitSpd   = 3.5;  // 플레이어 히트 순간 드래그 속도 (AI 속도 기준)
 
   // 셔틀콕
   let _sX = W / 2, _sY = NET_Y + 60;
@@ -144,7 +144,8 @@ const BadmintonModule = (() => {
   // ── 히트 ──
 
   function _playerHit() {
-    // 드래그 속도로 방향 결정, 최소 상향 속도 보장
+    // 히트 순간 속도 저장 → AI 속도 기준값 갱신
+    _lastHitSpd = Math.hypot(_pvx, _pvy);
     const power = 6.5 + Math.min(Math.abs(_pvy), 6) * 0.35;
     _sVY = -(power);
     _sVX = _pvx * 0.45 + (_sX - _pRacket.x) * 0.08;
@@ -175,15 +176,10 @@ const BadmintonModule = (() => {
   function _updateAI() {
     if (_phase === 'idle') return;
 
-    if (_sY >= NET_Y) {
-      // 셔틀이 플레이어 쪽에 있을 때 → 중앙으로 복귀
-      _aRacket.x += (W / 2 - _aRacket.x) * 0.04;
-      _aRacket.y += (72   - _aRacket.y)   * 0.04;
-      return;
-    }
+    if (_sY >= NET_Y) return; // 셔틀이 플레이어 쪽 → 제자리 대기
 
-    // 셔틀 추적 — 플레이어 최고속도의 90% (최저 AI_SPD_MIN 보장)
-    const aiSpd = Math.max(AI_SPD_MIN, _playerPeakSpd * AI_SPD_RATIO);
+    // 셔틀 추적 — 플레이어 히트 순간 속도의 90% (최저 AI_SPD_MIN 보장)
+    const aiSpd = Math.max(AI_SPD_MIN, _lastHitSpd * AI_SPD_RATIO);
     const tx = Math.max(PAD + 22, Math.min(W - PAD - 22, _sX));
     const ty = Math.max(PAD + 18, Math.min(NET_Y - 18, _sY + 8));
     const dx = tx - _aRacket.x;
@@ -221,9 +217,6 @@ const BadmintonModule = (() => {
     if (_pHitCd > 0) _pHitCd--;
     if (_aHitCd > 0) _aHitCd--;
 
-    // 라운드 내 플레이어 최고 드래그 속도 갱신 (감쇠 없음)
-    const _curPlayerSpd = Math.hypot(_pvx, _pvy);
-    if (_curPlayerSpd > _playerPeakSpd) _playerPeakSpd = _curPlayerSpd;
 
     if (_sActive) {
       if (_phase === 'rally') {
@@ -670,7 +663,7 @@ const BadmintonModule = (() => {
     _pHitCd  = 0; _aHitCd = 0;
     _lastHitter = null;
     _dragging = false; _pvx = 0; _pvy = 0;
-    _playerPeakSpd = 3.5;
+    _lastHitSpd = 3.5;
     _pRacket  = { x: W / 2, y: H - 72 };
     _aRacket  = { x: W / 2, y: 72 };
     _flashes.length = 0;
