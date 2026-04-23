@@ -1474,6 +1474,220 @@ const MINI_GAMES = {
       return () => { clearTimeout(roundTid); };
     }
   },
+
+  'basketball': {
+    label: '농구공을 골대에 넣어라!',
+    failOnTimeout: true,
+    start(area, score, onFail, onSuccess) {
+      area.innerHTML = '';
+      let ended = false;
+
+      const canvas = document.createElement('canvas');
+      const W = canvas.width  = area.clientWidth  || 420;
+      const H = canvas.height = area.clientHeight || 320;
+      canvas.style.cssText = 'position:absolute;left:0;top:0;display:block';
+      area.appendChild(canvas);
+      const ctx = canvas.getContext('2d');
+
+      const GRAVITY     = 0.32;
+      const BALL_R      = 16;
+      const SPEED_SCALE = 0.11;
+      const HOOP_X      = W * 0.72;
+      const HOOP_Y      = H * 0.30;
+      const HOOP_W      = 58;
+      const RIM_R       = 5;
+
+      let ballX = W * 0.22, ballY = H * 0.72;
+      let prevBallY = ballY;
+      let vx = 0, vy = 0;
+      let inFlight = false;
+      let dragging  = false;
+      let dragX = 0, dragY = 0;
+      let scored = false;
+      let raf;
+
+      function resetBall() {
+        ballX = W * 0.22; ballY = H * 0.72;
+        prevBallY = ballY;
+        vx = 0; vy = 0;
+        inFlight = false;
+      }
+
+      function drawHoop() {
+        // Support pole
+        ctx.fillStyle = '#555';
+        ctx.fillRect(HOOP_X + HOOP_W/2 + RIM_R + 5, HOOP_Y - 28, 5, H - (HOOP_Y - 28));
+        // Backboard
+        ctx.fillStyle = '#ddd';
+        ctx.fillRect(HOOP_X + HOOP_W/2 + RIM_R + 2, HOOP_Y - 32, 10, 64);
+        ctx.strokeStyle = '#e00';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(HOOP_X + HOOP_W/2 + RIM_R + 4, HOOP_Y - 14, 6, 28);
+        // Rim
+        ctx.strokeStyle = '#ff5500';
+        ctx.lineWidth = RIM_R * 2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(HOOP_X - HOOP_W/2, HOOP_Y);
+        ctx.lineTo(HOOP_X + HOOP_W/2, HOOP_Y);
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+        // Net
+        ctx.strokeStyle = '#ffffff55';
+        ctx.lineWidth = 1;
+        const NL = 5, netBot = HOOP_Y + 22;
+        for (let i = 0; i <= NL; i++) {
+          const nx = HOOP_X - HOOP_W/2 + (HOOP_W / NL) * i;
+          const bx = HOOP_X - HOOP_W * 0.25 + (HOOP_W * 0.5 / NL) * i;
+          ctx.beginPath(); ctx.moveTo(nx, HOOP_Y + RIM_R); ctx.lineTo(bx, netBot); ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.moveTo(HOOP_X - HOOP_W * 0.25, netBot);
+        ctx.lineTo(HOOP_X + HOOP_W * 0.25, netBot);
+        ctx.stroke();
+      }
+
+      function drawBall() {
+        const g = ctx.createRadialGradient(ballX - BALL_R*0.35, ballY - BALL_R*0.35, 2, ballX, ballY, BALL_R);
+        g.addColorStop(0, '#ffaa44');
+        g.addColorStop(1, '#cc4400');
+        ctx.beginPath(); ctx.arc(ballX, ballY, BALL_R, 0, Math.PI*2);
+        ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = '#00000066'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(ballX, ballY, BALL_R, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ballX - BALL_R, ballY); ctx.lineTo(ballX + BALL_R, ballY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ballX, ballY - BALL_R); ctx.lineTo(ballX, ballY + BALL_R); ctx.stroke();
+        ctx.beginPath(); ctx.arc(ballX, ballY, BALL_R * 0.65, -0.6, 0.6); ctx.stroke();
+        ctx.beginPath(); ctx.arc(ballX, ballY, BALL_R * 0.65, Math.PI - 0.6, Math.PI + 0.6); ctx.stroke();
+      }
+
+      function gameLoop() {
+        if (ended) return;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, W, H);
+        ctx.strokeStyle = '#ffffff15'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, H * 0.88); ctx.lineTo(W, H * 0.88); ctx.stroke();
+
+        // Trajectory preview
+        if (dragging && !inFlight && !scored) {
+          const dx = ballX - dragX, dy = ballY - dragY;
+          const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 150);
+          if (dist > 8) {
+            const angle = Math.atan2(dy, dx);
+            const pvx = Math.cos(angle) * dist * SPEED_SCALE;
+            let pvy = Math.sin(angle) * dist * SPEED_SCALE;
+            ctx.strokeStyle = '#ffffff2a'; ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 5]);
+            ctx.beginPath();
+            let px = ballX, py = ballY;
+            ctx.moveTo(px, py);
+            for (let i = 0; i < 55; i++) {
+              pvy += GRAVITY; px += pvx; py += pvy;
+              if (px < 0 || px > W || py > H) break;
+              ctx.lineTo(px, py);
+            }
+            ctx.stroke(); ctx.setLineDash([]);
+            // Power bar
+            const pct = dist / 150;
+            ctx.fillStyle = '#00000055'; ctx.fillRect(10, H - 26, 100, 10);
+            ctx.fillStyle = pct < 0.4 ? '#00ffaa' : pct < 0.75 ? '#ffcc00' : '#ff4444';
+            ctx.fillRect(10, H - 26, pct * 100, 10);
+            ctx.strokeStyle = '#ffffff33'; ctx.lineWidth = 1; ctx.strokeRect(10, H - 26, 100, 10);
+            ctx.fillStyle = '#ffffff77'; ctx.font = '10px sans-serif';
+            ctx.fillText('파워', 10, H - 28);
+          }
+        }
+
+        // Physics
+        if (inFlight && !scored) {
+          prevBallY = ballY;
+          vy += GRAVITY; ballX += vx; ballY += vy;
+
+          // Goal detection
+          if (vy > 0) {
+            const rimL = HOOP_X - HOOP_W/2 + BALL_R * 0.5;
+            const rimR = HOOP_X + HOOP_W/2 - BALL_R * 0.5;
+            if (ballX > rimL && ballX < rimR && prevBallY <= HOOP_Y && ballY >= HOOP_Y) {
+              scored = true; inFlight = false;
+              if (typeof playSuccessSound === 'function') playSuccessSound();
+              score(30);
+              setTimeout(() => { ended = true; onSuccess(); }, 750);
+            }
+          }
+
+          // Rim bounce
+          [{x: HOOP_X - HOOP_W/2, y: HOOP_Y}, {x: HOOP_X + HOOP_W/2, y: HOOP_Y}].forEach(rim => {
+            const d = Math.hypot(ballX - rim.x, ballY - rim.y);
+            if (d < BALL_R + RIM_R && d > 0) {
+              const nx = (ballX - rim.x) / d, ny = (ballY - rim.y) / d;
+              const dot = vx * nx + vy * ny;
+              vx = (vx - 2 * dot * nx) * 0.55;
+              vy = (vy - 2 * dot * ny) * 0.55;
+              ballX = rim.x + nx * (BALL_R + RIM_R + 1);
+              ballY = rim.y + ny * (BALL_R + RIM_R + 1);
+            }
+          });
+
+          if (ballY > H + BALL_R * 2 || ballX < -BALL_R * 2 || ballX > W + BALL_R * 2) resetBall();
+        }
+
+        drawHoop();
+        drawBall();
+
+        if (scored) {
+          ctx.fillStyle = 'rgba(0,255,170,0.88)';
+          ctx.font = 'bold 34px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('골인!', W / 2, H / 2);
+          ctx.textAlign = 'left';
+        } else if (!inFlight && !dragging) {
+          ctx.fillStyle = '#ffffff55'; ctx.font = '12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('공을 드래그해서 던지세요!', W / 2, H - 8);
+          ctx.textAlign = 'left';
+        }
+
+        raf = requestAnimationFrame(gameLoop);
+      }
+
+      function getXY(e) {
+        const r = canvas.getBoundingClientRect();
+        return { x: (e.clientX - r.left) * (canvas.width / r.width), y: (e.clientY - r.top) * (canvas.height / r.height) };
+      }
+
+      canvas.addEventListener('mousedown', e => {
+        if (!isLevel1Running || ended || inFlight || scored) return;
+        const p = getXY(e);
+        if (Math.hypot(p.x - ballX, p.y - ballY) <= BALL_R + 24) {
+          dragging = true; dragX = p.x; dragY = p.y;
+        }
+      });
+      canvas.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        const p = getXY(e); dragX = p.x; dragY = p.y;
+      });
+      canvas.addEventListener('mouseup', e => {
+        if (!dragging) return;
+        dragging = false;
+        const p = getXY(e);
+        const dx = ballX - p.x, dy = ballY - p.y;
+        const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 150);
+        if (dist > 8) {
+          const angle = Math.atan2(dy, dx);
+          vx = Math.cos(angle) * dist * SPEED_SCALE;
+          vy = Math.sin(angle) * dist * SPEED_SCALE;
+          inFlight = true;
+        }
+      });
+      function toME(type, t) { canvas.dispatchEvent(new MouseEvent(type, { clientX: t.clientX, clientY: t.clientY, bubbles: true })); }
+      canvas.addEventListener('touchstart',  e => { e.preventDefault(); toME('mousedown', e.touches[0]); },       { passive: false });
+      canvas.addEventListener('touchmove',   e => { e.preventDefault(); toME('mousemove', e.touches[0]); },       { passive: false });
+      canvas.addEventListener('touchend',    e => { e.preventDefault(); toME('mouseup',   e.changedTouches[0]); }, { passive: false });
+
+      gameLoop();
+      return () => { ended = true; cancelAnimationFrame(raf); };
+    }
+  },
 };
 
 /* ════════ GAME STAGES REGISTRY ════════ */
@@ -1483,7 +1697,7 @@ const MINI_GAMES = {
 const gameStages = [
   // ── MINI_GAMES 래핑 (circle-click만 광고 시스템 포함 / 20초, 나머지 30초) ──
   ...Object.entries(MINI_GAMES).map(([id, game]) => {
-    const timerDuration = (id === 'circle-click' || id === 'whack-mole' || id === 'rapid-tap' || id === 'odd-one-out' || id === 'color-rush' || id === 'reaction-speed' || id === 'size-click') ? 20 : 30;
+    const timerDuration = (id === 'circle-click' || id === 'whack-mole' || id === 'rapid-tap' || id === 'odd-one-out' || id === 'color-rush' || id === 'reaction-speed' || id === 'size-click' || id === 'basketball') ? 20 : 30;
     return {
       id,
       label: game.label,
