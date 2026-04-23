@@ -17,9 +17,7 @@ const Level2Module = (() => {
 
   // 레벨별 난이도: 셀 크기가 작을수록 더 많은 셀 → 복잡한 미로
   const TIERS = [
-    { minLv: 1,  maxLv: 3,  cell: 40, timer: 70 },
-    { minLv: 4,  maxLv: 6,  cell: 36, timer: 60 },
-    { minLv: 7,  maxLv: 10, cell: 32, timer: 55 },
+    { minLv: 1,  maxLv: 10, cell: 40, timer: 70 },
   ];
 
   function _tier() {
