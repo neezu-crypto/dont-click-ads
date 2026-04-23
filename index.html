@@ -1497,6 +1497,16 @@ const MINI_GAMES = {
       const HOOP_W      = 58;
       const RIM_R       = 5;
 
+      // Orbiting ad
+      const AD_R       = 20;
+      const AD_ORBIT_R = 64;
+      const AD_SPEED   = 0.038; // rad/frame, clockwise
+      let adAngle = -Math.PI / 2; // start at top of orbit
+      const orbitAd = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
+      const adImg = new Image();
+      let adImgLoaded = false;
+      if (orbitAd && orbitAd.imgUrl) { adImg.onload = () => { adImgLoaded = true; }; adImg.src = orbitAd.imgUrl; }
+
       let ballX = W * 0.22, ballY = H * 0.72;
       let prevBallY = ballY;
       let vx = 0, vy = 0;
@@ -1508,57 +1518,66 @@ const MINI_GAMES = {
 
       function resetBall() {
         ballX = W * 0.22; ballY = H * 0.72;
-        prevBallY = ballY;
-        vx = 0; vy = 0;
-        inFlight = false;
+        prevBallY = ballY; vx = 0; vy = 0; inFlight = false;
       }
 
       function drawHoop() {
-        // Support pole
         ctx.fillStyle = '#555';
         ctx.fillRect(HOOP_X + HOOP_W/2 + RIM_R + 5, HOOP_Y - 28, 5, H - (HOOP_Y - 28));
-        // Backboard
         ctx.fillStyle = '#ddd';
         ctx.fillRect(HOOP_X + HOOP_W/2 + RIM_R + 2, HOOP_Y - 32, 10, 64);
-        ctx.strokeStyle = '#e00';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#e00'; ctx.lineWidth = 1;
         ctx.strokeRect(HOOP_X + HOOP_W/2 + RIM_R + 4, HOOP_Y - 14, 6, 28);
-        // Rim
-        ctx.strokeStyle = '#ff5500';
-        ctx.lineWidth = RIM_R * 2;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(HOOP_X - HOOP_W/2, HOOP_Y);
-        ctx.lineTo(HOOP_X + HOOP_W/2, HOOP_Y);
-        ctx.stroke();
+        ctx.strokeStyle = '#ff5500'; ctx.lineWidth = RIM_R * 2; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(HOOP_X - HOOP_W/2, HOOP_Y); ctx.lineTo(HOOP_X + HOOP_W/2, HOOP_Y); ctx.stroke();
         ctx.lineCap = 'butt';
-        // Net
-        ctx.strokeStyle = '#ffffff55';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#ffffff55'; ctx.lineWidth = 1;
         const NL = 5, netBot = HOOP_Y + 22;
         for (let i = 0; i <= NL; i++) {
           const nx = HOOP_X - HOOP_W/2 + (HOOP_W / NL) * i;
           const bx = HOOP_X - HOOP_W * 0.25 + (HOOP_W * 0.5 / NL) * i;
           ctx.beginPath(); ctx.moveTo(nx, HOOP_Y + RIM_R); ctx.lineTo(bx, netBot); ctx.stroke();
         }
-        ctx.beginPath();
-        ctx.moveTo(HOOP_X - HOOP_W * 0.25, netBot);
-        ctx.lineTo(HOOP_X + HOOP_W * 0.25, netBot);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(HOOP_X - HOOP_W * 0.25, netBot); ctx.lineTo(HOOP_X + HOOP_W * 0.25, netBot); ctx.stroke();
       }
 
       function drawBall() {
         const g = ctx.createRadialGradient(ballX - BALL_R*0.35, ballY - BALL_R*0.35, 2, ballX, ballY, BALL_R);
-        g.addColorStop(0, '#ffaa44');
-        g.addColorStop(1, '#cc4400');
-        ctx.beginPath(); ctx.arc(ballX, ballY, BALL_R, 0, Math.PI*2);
-        ctx.fillStyle = g; ctx.fill();
+        g.addColorStop(0, '#ffaa44'); g.addColorStop(1, '#cc4400');
+        ctx.beginPath(); ctx.arc(ballX, ballY, BALL_R, 0, Math.PI*2); ctx.fillStyle = g; ctx.fill();
         ctx.strokeStyle = '#00000066'; ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.arc(ballX, ballY, BALL_R, 0, Math.PI*2); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(ballX - BALL_R, ballY); ctx.lineTo(ballX + BALL_R, ballY); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(ballX, ballY - BALL_R); ctx.lineTo(ballX, ballY + BALL_R); ctx.stroke();
         ctx.beginPath(); ctx.arc(ballX, ballY, BALL_R * 0.65, -0.6, 0.6); ctx.stroke();
         ctx.beginPath(); ctx.arc(ballX, ballY, BALL_R * 0.65, Math.PI - 0.6, Math.PI + 0.6); ctx.stroke();
+      }
+
+      function drawOrbitAd(ax, ay) {
+        // Orbit track
+        ctx.beginPath(); ctx.arc(HOOP_X, HOOP_Y, AD_ORBIT_R, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ff440020'; ctx.lineWidth = 1;
+        ctx.setLineDash([3, 5]); ctx.stroke(); ctx.setLineDash([]);
+        // Glow ring
+        ctx.save();
+        ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.arc(ax, ay, AD_R + 3, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ff4400aa'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.restore();
+        // Image (clipped circle)
+        ctx.save();
+        ctx.beginPath(); ctx.arc(ax, ay, AD_R, 0, Math.PI * 2); ctx.clip();
+        if (adImgLoaded) {
+          ctx.drawImage(adImg, ax - AD_R, ay - AD_R, AD_R * 2, AD_R * 2);
+        } else {
+          ctx.fillStyle = '#cc2200'; ctx.fill();
+          ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText('AD', ax, ay + 4); ctx.textAlign = 'left';
+        }
+        ctx.restore();
+        // Border
+        ctx.beginPath(); ctx.arc(ax, ay, AD_R, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ff4400'; ctx.lineWidth = 2; ctx.stroke();
       }
 
       function gameLoop() {
@@ -1568,6 +1587,11 @@ const MINI_GAMES = {
         ctx.strokeStyle = '#ffffff15'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(0, H * 0.88); ctx.lineTo(W, H * 0.88); ctx.stroke();
 
+        // Advance orbiting ad (clockwise)
+        adAngle += AD_SPEED;
+        const adX = HOOP_X + Math.cos(adAngle) * AD_ORBIT_R;
+        const adY = HOOP_Y + Math.sin(adAngle) * AD_ORBIT_R;
+
         // Trajectory preview
         if (dragging && !inFlight && !scored) {
           const dx = ballX - dragX, dy = ballY - dragY;
@@ -1576,25 +1600,20 @@ const MINI_GAMES = {
             const angle = Math.atan2(dy, dx);
             const pvx = Math.cos(angle) * dist * SPEED_SCALE;
             let pvy = Math.sin(angle) * dist * SPEED_SCALE;
-            ctx.strokeStyle = '#ffffff2a'; ctx.lineWidth = 1.5;
-            ctx.setLineDash([4, 5]);
-            ctx.beginPath();
-            let px = ballX, py = ballY;
-            ctx.moveTo(px, py);
+            ctx.strokeStyle = '#ffffff2a'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 5]);
+            ctx.beginPath(); let px = ballX, py = ballY; ctx.moveTo(px, py);
             for (let i = 0; i < 55; i++) {
               pvy += GRAVITY; px += pvx; py += pvy;
               if (px < 0 || px > W || py > H) break;
               ctx.lineTo(px, py);
             }
             ctx.stroke(); ctx.setLineDash([]);
-            // Power bar
             const pct = dist / 150;
             ctx.fillStyle = '#00000055'; ctx.fillRect(10, H - 26, 100, 10);
             ctx.fillStyle = pct < 0.4 ? '#00ffaa' : pct < 0.75 ? '#ffcc00' : '#ff4444';
             ctx.fillRect(10, H - 26, pct * 100, 10);
             ctx.strokeStyle = '#ffffff33'; ctx.lineWidth = 1; ctx.strokeRect(10, H - 26, 100, 10);
-            ctx.fillStyle = '#ffffff77'; ctx.font = '10px sans-serif';
-            ctx.fillText('파워', 10, H - 28);
+            ctx.fillStyle = '#ffffff77'; ctx.font = '10px sans-serif'; ctx.fillText('파워', 10, H - 28);
           }
         }
 
@@ -1602,6 +1621,18 @@ const MINI_GAMES = {
         if (inFlight && !scored) {
           prevBallY = ballY;
           vy += GRAVITY; ballX += vx; ballY += vy;
+
+          // Ad collision check
+          if (Math.hypot(ballX - adX, ballY - adY) < BALL_R + AD_R) {
+            ended = true;
+            if (orbitAd) window.open(orbitAd.landingUrl, '_blank');
+            if (typeof recordAdClick === 'function') recordAdClick();
+            if (typeof playFailSound  === 'function') playFailSound();
+            isLevel1Running = false;
+            cancelAnimationFrame(raf);
+            onFail('ad-click');
+            return;
+          }
 
           // Goal detection
           if (vy > 0) {
@@ -1631,20 +1662,28 @@ const MINI_GAMES = {
           if (ballY > H + BALL_R * 2 || ballX < -BALL_R * 2 || ballX > W + BALL_R * 2) resetBall();
         }
 
+        // Render: orbit track + hoop, then ball, then ad on top
+        drawOrbitAd(adX, adY); // draws orbit track first
         drawHoop();
         drawBall();
+        // Redraw ad circle on top of hoop rim
+        ctx.save();
+        ctx.beginPath(); ctx.arc(adX, adY, AD_R, 0, Math.PI * 2); ctx.clip();
+        if (adImgLoaded) { ctx.drawImage(adImg, adX - AD_R, adY - AD_R, AD_R * 2, AD_R * 2); }
+        else { ctx.fillStyle = '#cc2200'; ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('AD', adX, adY + 4); ctx.textAlign = 'left'; }
+        ctx.restore();
+        ctx.save();
+        ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.arc(adX, adY, AD_R, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ff4400'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.restore();
 
         if (scored) {
-          ctx.fillStyle = 'rgba(0,255,170,0.88)';
-          ctx.font = 'bold 34px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('골인!', W / 2, H / 2);
-          ctx.textAlign = 'left';
+          ctx.fillStyle = 'rgba(0,255,170,0.88)'; ctx.font = 'bold 34px sans-serif';
+          ctx.textAlign = 'center'; ctx.fillText('골인!', W / 2, H / 2); ctx.textAlign = 'left';
         } else if (!inFlight && !dragging) {
           ctx.fillStyle = '#ffffff55'; ctx.font = '12px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('공을 드래그해서 던지세요!', W / 2, H - 8);
-          ctx.textAlign = 'left';
+          ctx.textAlign = 'center'; ctx.fillText('공을 드래그해서 던지세요!', W / 2, H - 8); ctx.textAlign = 'left';
         }
 
         raf = requestAnimationFrame(gameLoop);
@@ -1658,15 +1697,10 @@ const MINI_GAMES = {
       canvas.addEventListener('mousedown', e => {
         if (!isLevel1Running || ended || inFlight || scored) return;
         const p = getXY(e);
-        if (Math.hypot(p.x - ballX, p.y - ballY) <= BALL_R + 24) {
-          dragging = true; dragX = p.x; dragY = p.y;
-        }
+        if (Math.hypot(p.x - ballX, p.y - ballY) <= BALL_R + 24) { dragging = true; dragX = p.x; dragY = p.y; }
       });
-      canvas.addEventListener('mousemove', e => {
-        if (!dragging) return;
-        const p = getXY(e); dragX = p.x; dragY = p.y;
-      });
-      canvas.addEventListener('mouseup', e => {
+      function onDocMove(e) { if (!dragging) return; const p = getXY(e); dragX = p.x; dragY = p.y; }
+      function onDocUp(e) {
         if (!dragging) return;
         dragging = false;
         const p = getXY(e);
@@ -1678,14 +1712,22 @@ const MINI_GAMES = {
           vy = Math.sin(angle) * dist * SPEED_SCALE;
           inFlight = true;
         }
-      });
+      }
+      document.addEventListener('mousemove', onDocMove);
+      document.addEventListener('mouseup',   onDocUp);
+
       function toME(type, t) { canvas.dispatchEvent(new MouseEvent(type, { clientX: t.clientX, clientY: t.clientY, bubbles: true })); }
       canvas.addEventListener('touchstart',  e => { e.preventDefault(); toME('mousedown', e.touches[0]); },       { passive: false });
       canvas.addEventListener('touchmove',   e => { e.preventDefault(); toME('mousemove', e.touches[0]); },       { passive: false });
       canvas.addEventListener('touchend',    e => { e.preventDefault(); toME('mouseup',   e.changedTouches[0]); }, { passive: false });
 
       gameLoop();
-      return () => { ended = true; cancelAnimationFrame(raf); };
+      return () => {
+        ended = true;
+        cancelAnimationFrame(raf);
+        document.removeEventListener('mousemove', onDocMove);
+        document.removeEventListener('mouseup',   onDocUp);
+      };
     }
   },
 };
