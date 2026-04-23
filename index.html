@@ -3289,6 +3289,7 @@ window.closeRankingModal = closeRankingModal;
       if (!active) return;
       const id = active.id;
       if (id !== 'screen-opening' && id !== 'screen-nickname') {
+        _forcedStageId = _lastStageId;
         startLevel(currentLevel);
         _devToast('R — 현재 레벨 재시작');
       }
