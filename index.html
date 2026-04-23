@@ -1001,12 +1001,14 @@
       window._cursorAdInited = true;
       window._initOpeningCursorAd(window.randomAd('opening'));
     }
-    /* 모든 광고 이미지 브라우저 캐시에 미리 로딩 */
+    /* 모든 광고 이미지 DOM에 숨겨서 추가 — GIF 애니메이션이 캔버스에서도 재생되도록 */
+    if (!window._preloadedImgs) window._preloadedImgs = {};
     window._adsCache.forEach(ad => {
-      if (ad.imgUrl && !window._preloadedImgs?.[ad.imgUrl]) {
-        if (!window._preloadedImgs) window._preloadedImgs = {};
+      if (ad.imgUrl && !window._preloadedImgs[ad.imgUrl]) {
         const img = new Image();
         img.src = ad.imgUrl;
+        img.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;pointer-events:none;visibility:hidden';
+        document.body.appendChild(img);
         window._preloadedImgs[ad.imgUrl] = img;
       }
     });
