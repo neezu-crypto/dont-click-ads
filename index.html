@@ -1947,6 +1947,258 @@ const MINI_GAMES = {
       };
     }
   },
+
+  'pool': {
+    label: '포켓볼! 내 공(초록)을 전부 골인하라!',
+    failOnTimeout: true,
+    start(area, onScore, onFail, onSuccess) {
+      area.innerHTML = '';
+      let ended = false;
+
+      const canvas = document.createElement('canvas');
+      const W = canvas.width  = area.clientWidth  || 480;
+      const H = canvas.height = area.clientHeight || 320;
+      canvas.style.cssText = 'position:absolute;left:0;top:0;display:block;touch-action:none';
+      area.appendChild(canvas);
+      const ctx = canvas.getContext('2d');
+
+      const BALL_R   = Math.min(W, H) * 0.042;
+      const FRICTION = 0.982;
+      const MIN_V    = 0.1;
+      const PAD      = BALL_R * 1.6;
+      const PK_R     = BALL_R * 1.7;
+      const MAX_PULL = Math.min(W, H) * 0.28;
+
+      const pockets = [
+        { x: PAD,     y: PAD     },
+        { x: W * 0.5, y: PAD     },
+        { x: W - PAD, y: PAD     },
+        { x: PAD,     y: H - PAD },
+        { x: W * 0.5, y: H - PAD },
+        { x: W - PAD, y: H - PAD },
+      ];
+
+      const adData = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
+      const adImg = new Image();
+      let adImgLoaded = false;
+      if (adData?.imgUrl) { adImg.onload = () => { adImgLoaded = true; }; adImg.src = adData.imgUrl; }
+
+      function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
+
+      const sp  = BALL_R * 2.25;
+      const rX  = W * 0.62, rY = H * 0.5;
+      const rackPos = [];
+      for (let row = 0; row < 4; row++) {
+        for (let col = 0; col <= row; col++) {
+          rackPos.push({ x: rX + row * sp * 0.866, y: rY + (col - row / 2) * sp });
+        }
+      }
+
+      const types = shuffle([...Array(6).fill('green'), ...Array(4).fill('ad')]);
+
+      const cue = { x: W * 0.22, y: H * 0.5, vx: 0, vy: 0, r: BALL_R, type: 'cue', pocketed: false };
+      const balls = [cue, ...rackPos.map((p, i) => ({ x: p.x, y: p.y, vx: 0, vy: 0, r: BALL_R, type: types[i], pocketed: false }))];
+
+      let aiming = false, aimX = 0, aimY = 0;
+
+      function isMoving() { return balls.some(b => !b.pocketed && (Math.abs(b.vx) >= MIN_V || Math.abs(b.vy) >= MIN_V)); }
+
+      function getXY(e) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: (e.clientX - rect.left) * (W / rect.width), y: (e.clientY - rect.top) * (H / rect.height) };
+      }
+
+      function onDown(e) {
+        if (ended || isMoving()) return;
+        const p = getXY(e);
+        aiming = true; aimX = p.x; aimY = p.y;
+      }
+      function onMove(e) {
+        if (!aiming) return;
+        const p = getXY(e);
+        aimX = p.x; aimY = p.y;
+      }
+      function onUp(e) {
+        if (!aiming || ended) return;
+        aiming = false;
+        const p = getXY(e);
+        const dx = cue.x - p.x, dy = cue.y - p.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 6) return;
+        const power = Math.min(dist / MAX_PULL, 1);
+        cue.vx = (dx / dist) * power * 15;
+        cue.vy = (dy / dist) * power * 15;
+      }
+
+      canvas.addEventListener('mousedown', e => onDown(e));
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup',   onUp);
+      canvas.addEventListener('touchstart', e => { e.preventDefault(); onDown(e.touches[0]); },      { passive: false });
+      canvas.addEventListener('touchmove',  e => { e.preventDefault(); onMove(e.touches[0]); },       { passive: false });
+      canvas.addEventListener('touchend',   e => { e.preventDefault(); onUp(e.changedTouches[0]); },  { passive: false });
+
+      function collide(a, b) {
+        if (a.pocketed || b.pocketed) return;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const d = Math.hypot(dx, dy);
+        if (!d || d >= a.r + b.r) return;
+        const ov = (a.r + b.r - d) / 2;
+        const nx = dx / d, ny = dy / d;
+        a.x -= nx * ov; a.y -= ny * ov;
+        b.x += nx * ov; b.y += ny * ov;
+        const dot = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
+        if (dot <= 0) return;
+        a.vx -= dot * nx; a.vy -= dot * ny;
+        b.vx += dot * nx; b.vy += dot * ny;
+      }
+
+      let gameOver = false;
+      function update() {
+        if (gameOver) return false;
+        for (const b of balls) {
+          if (b.pocketed) continue;
+          b.x += b.vx; b.y += b.vy;
+          b.vx *= FRICTION; b.vy *= FRICTION;
+          if (Math.abs(b.vx) < 0.05) b.vx = 0;
+          if (Math.abs(b.vy) < 0.05) b.vy = 0;
+          if (b.x - b.r < PAD) { b.x = PAD + b.r; b.vx = Math.abs(b.vx) * 0.8; }
+          if (b.x + b.r > W - PAD) { b.x = W - PAD - b.r; b.vx = -Math.abs(b.vx) * 0.8; }
+          if (b.y - b.r < PAD) { b.y = PAD + b.r; b.vy = Math.abs(b.vy) * 0.8; }
+          if (b.y + b.r > H - PAD) { b.y = H - PAD - b.r; b.vy = -Math.abs(b.vy) * 0.8; }
+          for (const pk of pockets) {
+            if (Math.hypot(b.x - pk.x, b.y - pk.y) < PK_R) {
+              b.pocketed = true; b.vx = 0; b.vy = 0;
+              if (b.type === 'ad') {
+                gameOver = true; ended = true;
+                if (adData) window.open(adData.landingUrl, '_blank');
+                if (typeof recordAdClick === 'function') recordAdClick();
+                if (typeof playFailSound  === 'function') playFailSound();
+                isLevel1Running = false;
+                onFail('ad-click');
+                return true;
+              }
+              if (b.type === 'cue') {
+                setTimeout(() => { if (!ended) { b.x = W * 0.22; b.y = H * 0.5; b.pocketed = false; } }, 600);
+              }
+              if (b.type === 'green') {
+                onScore(10);
+                if (typeof playSuccessSound === 'function') playSuccessSound();
+              }
+              break;
+            }
+          }
+        }
+        for (let i = 0; i < balls.length; i++) {
+          for (let j = i + 1; j < balls.length; j++) collide(balls[i], balls[j]);
+        }
+        if (!ended && balls.filter(b => b.type === 'green').every(b => b.pocketed)) {
+          ended = true;
+          onSuccess();
+          return true;
+        }
+        return false;
+      }
+
+      function draw() {
+        ctx.fillStyle = '#1e7a3a';
+        ctx.fillRect(PAD, PAD, W - PAD * 2, H - PAD * 2);
+        ctx.fillStyle = '#6b3a10';
+        ctx.fillRect(0, 0, W, PAD); ctx.fillRect(0, H - PAD, W, PAD);
+        ctx.fillRect(0, PAD, PAD, H - PAD * 2); ctx.fillRect(W - PAD, PAD, PAD, H - PAD * 2);
+        for (const pk of pockets) {
+          ctx.beginPath(); ctx.arc(pk.x, pk.y, PK_R, 0, Math.PI * 2);
+          ctx.fillStyle = '#111'; ctx.fill();
+        }
+        for (const b of balls) {
+          if (b.pocketed) continue;
+          ctx.save();
+          ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.clip();
+          if (b.type === 'cue') {
+            ctx.fillStyle = '#f0f0f0'; ctx.fill();
+          } else if (b.type === 'green') {
+            const g = ctx.createRadialGradient(b.x - b.r * 0.3, b.y - b.r * 0.3, 1, b.x, b.y, b.r);
+            g.addColorStop(0, '#aaee55'); g.addColorStop(1, '#226600');
+            ctx.fillStyle = g; ctx.fill();
+          } else {
+            if (adImgLoaded) {
+              ctx.drawImage(adImg, b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
+            } else {
+              const g = ctx.createRadialGradient(b.x - b.r * 0.3, b.y - b.r * 0.3, 1, b.x, b.y, b.r);
+              g.addColorStop(0, '#ff8844'); g.addColorStop(1, '#cc2200');
+              ctx.fillStyle = g; ctx.fill();
+            }
+          }
+          ctx.restore();
+          ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+          ctx.strokeStyle = b.type === 'ad' ? '#ff4400cc' : b.type === 'cue' ? '#aaaaaa88' : '#22440088';
+          ctx.lineWidth = 2; ctx.stroke();
+          if (b.type === 'ad') {
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${Math.round(b.r * 0.72)}px sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('AD', b.x, b.y);
+          }
+        }
+        if (aiming && !isMoving() && !cue.pocketed) {
+          const dx = cue.x - aimX, dy = cue.y - aimY;
+          const d = Math.hypot(dx, dy);
+          if (d > 6) {
+            const nx = dx / d, ny = dy / d;
+            const pow = Math.min(d / MAX_PULL, 1);
+            ctx.save();
+            ctx.strokeStyle = `rgba(210,170,80,${0.55 + pow * 0.45})`;
+            ctx.lineWidth = 4; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(aimX, aimY); ctx.lineTo(cue.x - nx * cue.r, cue.y - ny * cue.r); ctx.stroke();
+            ctx.setLineDash([5, 7]);
+            ctx.strokeStyle = `rgba(255,255,255,${0.25 + pow * 0.5})`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(cue.x, cue.y); ctx.lineTo(cue.x + nx * 130, cue.y + ny * 130); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = `hsl(${Math.round((1 - pow) * 120)},90%,50%)`;
+            ctx.fillRect(PAD + 4, H - PAD - 10, (W - PAD * 2 - 8) * pow, 5);
+            ctx.strokeStyle = '#fff4'; ctx.lineWidth = 1;
+            ctx.strokeRect(PAD + 4, H - PAD - 10, W - PAD * 2 - 8, 5);
+            ctx.restore();
+          }
+        }
+        const rem = balls.filter(b => b.type === 'green' && !b.pocketed).length;
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${Math.max(11, Math.round(H * 0.048))}px sans-serif`;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillText(`🟢 ${6 - rem}/6`, PAD + 6, PAD + 4);
+        ctx.textAlign = 'right';
+        ctx.fillText(`⚠️ AD ${balls.filter(b => b.type === 'ad' && !b.pocketed).length}개 주의`, W - PAD - 6, PAD + 4);
+        if (!isMoving() && !cue.pocketed && !ended) {
+          ctx.fillStyle = 'rgba(255,255,255,0.55)';
+          ctx.font = `${Math.max(10, Math.round(H * 0.038))}px sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+          ctx.fillText('드래그해서 방향·세기 조절 후 손을 떼세요', W / 2, H - PAD - 14);
+        }
+      }
+
+      let raf;
+      function loop() {
+        if (ended) return;
+        if (update()) return;
+        draw();
+        raf = requestAnimationFrame(loop);
+      }
+      loop();
+
+      return () => {
+        ended = true;
+        cancelAnimationFrame(raf);
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup',   onUp);
+      };
+    }
+  },
 };
 
 /* ════════ GAME STAGES REGISTRY ════════ */
@@ -1956,7 +2208,7 @@ const MINI_GAMES = {
 const gameStages = [
   // ── MINI_GAMES 래핑 (circle-click만 광고 시스템 포함 / 20초, 나머지 30초) ──
   ...Object.entries(MINI_GAMES).map(([id, game]) => {
-    const timerDuration = id === 'catch-basket' ? 25 : (id === 'circle-click' || id === 'whack-mole' || id === 'rapid-tap' || id === 'odd-one-out' || id === 'color-rush' || id === 'reaction-speed' || id === 'size-click' || id === 'basketball') ? 20 : 30;
+    const timerDuration = id === 'pool' ? 60 : id === 'catch-basket' ? 25 : (id === 'circle-click' || id === 'whack-mole' || id === 'rapid-tap' || id === 'odd-one-out' || id === 'color-rush' || id === 'reaction-speed' || id === 'size-click' || id === 'basketball') ? 20 : 30;
     return {
       id,
       label: game.label,
@@ -2397,9 +2649,9 @@ function _pickStage(n) {
 }
 
 function _handleStageFail(reason) {
-  if (reason === 'timeout')    showLevel2TimeOver(_lastStageId === 'ball-drag' ? '제한 시간 안에 공을 목표 지점까지 옮기지 못했습니다.<br>다시 도전해볼까요?' : _lastStageId === 'basketball' ? '농구공을 골인하지 못했습니다!' : null);
+  if (reason === 'timeout')    showLevel2TimeOver(_lastStageId === 'ball-drag' ? '제한 시간 안에 공을 목표 지점까지 옮기지 못했습니다.<br>다시 도전해볼까요?' : _lastStageId === 'basketball' ? '농구공을 골인하지 못했습니다!' : _lastStageId === 'pool' ? '제한시간 내에 초록 공을 전부 골인하지 못했습니다!' : null);
   if (reason === 'ad-caught')  showLevel2AdCaught();
-  if (reason === 'ad-click')   showAdClickGameOver(_lastStageId === 'basketball' ? '농구공을 골인하지 못했습니다!' : null);
+  if (reason === 'ad-click')   showAdClickGameOver(_lastStageId === 'basketball' ? '농구공을 골인하지 못했습니다!' : _lastStageId === 'pool' ? '광고볼을 골인했습니다!' : null);
   if (reason === 'quiz-wrong') showAdClickGameOver('오답입니다.<br>레벨 1부터 다시 도전해보세요.');
 }
 
