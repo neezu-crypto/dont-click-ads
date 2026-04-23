@@ -31,7 +31,7 @@ const Level2Module = (() => {
   const COL_EDGE  = '#15203a';
 
   // ── 모듈 상태 ──
-  let _area, _canvas, _ballEl;
+  let _area, _canvas, _ballEl, _dpad;
   let _onSuccess, _onFail;
   let _timerInterval = null;
   let _timeLeft = 60;
@@ -456,6 +456,82 @@ const Level2Module = (() => {
     setTimeout(() => { if (_onSuccess) _onSuccess(100); }, 400);
   }
 
+  // ─── 모바일 터치 D-패드 ───
+
+  function _createDpad() {
+    const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    if (!isTouchDevice) return null;
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = [
+      'position:absolute',
+      'bottom:44px',
+      'right:10px',
+      'display:grid',
+      'grid-template-columns:repeat(3,54px)',
+      'grid-template-rows:repeat(3,54px)',
+      'gap:4px',
+      'z-index:20',
+      'touch-action:none',
+      'user-select:none',
+    ].join(';');
+
+    const BTN_BASE = [
+      'width:100%',
+      'height:100%',
+      'border:2px solid rgba(30,70,160,0.7)',
+      'border-radius:12px',
+      'background:rgba(10,22,54,0.78)',
+      'color:rgba(100,180,255,0.9)',
+      'font-size:1.4rem',
+      'line-height:1',
+      'cursor:pointer',
+      'touch-action:none',
+      '-webkit-tap-highlight-color:transparent',
+      'backdrop-filter:blur(4px)',
+    ].join(';');
+
+    // [row][col]: key or null
+    const layout = [
+      [null,          'ArrowUp',    null        ],
+      ['ArrowLeft',   null,         'ArrowRight'],
+      [null,          'ArrowDown',  null        ],
+    ];
+    const labels = { ArrowUp:'▲', ArrowDown:'▼', ArrowLeft:'◀', ArrowRight:'▶' };
+
+    layout.forEach(row => row.forEach(key => {
+      const cell = document.createElement('div');
+      if (key) {
+        const btn = document.createElement('button');
+        btn.setAttribute('aria-label', key);
+        btn.style.cssText = BTN_BASE;
+        btn.textContent   = labels[key];
+
+        btn.addEventListener('pointerdown', e => {
+          e.preventDefault();
+          btn.setPointerCapture(e.pointerId);
+          if (_ended) return;
+          btn.style.background = 'rgba(20,50,120,0.95)';
+          btn.style.color      = '#00ffaa';
+          _keysDown.add(key);
+          if (!_rafId) _rafId = requestAnimationFrame(_moveTick);
+        });
+
+        const release = e => {
+          btn.style.background = 'rgba(10,22,54,0.78)';
+          btn.style.color      = 'rgba(100,180,255,0.9)';
+          _keysDown.delete(key);
+        };
+        btn.addEventListener('pointerup',     release);
+        btn.addEventListener('pointercancel', release);
+        cell.appendChild(btn);
+      }
+      wrap.appendChild(cell);
+    }));
+
+    return wrap;
+  }
+
   function _rmListeners() {
     window.removeEventListener('keydown', _onKeyDown);
     window.removeEventListener('keyup',   _onKeyUp);
@@ -469,7 +545,8 @@ const Level2Module = (() => {
     if (_pathTimer)       { clearInterval(_pathTimer);      _pathTimer = null; }
     if (_adRafId)         { cancelAnimationFrame(_adRafId); _adRafId = null; }
     if (_adSpawnTimeout)  { clearTimeout(_adSpawnTimeout);  _adSpawnTimeout = null; }
-    if (_adEl && _adEl.parentNode) { _adEl.parentNode.removeChild(_adEl); _adEl = null; }
+    if (_adEl  && _adEl.parentNode)  { _adEl.parentNode.removeChild(_adEl);   _adEl  = null; }
+    if (_dpad  && _dpad.parentNode)  { _dpad.parentNode.removeChild(_dpad);   _dpad  = null; }
     _rmListeners();
     if (_area) { _area.style.width = ''; _area.style.height = ''; }
   }
@@ -521,10 +598,16 @@ const Level2Module = (() => {
     `;
     area.appendChild(_ballEl);
 
+    const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
     const hint = document.createElement('div');
     hint.style.cssText = 'position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#16203a;font-size:0.74rem;pointer-events:none;user-select:none;';
-    hint.textContent   = `[S] 출발 → [G] 도착  |  ← ↑ ↓ → 방향키로 이동  (${_COLS}×${_ROWS} 격자)`;
+    hint.textContent   = isTouchDevice
+      ? `[S] 출발 → [G] 도착  |  터치 방향키로 이동  (${_COLS}×${_ROWS} 격자)`
+      : `[S] 출발 → [G] 도착  |  ← ↑ ↓ → 방향키로 이동  (${_COLS}×${_ROWS} 격자)`;
     area.appendChild(hint);
+
+    _dpad = _createDpad();
+    if (_dpad) area.appendChild(_dpad);
 
     _renderMaze();
     _placeBall();
