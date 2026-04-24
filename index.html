@@ -998,11 +998,11 @@
   window._dbLimitToFirst = limitToFirst;
   window._dbLimitToLast  = limitToLast;
 
-  /* ── 광고 데이터 실시간 동기화 ── */
-  onValue(ref(database, 'ads'), snapshot => {
+  /* ── 광고 데이터 1회 읽기 ── */
+  get(ref(database, 'ads')).then(snapshot => {
     const data = snapshot.val() || {};
     window._adsCache = Object.values(data);
-    /* 오프닝 커서 광고: 최초 1회만 초기화 */
+    /* 오프닝 커서 광고 초기화 */
     if (!window._cursorAdInited && typeof window._initOpeningCursorAd === 'function') {
       window._cursorAdInited = true;
       window._initOpeningCursorAd(window.randomAd('opening'));
@@ -1020,11 +1020,12 @@
     });
   });
 
-  /* ── 퀴즈 스테이지 이미지 URL 실시간 동기화 ── */
+  /* ── 퀴즈 스테이지 이미지 URL: image-quiz 시작 시 1회 읽기 ── */
   window._quizStageImageUrl = '';
-  onValue(ref(database, 'quizStage/imageUrl'), snapshot => {
-    window._quizStageImageUrl = snapshot.val() || '';
-  });
+  window._fetchQuizImageUrl = () =>
+    get(ref(database, 'quizStage/imageUrl'))
+      .then(snap => { window._quizStageImageUrl = snap.val() || ''; })
+      .catch(() => {});
 
   /* ── 퀴즈 정답 확인 (Cloud Function 호출, 정답 클라이언트에 비공개) ── */
   const _fnCheckQuizAnswer = httpsCallable(getFunctions(app), 'checkQuizAnswer');
@@ -2561,7 +2562,13 @@ const gameStages = [
       wrap.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px';
 
       const img = document.createElement('img');
-      img.src = window._quizStageImageUrl || '';
+      img.src = '';
+      /* 스테이지 진입 시 최신 URL 1회 fetch */
+      if (typeof window._fetchQuizImageUrl === 'function') {
+        window._fetchQuizImageUrl().then(() => { img.src = window._quizStageImageUrl || ''; });
+      } else {
+        img.src = window._quizStageImageUrl || '';
+      }
       img.style.cssText = 'max-width:100%;max-height:68%;object-fit:contain;border-radius:10px;box-shadow:0 4px 28px #0009';
 
       const inputRow = document.createElement('div');
