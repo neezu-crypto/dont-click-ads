@@ -378,6 +378,7 @@ const FortressModule = (() => {
     const by = _turretCY + Math.sin(angle) * (TURRET_R + 5);
     _bullet = { x: bx, y: by, vx: Math.cos(angle) * power, vy: Math.sin(angle) * power };
     _muzzleFlash = { x: bx, y: by, t: 0 };
+    if (typeof playCannonFireSound === 'function') playCannonFireSound();
     _phase    = 'flight';
     _phaseMsg = '';
     _dragging = false;
@@ -420,7 +421,7 @@ const FortressModule = (() => {
       if (hitTarget.type === 'green') {
         _greenHit++;
         if (typeof _onScore === 'function') _onScore(100);
-        if (typeof playSuccessSound === 'function') playSuccessSound();
+        if (typeof playFortressHitSound === 'function') playFortressHitSound();
 
         if (_greenHit >= TOTAL_GREEN) {
           _phaseMsg = '클리어!';
