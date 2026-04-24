@@ -308,6 +308,9 @@ const BadmintonModule = (() => {
       _stopTimer();
       _render();
       _ended = true;
+      const _ad = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
+      if (_ad) { window.open(_ad.landingUrl, '_blank'); }
+      if (typeof recordAdClick === 'function') recordAdClick();
       _pointTO = setTimeout(() => { if (_onFail) _onFail('lost'); }, 900);
       return;
     }
