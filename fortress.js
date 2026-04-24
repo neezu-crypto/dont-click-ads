@@ -23,8 +23,8 @@ const FortressModule = (() => {
   // ── 타겟 ──
   const BULLET_R    = 5;
   const GREEN_R     = 20;
-  const AD_R        = 20;
   const TOTAL_GREEN = 3;
+  const TOGGLE_MS   = 2000;  // 초록 ↔ 광고 전환 주기 (ms)
 
   // ── 상태 ──
   let _area, _canvas, _ctx;
@@ -88,25 +88,34 @@ const FortressModule = (() => {
 
   function _placeTargets() {
     _targets = [];
-    const minX = 180, maxX = WORLD_W - 90;
+    const minX = 450, maxX = WORLD_W - 90;
     const xs   = [];
     let tries  = 0;
-    while (xs.length < 5 && tries < 1000) {
+    while (xs.length < TOTAL_GREEN && tries < 1000) {
       tries++;
       const wx = minX + Math.random() * (maxX - minX);
       if (xs.every(x => Math.abs(x - wx) > 115)) xs.push(wx);
     }
 
-    const types = ['green', 'green', 'green', 'ad', 'ad'];
-    for (let i = types.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [types[i], types[j]] = [types[j], types[i]];
-    }
-
+    const now = Date.now();
     xs.forEach((wx, i) => {
-      const ty = types[i];
-      const r  = ty === 'green' ? GREEN_R : AD_R;
-      _targets.push({ x: wx, cy: _terrainY(wx) - r, r, type: ty, hit: false });
+      _targets.push({
+        x:           wx,
+        cy:          _terrainY(wx) - GREEN_R,
+        r:           GREEN_R,
+        hit:         false,
+        isAd:        false,
+        // 각 타겟마다 위상 오프셋 — 처음엔 모두 초록, 1~2초 후 순차적으로 AD로 전환
+        phaseOffset: now - Math.floor((i / TOTAL_GREEN) * TOGGLE_MS + 200),
+      });
+    });
+  }
+
+  // 매 프레임 타겟 상태(초록/AD) 업데이트
+  function _updateTargetStates() {
+    const now = Date.now();
+    _targets.forEach(t => {
+      if (!t.hit) t.isAd = Math.floor((now - t.phaseOffset) / TOGGLE_MS) % 2 === 1;
     });
   }
 
@@ -189,10 +198,30 @@ const FortressModule = (() => {
   function _drawTarget(t) {
     if (t.hit) return;
     const ctx = _ctx;
+
+    // 전환까지 남은 시간 계산 (경고 글로우용)
+    const now         = Date.now();
+    const elapsed     = (now - t.phaseOffset) % TOGGLE_MS;
+    const timeToSwitch = TOGGLE_MS - elapsed;
+    const nearSwitch  = timeToSwitch < 500; // 0.5초 전 경고
+
     ctx.save();
+
+    // 전환 임박 시 외곽 경고 링
+    if (nearSwitch) {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 80);
+      ctx.beginPath();
+      ctx.arc(t.x, t.cy, t.r + 6 + pulse * 4, 0, Math.PI * 2);
+      ctx.strokeStyle = t.isAd ? 'rgba(0,255,170,0.6)' : 'rgba(255,80,0,0.6)';
+      ctx.lineWidth   = 2.5;
+      ctx.stroke();
+    }
+
     ctx.beginPath();
     ctx.arc(t.x, t.cy, t.r, 0, Math.PI * 2);
-    if (t.type === 'green') {
+
+    if (!t.isAd) {
+      // 초록 타겟
       ctx.shadowColor = '#00ffaa';
       ctx.shadowBlur  = 10;
       const g = ctx.createRadialGradient(t.x - 5, t.cy - 5, 2, t.x, t.cy, t.r);
@@ -203,13 +232,14 @@ const FortressModule = (() => {
       ctx.strokeStyle = '#00ffaa';
       ctx.lineWidth   = 2;
       ctx.stroke();
-      ctx.shadowBlur  = 0;
-      ctx.fillStyle   = '#003322';
-      ctx.font        = `bold ${Math.round(t.r * 0.7)}px sans-serif`;
-      ctx.textAlign      = 'center';
-      ctx.textBaseline   = 'middle';
+      ctx.shadowBlur   = 0;
+      ctx.fillStyle    = '#003322';
+      ctx.font         = `bold ${Math.round(t.r * 0.7)}px sans-serif`;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
       ctx.fillText('G', t.x, t.cy);
     } else {
+      // 광고 타겟
       ctx.shadowColor = '#ff4400';
       ctx.shadowBlur  = 10;
       const g = ctx.createRadialGradient(t.x - 5, t.cy - 5, 2, t.x, t.cy, t.r);
@@ -220,9 +250,9 @@ const FortressModule = (() => {
       ctx.strokeStyle = '#ff6600';
       ctx.lineWidth   = 2;
       ctx.stroke();
-      ctx.shadowBlur  = 0;
-      ctx.fillStyle   = '#fff';
-      ctx.font        = `bold ${Math.round(t.r * 0.52)}px sans-serif`;
+      ctx.shadowBlur   = 0;
+      ctx.fillStyle    = '#fff';
+      ctx.font         = `bold ${Math.round(t.r * 0.52)}px sans-serif`;
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('AD', t.x, t.cy);
@@ -325,19 +355,24 @@ const FortressModule = (() => {
   }
 
   function _drawHUD() {
-    const ctx       = _ctx;
-    const greenLeft = _targets.filter(t => t.type === 'green' && !t.hit).length;
-    const adLeft    = _targets.filter(t => t.type === 'ad'    && !t.hit).length;
+    const ctx      = _ctx;
+    const remaining = _targets.filter(t => !t.hit).length;
+    const adNow     = _targets.filter(t => !t.hit && t.isAd).length;
 
     ctx.save();
     ctx.textBaseline = 'top';
-    // 초록 타겟 카운터
     ctx.font      = 'bold 15px sans-serif';
+    // 명중 카운터
     ctx.fillStyle = '#00ffaa';
     ctx.fillText(`\u25CF ${_greenHit}/${TOTAL_GREEN} 맞힘`, 12, 10);
-    // AD 타겟 경고
-    ctx.fillStyle = '#ff8844';
-    ctx.fillText(`\u26A0 AD ${adLeft}개 주의!`, 12, 32);
+    // 현재 AD 상태 타겟 수 경고
+    if (adNow > 0) {
+      ctx.fillStyle = '#ff8844';
+      ctx.fillText(`\u26A0 ${adNow}개 AD 상태!`, 12, 32);
+    } else {
+      ctx.fillStyle = '#888';
+      ctx.fillText(`남은 타겟 ${remaining}개`, 12, 32);
+    }
 
     // 조준 힌트
     if (_phase === 'aim' && !_dragging) {
@@ -418,7 +453,8 @@ const FortressModule = (() => {
 
     if (hitTarget) {
       hitTarget.hit = true;
-      if (hitTarget.type === 'green') {
+      if (!hitTarget.isAd) {
+        // 초록 상태 명중 → 득점
         _greenHit++;
         if (typeof _onScore === 'function') _onScore(100);
         if (typeof playFortressHitSound === 'function') playFortressHitSound();
@@ -432,7 +468,7 @@ const FortressModule = (() => {
         }
         _phaseMsg = '+100점!';
       } else {
-        // AD 타겟 명중 → 광고 오픈 + 게임오버
+        // AD 상태 명중 → 광고 오픈 + 게임오버
         _phaseMsg = '광고를 맞혔습니다!';
         const ad = (typeof randomAd === 'function') ? randomAd('all') : null;
         if (ad) window.open(ad.landingUrl, '_blank');
@@ -540,6 +576,7 @@ const FortressModule = (() => {
     if (_ended) return;
 
     _updateCamera();
+    _updateTargetStates();
     if (_phase === 'flight') _stepBullet();
 
     const ctx = _ctx;
