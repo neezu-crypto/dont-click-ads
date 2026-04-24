@@ -20,10 +20,9 @@ const BadmintonModule = (() => {
   const DECEL      = 0.9935;  // 공기 저항
 
   // AI
-  const AI_SPD_IDLE  = 1.8;   // 셔틀이 내 쪽에 없을 때 복귀 속도
-  const AI_SPD_MIN   = 2.0;   // 추적 최저 속도 (플레이어가 느릴 때 하한)
-  const AI_MISS_PROB = 0.06;  // 히트 실수 확률 (낮을수록 정확)
-  const AI_SPD_RATIO = 0.9;   // 플레이어 현재속도 대비 AI 속도 비율 (매 프레임)
+  const AI_SPD_MIN   = 1.5;   // 추적 최저 속도 하한
+  const AI_MISS_PROB = 0.06;  // 히트 실수 확률
+  const AI_DIFFICULTY = 1.0;  // 난이도 배율 (0.7=쉬움 / 1.0=보통 / 1.3=어려움)
 
   // 상태
   let _area, _canvas, _ctx;
@@ -45,7 +44,6 @@ const BadmintonModule = (() => {
   // AI 라켓
   let _aRacket      = { x: W / 2, y: 72 };
   let _aHitCd       = 0;
-  let _lastHitSpd   = 3.5;  // 플레이어 히트 순간 드래그 속도 (AI 속도 기준)
 
   // 셔틀콕
   let _sX = W / 2, _sY = NET_Y + 60;
@@ -148,8 +146,6 @@ const BadmintonModule = (() => {
   // ── 히트 ──
 
   function _playerHit() {
-    // 히트 순간 속도 저장 → AI 속도 기준값 갱신
-    _lastHitSpd = Math.hypot(_pvx, _pvy);
     const power = 6.5 + Math.min(Math.abs(_pvy), 6) * 0.35;
     _sVY = -(power);
     _sVX = _pvx * 0.45 + (_sX - _pRacket.x) * 0.08;
@@ -182,8 +178,8 @@ const BadmintonModule = (() => {
 
     if (_sY >= NET_Y) return; // 셔틀이 플레이어 쪽 → 제자리 대기
 
-    // 셔틀 추적 — 플레이어 히트 순간 속도의 90% (최저 AI_SPD_MIN 보장)
-    const aiSpd = Math.max(AI_SPD_MIN, _lastHitSpd * AI_SPD_RATIO);
+    // 셔틀 속도 × 난이도 배율 (최저 AI_SPD_MIN 보장)
+    const aiSpd = Math.max(AI_SPD_MIN, Math.hypot(_sVX, _sVY) * AI_DIFFICULTY);
     const tx = Math.max(PAD + 22, Math.min(W - PAD - 22, _sX));
     const ty = Math.max(PAD + 18, Math.min(NET_Y - 18, _sY + 8));
     const dx = tx - _aRacket.x;
@@ -667,7 +663,6 @@ const BadmintonModule = (() => {
     _pHitCd  = 0; _aHitCd = 0;
     _lastHitter = null;
     _dragging = false; _pvx = 0; _pvy = 0;
-    _lastHitSpd = 3.5;
     _pRacket  = { x: W / 2, y: H - 72 };
     _aRacket  = { x: W / 2, y: 72 };
     _flashes.length = 0;
