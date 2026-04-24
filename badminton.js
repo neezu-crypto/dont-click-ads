@@ -22,7 +22,7 @@ const BadmintonModule = (() => {
   // AI
   const AI_SPD_MIN   = 1.5;   // 추적 최저 속도 하한
   const AI_MISS_PROB = 0.06;  // 히트 실수 확률
-  const AI_DIFFICULTY = 1.0;  // 난이도 배율 (0.7=쉬움 / 1.0=보통 / 1.3=어려움)
+  const AI_DIFFICULTY = 1.1;  // 난이도 배율 (0.7=쉬움 / 1.0=보통 / 1.3=어려움)
 
   // 상태
   let _area, _canvas, _ctx;
