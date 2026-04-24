@@ -1139,11 +1139,17 @@ let tutorialHovered   = false;
 const T_BTN_W       = 260, T_BTN_H = 80;
 const T_FLEE_RADIUS = 140;   // 이 거리 안에 마우스가 들어오면 회피
 const T_LERP        = 0.056; // 보간 계수 (낮을수록 부드럽고 느림)
+const T_MOB_SPEED   = 2.2;   // 모바일 배회 속도 (px/frame)
+const T_MOB_DRIFT   = 0.06;  // 방향 랜덤 변화량
 let _tBtnX = 0, _tBtnY = 0; // 현재 버튼 중심 좌표
-let _tTgtX = 0, _tTgtY = 0; // 목표 좌표
+let _tTgtX = 0, _tTgtY = 0; // 목표 좌표 (PC 전용)
 let _tMouseX = -9999, _tMouseY = -9999;
-let _tRafId  = null;
-let _tActive = false;
+let _tVelX = 0, _tVelY = 0; // 모바일 배회 속도 벡터
+let _tRafId     = null;
+let _tActive    = false;
+let _tIsMobile  = false;
+let _tAdShown   = false;     // 모바일: 광고 최초 노출 여부
+let _tAdTimeout = null;      // 모바일: 광고 자동 출현 타이머
 let level1Timer       = null;
 let level1TimeLeft    = 30;
 let adPopupTimer          = null;
@@ -2905,27 +2911,47 @@ function goToTutorial() {
 function _tBtnSetup() {
   tutorialHovered   = false;
   tutorialAdClicked = false;
-  _tActive = false;
-  if (_tRafId) { cancelAnimationFrame(_tRafId); _tRafId = null; }
+  _tActive   = false;
+  _tAdShown  = false;
+  _tIsMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (_tRafId)     { cancelAnimationFrame(_tRafId); _tRafId = null; }
+  if (_tAdTimeout) { clearTimeout(_tAdTimeout);     _tAdTimeout = null; }
 
-  // 버튼 초기 위치: 화면 중앙
   const SW = window.innerWidth, SH = window.innerHeight;
   _tBtnX = SW / 2; _tBtnY = SH / 2;
   _tTgtX = _tBtnX; _tTgtY = _tBtnY;
   _tMouseX = -9999; _tMouseY = -9999;
   _tPlaceBtn();
 
-  const btn    = document.getElementById('btn-start');
   const screen = document.getElementById('screen-tutorial');
-  btn.addEventListener('mouseenter', _tOnBtnFirstHover, { once: true });
-  screen.addEventListener('mousemove', _tOnScreenMouseMove);
+
+  if (_tIsMobile) {
+    // 모바일: 버튼 자동 배회 시작
+    const angle = Math.random() * Math.PI * 2;
+    _tVelX  = Math.cos(angle) * T_MOB_SPEED;
+    _tVelY  = Math.sin(angle) * T_MOB_SPEED;
+    _tActive = true;
+    screen.addEventListener('touchstart', _tOnScreenTouch, { passive: true });
+    // 2.5초 후 광고 자동 출현 (PC의 첫 hover와 동일한 역할)
+    _tAdTimeout = setTimeout(_tShowMobileAd, 2500);
+    _tRafId = requestAnimationFrame(_tMobileTick);
+  } else {
+    // PC: 기존 마우스 회피 로직
+    const btn = document.getElementById('btn-start');
+    btn.addEventListener('mouseenter', _tOnBtnFirstHover, { once: true });
+    screen.addEventListener('mousemove', _tOnScreenMouseMove);
+  }
 }
 
 function _tBtnCleanup() {
   _tActive = false;
-  if (_tRafId) { cancelAnimationFrame(_tRafId); _tRafId = null; }
+  if (_tRafId)     { cancelAnimationFrame(_tRafId); _tRafId = null; }
+  if (_tAdTimeout) { clearTimeout(_tAdTimeout);     _tAdTimeout = null; }
   const screen = document.getElementById('screen-tutorial');
-  if (screen) screen.removeEventListener('mousemove', _tOnScreenMouseMove);
+  if (screen) {
+    screen.removeEventListener('mousemove',  _tOnScreenMouseMove);
+    screen.removeEventListener('touchstart', _tOnScreenTouch);
+  }
 }
 
 function _tOnBtnFirstHover() {
@@ -2983,6 +3009,82 @@ function _tPlaceBtn() {
   if (!btn) return;
   btn.style.left = Math.round(_tBtnX - T_BTN_W / 2) + 'px';
   btn.style.top  = Math.round(_tBtnY - T_BTN_H / 2) + 'px';
+}
+
+// ── 모바일 전용: 자동 배회 ────────────────────────────────
+
+function _tMobileTick() {
+  _tRafId = null;
+  if (!_tActive) return;
+
+  const SW = window.innerWidth, SH = window.innerHeight;
+  const hw = T_BTN_W / 2, hh = T_BTN_H / 2;
+
+  // 방향 랜덤 드리프트
+  _tVelX += (Math.random() - 0.5) * T_MOB_DRIFT;
+  _tVelY += (Math.random() - 0.5) * T_MOB_DRIFT;
+
+  // 속도 범위 유지
+  const spd = Math.hypot(_tVelX, _tVelY) || 1;
+  if (spd > T_MOB_SPEED)  { _tVelX *= T_MOB_SPEED / spd; _tVelY *= T_MOB_SPEED / spd; }
+  if (spd < T_MOB_SPEED * 0.5) { _tVelX *= 1.15; _tVelY *= 1.15; }
+
+  _tBtnX += _tVelX;
+  _tBtnY += _tVelY;
+
+  // 화면 경계 반사
+  if (_tBtnX < hw)      { _tBtnX = hw;      _tVelX =  Math.abs(_tVelX); }
+  if (_tBtnX > SW - hw) { _tBtnX = SW - hw; _tVelX = -Math.abs(_tVelX); }
+  if (_tBtnY < hh)      { _tBtnY = hh;      _tVelY =  Math.abs(_tVelY); }
+  if (_tBtnY > SH - hh) { _tBtnY = SH - hh; _tVelY = -Math.abs(_tVelY); }
+
+  _tPlaceBtn();
+  _tRafId = requestAnimationFrame(_tMobileTick);
+}
+
+function _tShowMobileAd() {
+  if (_tAdShown || tutorialAdClicked) return;
+  _tAdShown = true;
+  if (_tAdTimeout) { clearTimeout(_tAdTimeout); _tAdTimeout = null; }
+  onStartBtnHover(); // 광고 배너 표시
+  _tMobileTeleport(); // 버튼 순간이동 (PC의 첫 hover 텔레포트와 동일)
+}
+
+function _tMobileTeleport() {
+  const SW = window.innerWidth, SH = window.innerHeight;
+  const hw = T_BTN_W / 2, hh = T_BTN_H / 2;
+  let nx, ny, tries = 0;
+  do {
+    nx = hw + Math.random() * (SW - T_BTN_W);
+    ny = hh + Math.random() * (SH - T_BTN_H);
+    tries++;
+  } while (Math.hypot(nx - _tBtnX, ny - _tBtnY) < 160 && tries < 25);
+  _tBtnX = nx; _tBtnY = ny;
+  // 텔레포트 직후 빠른 속도로 재출발
+  const angle = Math.random() * Math.PI * 2;
+  _tVelX = Math.cos(angle) * T_MOB_SPEED * 1.4;
+  _tVelY = Math.sin(angle) * T_MOB_SPEED * 1.4;
+  _tPlaceBtn();
+}
+
+function _tOnScreenTouch(e) {
+  const touch = e.touches[0];
+  if (!touch) return;
+  const tx = touch.clientX, ty = touch.clientY;
+
+  // 버튼 위를 탭했는지 판정
+  const onBtn = Math.abs(tx - _tBtnX) < T_BTN_W / 2 &&
+                Math.abs(ty - _tBtnY) < T_BTN_H / 2;
+
+  // 첫 터치 시 광고 출현 (버튼 위든 밖이든)
+  if (!_tAdShown) _tShowMobileAd();
+
+  if (onBtn) return; // 버튼 클릭은 onclick이 처리
+
+  // 버튼 근처 빗나간 탭 → 도주
+  if (Math.hypot(tx - _tBtnX, ty - _tBtnY) < T_FLEE_RADIUS) {
+    _tMobileTeleport();
+  }
 }
 
 function onStartBtnHover() {
