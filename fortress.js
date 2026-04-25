@@ -615,6 +615,10 @@ const FortressModule = (() => {
     }
     document.removeEventListener('mousemove', _onDocMove);
     document.removeEventListener('mouseup',   _onDocUp);
+    if (_area) {
+      if (_area.parentElement) _area.parentElement.style.width = '';
+      _area.style.height = '';
+    }
   }
 
   function start(area, onScore, onSuccess, onFail) {
@@ -638,9 +642,13 @@ const FortressModule = (() => {
     _turretCY = _terrainY(TURRET_X) - TURRET_R;
     _placeTargets();
 
-    area.innerHTML   = '';
-    area.style.width  = `min(${VIEW_W}px, 96vw)`;
-    area.style.height = `${VIEW_H}px`;
+    area.innerHTML = '';
+    const _wrap   = area.parentElement;
+    const availW  = Math.min(VIEW_W, Math.floor(window.innerWidth * 0.96));
+    const _scaleR = availW / VIEW_W;
+    if (_wrap) _wrap.style.width = availW + 'px';
+    area.style.width  = '';                               // CSS width:100% 사용
+    area.style.height = Math.round(VIEW_H * _scaleR) + 'px';
 
     _canvas = document.createElement('canvas');
     _canvas.width  = VIEW_W;

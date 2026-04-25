@@ -178,6 +178,7 @@
     #game-wrap {
       position: relative;
       width: min(640px, 90vw);
+      overflow: hidden;
     }
 
     /* ── HUD 오버레이 ── */
@@ -1397,6 +1398,9 @@ const MINI_GAMES = {
       let ended = false;
       const holes = []; let tid;
 
+      const _wrap = area.parentElement;
+      if (_wrap) _wrap.style.width = `min(640px, 96vw)`;
+
       const prog = document.createElement('div');
       prog.style.cssText = 'position:absolute;top:10px;right:12px;color:#888;font-size:0.85rem;pointer-events:none;user-select:none;z-index:5';
       prog.textContent = `0 / ${TARGET}`;
@@ -1509,7 +1513,7 @@ const MINI_GAMES = {
         tid = setTimeout(tick, 700+Math.random()*500);
       }
       tick();
-      return () => { ended = true; clearTimeout(tid); };
+      return () => { ended = true; clearTimeout(tid); if (_wrap) _wrap.style.width = ''; };
     }
   },
 
