@@ -25,7 +25,7 @@ const BadmintonModule = (() => {
   const AI_DIFFICULTY = 1.3;  // 난이도 배율 (0.7=쉬움 / 1.0=보통 / 1.3=어려움)
 
   // 상태
-  let _area, _canvas, _ctx;
+  let _area, _wrap, _canvas, _ctx;
   let _onScore, _onSuccess, _onFail;
   let _ended = false, _rafId = null;
 
@@ -646,6 +646,7 @@ const BadmintonModule = (() => {
     if (_serveTO) { clearTimeout(_serveTO); _serveTO = null; }
     if (_pointTO) { clearTimeout(_pointTO); _pointTO = null; }
     if (_canvas)  _removeListeners();
+    if (_wrap)    { _wrap.style.width = ''; _wrap = null; }
     if (_area)    { _area.style.width = ''; _area.style.height = ''; _area.style.aspectRatio = ''; }
   }
 
@@ -672,10 +673,13 @@ const BadmintonModule = (() => {
     _aRacket  = { x: W / 2, y: 72 };
     _flashes.length = 0;
 
-    area.style.width       = `min(${W}px, 90vw)`;
+    _wrap = area.parentElement;
+    if (_wrap) _wrap.style.width = `min(${W}px, 100%)`;
+
+    area.style.width       = '100%';
     area.style.height      = 'auto';
     area.style.aspectRatio = `${W} / ${H}`;
-    area.style.position = 'relative';
+    area.style.position    = 'relative';
     area.innerHTML      = '';
 
     _canvas = document.createElement('canvas');
