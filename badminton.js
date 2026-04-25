@@ -646,7 +646,7 @@ const BadmintonModule = (() => {
     if (_serveTO) { clearTimeout(_serveTO); _serveTO = null; }
     if (_pointTO) { clearTimeout(_pointTO); _pointTO = null; }
     if (_canvas)  _removeListeners();
-    if (_area)    { _area.style.width = ''; _area.style.height = ''; }
+    if (_area)    { _area.style.width = ''; _area.style.height = ''; _area.style.aspectRatio = ''; }
   }
 
   // ── Public API ──
@@ -672,8 +672,9 @@ const BadmintonModule = (() => {
     _aRacket  = { x: W / 2, y: 72 };
     _flashes.length = 0;
 
-    area.style.width    = `min(${W}px, 90vw)`;
-    area.style.height   = `${H}px`;
+    area.style.width       = `min(${W}px, 90vw)`;
+    area.style.height      = 'auto';
+    area.style.aspectRatio = `${W} / ${H}`;
     area.style.position = 'relative';
     area.innerHTML      = '';
 
