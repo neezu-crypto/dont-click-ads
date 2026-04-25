@@ -1205,11 +1205,12 @@ const MINI_GAMES = {
       if (ad) cursorAd.style.backgroundImage = `url('${ad.imgUrl}')`;
       document.body.appendChild(cursorAd);
 
+      const isMobile = ('ontouchstart' in window);
       let cx = window.innerWidth / 2, cy = window.innerHeight / 2;
       let tx = cx, ty = cy;
       let raf = null;
-      const LERP = 0.0495;
-      function onMove(e) { tx = e.clientX; ty = e.clientY; }
+      const LERP = isMobile ? 0.07 : 0.0495;
+
       function adTick() {
         cx += (tx - cx) * LERP;
         cy += (ty - cy) * LERP;
@@ -1217,13 +1218,21 @@ const MINI_GAMES = {
         cursorAd.style.top  = cy + 'px';
         if (!ended) raf = requestAnimationFrame(adTick);
       }
-      document.addEventListener('mousemove', onMove);
+
+      function onMove(e) { tx = e.clientX; ty = e.clientY; }
+      function aimAtTarget(el, sz) {
+        const r = area.getBoundingClientRect();
+        tx = r.left + parseFloat(el.style.left) + sz / 2;
+        ty = r.top  + parseFloat(el.style.top)  + sz / 2;
+      }
+
+      if (!isMobile) document.addEventListener('mousemove', onMove);
       cursorAd.style.left = cx + 'px';
       cursorAd.style.top  = cy + 'px';
       cursorAd.style.display = 'block';
       raf = requestAnimationFrame(adTick);
 
-      cursorAd.onclick = () => {
+      function onAdClick() {
         if (!isLevel1Running || ended) return;
         ended = true;
         clearTimeout(tid);
@@ -1232,7 +1241,9 @@ const MINI_GAMES = {
         if (typeof playFailSound  === 'function') playFailSound();
         isLevel1Running = false;
         onFail('ad-click');
-      };
+      }
+      cursorAd.onclick = onAdClick;
+      cursorAd.addEventListener('touchstart', e => { e.preventDefault(); onAdClick(); }, { passive: false });
 
       function cleanupAd() {
         ended = true;
@@ -1250,8 +1261,9 @@ const MINI_GAMES = {
         d.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:radial-gradient(circle,#00ffaa,#008855);left:${Math.random()*(area.clientWidth-sz)}px;top:${Math.random()*(area.clientHeight-sz)}px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:bold;color:#000;transition:opacity 0.15s;box-shadow:0 0 10px #00ffaa66`;
         d.textContent = '+15';
         area.appendChild(d);
+        if (isMobile) aimAtTarget(d, sz);
         const rm = setTimeout(() => { d.style.opacity = '0'; setTimeout(() => d.remove(), 150); }, 960);
-        d.onclick = () => {
+        function handleTargetClick() {
           clearTimeout(rm); d.remove();
           if (!isLevel1Running || ended) return;
           score(15); playSuccessSound();
@@ -1263,7 +1275,9 @@ const MINI_GAMES = {
             cleanupAd();
             setTimeout(() => onSuccess(), 300);
           }
-        };
+        }
+        d.onclick = handleTargetClick;
+        d.addEventListener('touchstart', e => { e.preventDefault(); handleTargetClick(); }, { passive: false });
         tid = setTimeout(spawn, 500 + Math.random() * 500);
       }
       spawn();
