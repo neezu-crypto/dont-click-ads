@@ -32,6 +32,11 @@ const FortressModule = (() => {
   let _ended = false;
   let _raf   = null;
 
+  // 모바일 세로→가로 회전 오버레이
+  let _mobileOverlay  = null;
+  let _isMobileRotated = false;
+  let _originalArea   = null;
+
   let _terrain   = [];  // terrain[i] = Y at x = i * SEG_W
   let _targets   = [];  // [{x, cy, r, type, hit}]
   let _turretCY  = 0;   // turret center Y (world)
@@ -507,8 +512,24 @@ const FortressModule = (() => {
   function _worldCoords(clientX, clientY) {
     if (!_canvas) return { x: 0, y: 0 };
     const rect = _canvas.getBoundingClientRect();
-    const sx   = _canvas.width  / rect.width;
-    const sy   = _canvas.height / rect.height;
+    if (_isMobileRotated) {
+      // 캔버스가 CSS rotate(90deg) CW 적용된 상태.
+      // 역회전(CCW)으로 엘리먼트 좌표로 변환 후 월드 좌표 계산.
+      const ew = _area.offsetWidth;
+      const eh = _area.offsetHeight;
+      const cx = rect.left + rect.width  / 2;
+      const cy = rect.top  + rect.height / 2;
+      const sxr = clientX - cx;
+      const syr = clientY - cy;
+      const ex = ew / 2 + (-syr);
+      const ey = eh / 2 + sxr;
+      return {
+        x: ex * (_canvas.width  / ew) + _camX,
+        y: ey * (_canvas.height / eh),
+      };
+    }
+    const sx = _canvas.width  / rect.width;
+    const sy = _canvas.height / rect.height;
     return {
       x: (clientX - rect.left) * sx + _camX,
       y: (clientY - rect.top)  * sy,
@@ -516,7 +537,7 @@ const FortressModule = (() => {
   }
 
   function _nearTurret(wx, wy) {
-    return Math.hypot(wx - TURRET_X, wy - _turretCY) < TURRET_R * 3.5;
+    return Math.hypot(wx - TURRET_X, wy - _turretCY) < TURRET_R * (_isMobileRotated ? 7 : 3.5);
   }
 
   // ── 입력 핸들러 ───────────────────────────────────────────
@@ -615,16 +636,22 @@ const FortressModule = (() => {
     }
     document.removeEventListener('mousemove', _onDocMove);
     document.removeEventListener('mouseup',   _onDocUp);
-    if (_area) {
-      if (_area.parentElement) _area.parentElement.style.width = '';
-      _area.style.height = '';
+    if (_mobileOverlay) {
+      _mobileOverlay.remove();
+      _mobileOverlay = null;
+      document.body.style.overflow = '';
+    } else if (_originalArea) {
+      if (_originalArea.parentElement) _originalArea.parentElement.style.width = '';
+      _originalArea.style.height = '';
     }
+    _isMobileRotated = false;
+    _originalArea = null;
   }
 
   function start(area, onScore, onSuccess, onFail) {
     _cleanup();
     _ended        = false;
-    _area         = area;
+    _originalArea = area;
     _onScore      = onScore;
     _onSuccess    = onSuccess;
     _onFail       = onFail;
@@ -642,13 +669,57 @@ const FortressModule = (() => {
     _turretCY = _terrainY(TURRET_X) - TURRET_R;
     _placeTargets();
 
-    area.innerHTML = '';
-    const _wrap   = area.parentElement;
-    const availW  = Math.min(VIEW_W, Math.floor(window.innerWidth * 0.96));
-    const _scaleR = availW / VIEW_W;
-    if (_wrap) _wrap.style.width = availW + 'px';
-    area.style.width  = '';                               // CSS width:100% 사용
-    area.style.height = Math.round(VIEW_H * _scaleR) + 'px';
+    // 모바일 세로 화면 감지 → 풀스크린 가로 회전 오버레이
+    const isMobilePortrait = ('ontouchstart' in window) && window.innerWidth < window.innerHeight;
+
+    if (isMobilePortrait) {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      _mobileOverlay = document.createElement('div');
+      _mobileOverlay.style.cssText =
+        'position:fixed;inset:0;z-index:9999;background:#07090f;' +
+        'display:flex;align-items:center;justify-content:center;overflow:hidden;';
+
+      // 닫기 버튼 (물리 화면 기준 좌상단)
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = '✕';
+      closeBtn.style.cssText =
+        'position:absolute;top:10px;left:10px;z-index:10000;' +
+        'background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);' +
+        'color:#fff;font-size:1rem;padding:6px 12px;border-radius:8px;cursor:pointer;';
+      closeBtn.addEventListener('click', () => {
+        if (!_ended) { _ended = true; _cleanup(); if (_onFail) _onFail('quit'); }
+      });
+      _mobileOverlay.appendChild(closeBtn);
+
+      // 내부 컨테이너: 90° CW 회전하여 가로 화면처럼 표시
+      const inner = document.createElement('div');
+      inner.style.cssText =
+        `width:${vh}px;height:${vw}px;` +
+        'transform:rotate(90deg);transform-origin:center center;' +
+        'position:relative;overflow:hidden;border-radius:14px;';
+
+      _mobileOverlay.appendChild(inner);
+      document.body.appendChild(_mobileOverlay);
+      document.body.style.overflow = 'hidden';
+
+      _mobileOverlay.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+      _area = inner;
+      _isMobileRotated = true;
+    } else {
+      _area = area;
+      _isMobileRotated = false;
+      const _wrap  = area.parentElement;
+      const availW = Math.min(VIEW_W, Math.floor(window.innerWidth * 0.96));
+      const scaleR = availW / VIEW_W;
+      if (_wrap) _wrap.style.width = availW + 'px';
+      area.style.width  = '';
+      area.style.height = Math.round(VIEW_H * scaleR) + 'px';
+    }
+
+    _area.innerHTML = '';
 
     _canvas = document.createElement('canvas');
     _canvas.width  = VIEW_W;
@@ -656,7 +727,7 @@ const FortressModule = (() => {
     _canvas.style.cssText =
       'position:absolute;inset:0;width:100%;height:100%;cursor:crosshair;' +
       'touch-action:none;border-radius:14px;';
-    area.appendChild(_canvas);
+    _area.appendChild(_canvas);
     _ctx = _canvas.getContext('2d');
 
     _canvas.addEventListener('mousedown',  _onCanvasDown);
