@@ -153,6 +153,7 @@ const BadmintonModule = (() => {
     _pHitCd    = HIT_CD;
     _lastHitter = 'player';
     _phase = 'rally';
+    if (typeof playBadmintonHitSound === 'function') playBadmintonHitSound();
     _flashHit(_pRacket.x, _pRacket.y, '#00ddff');
   }
 
@@ -168,6 +169,7 @@ const BadmintonModule = (() => {
     _sVX = Math.max(-7, Math.min(7, _sVX));
     _aHitCd    = HIT_CD;
     _lastHitter = 'ai';
+    if (typeof playBadmintonHitSound === 'function') playBadmintonHitSound();
     _flashHit(_aRacket.x, _aRacket.y, '#ff6655');
   }
 
