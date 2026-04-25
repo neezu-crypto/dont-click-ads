@@ -29,6 +29,11 @@ const BadmintonModule = (() => {
   let _onScore, _onSuccess, _onFail;
   let _ended = false, _rafId = null;
 
+  // 모바일 세로→가로 회전 오버레이
+  let _mobileOverlay = null;
+  let _isMobileRotated = false;
+  let _originalArea = null;
+
   let _pScore = 0, _aScore = 0;
   let _serving = 'player';              // 'player' | 'ai'
   let _phase   = 'idle';                // 'idle' | 'serve_wait' | 'rally' | 'point_pause'
@@ -72,6 +77,19 @@ const BadmintonModule = (() => {
   function _toLogi(clientX, clientY) {
     const rect = _canvas.getBoundingClientRect();
     const s = _scale();
+    if (_isMobileRotated) {
+      // 캔버스가 CSS rotate(90deg) CW 적용된 상태.
+      // getBoundingClientRect()는 스크린 공간 바운딩 박스를 반환하므로
+      // 역회전(CCW)으로 엘리먼트 좌표로 변환한다.
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top  + rect.height / 2;
+      const sxr = clientX - cx;
+      const syr = clientY - cy;
+      // 90° CW 역변환 = 90° CCW: (sx,sy) → (-sy, sx)
+      const ex = _area.offsetWidth  / 2 + (-syr);
+      const ey = _area.offsetHeight / 2 + sxr;
+      return { x: ex / s.x, y: ey / s.y };
+    }
     return { x: (clientX - rect.left) / s.x, y: (clientY - rect.top) / s.y };
   }
 
@@ -655,8 +673,18 @@ const BadmintonModule = (() => {
     if (_serveTO) { clearTimeout(_serveTO); _serveTO = null; }
     if (_pointTO) { clearTimeout(_pointTO); _pointTO = null; }
     if (_canvas)  _removeListeners();
-    if (_wrap)    { _wrap.style.width = ''; _wrap = null; }
-    if (_area)    { _area.style.width = ''; _area.style.height = ''; _area.style.aspectRatio = ''; }
+    if (_mobileOverlay) {
+      _mobileOverlay.remove();
+      _mobileOverlay = null;
+      document.body.style.overflow = '';
+    } else if (_originalArea) {
+      _originalArea.style.width = '';
+      _originalArea.style.height = '';
+      _originalArea.style.aspectRatio = '';
+    }
+    _isMobileRotated = false;
+    _originalArea = null;
+    if (_wrap) { _wrap.style.width = ''; _wrap = null; }
   }
 
   // ── Public API ──
@@ -664,7 +692,7 @@ const BadmintonModule = (() => {
   function start(area, onScore, onSuccess, onFail) {
     _cleanup();
 
-    _area      = area;
+    _originalArea = area;
     _onScore   = onScore;
     _onSuccess = onSuccess;
     _onFail    = onFail;
@@ -682,14 +710,59 @@ const BadmintonModule = (() => {
     _aRacket  = { x: W / 2, y: 72 };
     _flashes.length = 0;
 
-    _wrap = area.parentElement;
-    if (_wrap) _wrap.style.width = `min(${W}px, 100%)`;
+    // 모바일 세로 화면 감지 → 풀스크린 가로 회전 오버레이
+    const isMobilePortrait = ('ontouchstart' in window) && window.innerWidth < window.innerHeight;
 
-    area.style.width       = '100%';
-    area.style.height      = 'auto';
-    area.style.aspectRatio = `${W} / ${H}`;
-    area.style.position    = 'relative';
-    area.innerHTML      = '';
+    if (isMobilePortrait) {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      _mobileOverlay = document.createElement('div');
+      _mobileOverlay.style.cssText =
+        'position:fixed;inset:0;z-index:9999;background:#09111e;' +
+        'display:flex;align-items:center;justify-content:center;overflow:hidden;';
+
+      // 닫기 버튼 (물리 화면 기준 좌상단)
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = '✕';
+      closeBtn.style.cssText =
+        'position:absolute;top:10px;left:10px;z-index:10000;' +
+        'background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);' +
+        'color:#fff;font-size:1rem;padding:6px 12px;border-radius:8px;cursor:pointer;';
+      closeBtn.addEventListener('click', () => {
+        if (!_ended) { _ended = true; _stopTimer(); _cleanup(); if (_onFail) _onFail('quit'); }
+      });
+      _mobileOverlay.appendChild(closeBtn);
+
+      // 내부 컨테이너: 90° CW 회전하여 가로 화면처럼 표시
+      const inner = document.createElement('div');
+      inner.style.cssText =
+        `width:${vh}px;height:${vw}px;` +
+        'transform:rotate(90deg);transform-origin:center center;' +
+        'position:relative;overflow:hidden;border-radius:12px;';
+
+      _mobileOverlay.appendChild(inner);
+      document.body.appendChild(_mobileOverlay);
+      document.body.style.overflow = 'hidden';
+
+      // 스크롤/줌 방지
+      _mobileOverlay.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+      _area = inner;
+      _isMobileRotated = true;
+      _wrap = null;
+    } else {
+      _area = area;
+      _isMobileRotated = false;
+      _wrap = area.parentElement;
+      if (_wrap) _wrap.style.width = `min(${W}px, 100%)`;
+      area.style.width       = '100%';
+      area.style.height      = 'auto';
+      area.style.aspectRatio = `${W} / ${H}`;
+      area.style.position    = 'relative';
+    }
+
+    _area.innerHTML = '';
 
     _canvas = document.createElement('canvas');
     _canvas.width  = W;
@@ -697,7 +770,7 @@ const BadmintonModule = (() => {
     _canvas.style.cssText =
       'position:absolute;inset:0;width:100%;height:100%;' +
       'touch-action:none;border-radius:12px;cursor:grab;display:block;';
-    area.appendChild(_canvas);
+    _area.appendChild(_canvas);
     _ctx = _canvas.getContext('2d');
 
     const hint = document.createElement('div');
@@ -705,7 +778,7 @@ const BadmintonModule = (() => {
       'position:absolute;bottom:5px;left:0;right:0;text-align:center;' +
       'color:#ffffff1e;font-size:0.7rem;pointer-events:none;user-select:none;';
     hint.textContent = '라켓 근처를 드래그 → 셔틀이 범위 안에 들어오면 자동 히트';
-    area.appendChild(hint);
+    _area.appendChild(hint);
 
     _timerEl = document.getElementById('timer-display');
     _addListeners();
