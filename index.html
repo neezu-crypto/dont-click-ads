@@ -205,18 +205,18 @@
       line-height: 1.4;
     }
     .hud-chip b { color: #fff; font-weight: 700; font-style: normal; }
-    .hud-dim { color: #555; font-size: 0.68rem; }
+    .hud-dim { color: #fff; font-size: 0.68rem; }
     .hud-chip-level {
-      background: rgba(0,170,255,0.1);
-      border-color: rgba(0,170,255,0.22);
+      background: rgba(0,170,255,0.15);
+      border-color: rgba(0,170,255,0.35);
       font-size: 0.78rem;
     }
-    .hud-chip-level b { color: #3bcfff; font-size: 0.92rem; }
+    .hud-chip-level b { color: #fff; font-size: 0.92rem; }
     .hud-center-label {
       flex: 1;
       text-align: center;
+      color: #fff;
       font-size: 0.73rem;
-      color: #667;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1274,7 +1274,7 @@ const MINI_GAMES = {
       let cx = window.innerWidth / 2, cy = window.innerHeight / 2;
       let tx = cx, ty = cy;
       let raf = null;
-      const LERP = isMobile ? 0.07 : 0.0495;
+      const LERP = isMobile ? 0.0525 : 0.0495;
 
       function adTick() {
         cx += (tx - cx) * LERP;
