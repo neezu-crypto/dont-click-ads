@@ -585,14 +585,23 @@ const BadmintonModule = (() => {
   function _onDown(e) {
     if (_ended) return;
     e.preventDefault();
-    const p    = _evPos(e);
-    const dist = Math.hypot(p.x - _pRacket.x, p.y - _pRacket.y);
-    if (dist < P_HIT_R + 28) {
+    const p       = _evPos(e);
+    const isTouch = !!e.touches;
+    const dist    = Math.hypot(p.x - _pRacket.x, p.y - _pRacket.y);
+    if (isTouch || dist < P_HIT_R + 28) {
       _dragging = true;
-      _dragOX   = p.x - _pRacket.x;
-      _dragOY   = p.y - _pRacket.y;
-      _prevDX   = p.x;
-      _prevDY   = p.y;
+      if (isTouch) {
+        // 터치: 라켓을 터치 위치로 즉시 이동 후 추적
+        _dragOX = 0;
+        _dragOY = 0;
+        _pRacket.x = Math.max(PAD + 20, Math.min(W - PAD - 20, p.x));
+        _pRacket.y = Math.max(NET_Y + 12, Math.min(H - PAD - 22, p.y));
+      } else {
+        _dragOX = p.x - _pRacket.x;
+        _dragOY = p.y - _pRacket.y;
+      }
+      _prevDX = p.x;
+      _prevDY = p.y;
       _pvx = 0; _pvy = 0;
     }
   }
