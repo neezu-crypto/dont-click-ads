@@ -163,7 +163,7 @@
     }
 
     #game-area {
-      width: min(640px, 90vw);
+      width: 100%;
       height: 420px;
       background: #1a1a2e;
       border: 2px solid #2a2a3e;
@@ -171,6 +171,12 @@
       position: relative;
       overflow: hidden;
       box-shadow: 0 0 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+    }
+
+    /* ── game-wrap: HUD + game-area 묶음 ── */
+    #game-wrap {
+      position: relative;
+      width: min(640px, 90vw);
     }
 
     /* ── HUD 오버레이 ── */
@@ -778,7 +784,7 @@
 
 <!-- ════════════════════ LEVEL 1 ════════════════════ -->
 <div id="screen-level1" class="screen">
-  <div id="game-area">
+  <div id="game-wrap">
     <div id="level1-hud">
       <div class="hud-chip hud-chip-level">
         <span class="hud-dim">LV&nbsp;</span><b id="current-level-display">1</b><span class="hud-dim">&nbsp;/10</span>
@@ -790,6 +796,7 @@
         <div class="hud-chip hud-chip-timer" id="hud-timer-chip">⏱&thinsp;<b id="timer-display">30</b>s</div>
       </div>
     </div>
+    <div id="game-area"></div>
   </div>
 </div>
 
