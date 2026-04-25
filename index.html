@@ -3473,7 +3473,8 @@ function showAdPopup() {
   const targetEl   = document.getElementById('target');
   const targetBCR  = targetEl ? targetEl.getBoundingClientRect() : {left:0,top:0,right:0,bottom:0,width:0,height:0};
   const halfTarget = targetEl ? (targetBCR.width * targetBCR.height) / 2 : 0;
-  const PW = 340, PH = 265;
+  const isMobilePopup = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const PW = isMobilePopup ? 170 : 340, PH = isMobilePopup ? 133 : 265;
 
   /* game-area 내에서 팝업이 들어갈 수 있는 범위 (테두리 겹침 허용) */
   const minL = gameArea.left;
@@ -3525,6 +3526,32 @@ function showAdPopup() {
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   };
+  header.ontouchstart = (e) => {
+    if (e.target === document.getElementById('ad-close-btn')) return;
+    e.preventDefault();
+    if (_activeDragCleanup) { _activeDragCleanup(); }
+    const t0 = e.touches[0];
+    const startX = t0.clientX - popup.offsetLeft;
+    const startY = t0.clientY - popup.offsetTop;
+    function onTMove(ev) {
+      ev.preventDefault();
+      const t = ev.touches[0];
+      popup.style.left = (t.clientX - startX) + 'px';
+      popup.style.top  = (t.clientY - startY) + 'px';
+    }
+    function onTEnd() {
+      document.removeEventListener('touchmove', onTMove);
+      document.removeEventListener('touchend', onTEnd);
+      _activeDragCleanup = null;
+    }
+    _activeDragCleanup = () => {
+      document.removeEventListener('touchmove', onTMove);
+      document.removeEventListener('touchend', onTEnd);
+      _activeDragCleanup = null;
+    };
+    document.addEventListener('touchmove', onTMove, { passive: false });
+    document.addEventListener('touchend', onTEnd);
+  };
 
   body.onclick = (e) => {
     e.preventDefault();
@@ -3545,7 +3572,7 @@ function showAdPopup() {
 function hideAdPopup() {
   document.getElementById('ad-popup').classList.remove('active');
   const header = document.getElementById('ad-popup-header');
-  if (header) header.onmousedown = null;
+  if (header) { header.onmousedown = null; header.ontouchstart = null; }
   if (_activeDragCleanup) { _activeDragCleanup(); }
 }
 
