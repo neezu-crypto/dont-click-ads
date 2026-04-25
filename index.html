@@ -158,28 +158,76 @@
     #screen-level1 {
       background: #0d0d0d;
       flex-direction: column;
-      gap: 20px;
+      gap: 0;
       position: relative;
     }
-    #level1-info {
-      position: absolute;
-      top: 20px;
-      display: flex;
-      gap: 32px;
-      font-size: 1rem;
-      color: #aaa;
-    }
-    #level1-info span { color: #fff; font-weight: bold; }
 
     #game-area {
       width: min(640px, 90vw);
       height: 420px;
       background: #1a1a2e;
-      border: 2px solid #333;
+      border: 2px solid #2a2a3e;
       border-radius: 16px;
       position: relative;
       overflow: hidden;
+      box-shadow: 0 0 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
     }
+
+    /* ── HUD 오버레이 ── */
+    #level1-hud {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 10px 18px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0) 100%);
+      pointer-events: none;
+    }
+    .hud-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 7px;
+      padding: 3px 8px;
+      font-size: 0.75rem;
+      color: #ccc;
+      white-space: nowrap;
+      line-height: 1.4;
+    }
+    .hud-chip b { color: #fff; font-weight: 700; font-style: normal; }
+    .hud-dim { color: #555; font-size: 0.68rem; }
+    .hud-chip-level {
+      background: rgba(0,170,255,0.1);
+      border-color: rgba(0,170,255,0.22);
+      font-size: 0.78rem;
+    }
+    .hud-chip-level b { color: #3bcfff; font-size: 0.92rem; }
+    .hud-center-label {
+      flex: 1;
+      text-align: center;
+      font-size: 0.73rem;
+      color: #667;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+      padding: 0 2px;
+    }
+    .hud-right { display: flex; gap: 4px; }
+    .hud-chip-score { background: rgba(255,220,50,0.09); border-color: rgba(255,220,50,0.2); color: #ffd84a; }
+    .hud-chip-score b { color: #ffd84a; }
+    .hud-chip-ad    { background: rgba(255,100,60,0.09); border-color: rgba(255,100,60,0.2); color: #ff8860; }
+    .hud-chip-ad b  { color: #ff8860; }
+    .hud-chip-timer { background: rgba(160,255,200,0.08); border-color: rgba(160,255,200,0.15); color: #88eebb; min-width: 46px; justify-content: center; }
+    .hud-chip-timer b { color: #88eebb; }
+    .hud-chip-timer.urgent { background: rgba(255,60,60,0.15); border-color: rgba(255,60,60,0.35); color: #ff5555; animation: hud-pulse 0.6s ease-in-out infinite; }
+    .hud-chip-timer.urgent b { color: #ff5555; }
+    @keyframes hud-pulse { 0%,100% { opacity:1; } 50% { opacity:0.55; } }
+
     #target {
       position: absolute;
       width: 72px;
@@ -199,10 +247,15 @@
     }
     #target:hover { box-shadow: 0 0 28px #00ffaacc; }
 
-    #level1-msg {
-      font-size: 1.1rem;
-      color: #ccc;
-      text-align: center;
+    /* ── 모바일 HUD ── */
+    @media (max-width: 480px) {
+      #game-area { height: 400px; }
+      #level1-hud { padding: 7px 8px 16px; gap: 4px; }
+      .hud-chip { padding: 2px 6px; font-size: 0.68rem; }
+      .hud-chip-level { font-size: 0.7rem; }
+      .hud-chip-level b { font-size: 0.82rem; }
+      .hud-center-label { font-size: 0; } /* 모바일에서 스테이지 라벨 숨김 */
+      .hud-chip-timer { min-width: 38px; }
     }
 
     /* ─── LEVEL 1 광고 클릭 결과 오버레이 ─── */
@@ -725,14 +778,19 @@
 
 <!-- ════════════════════ LEVEL 1 ════════════════════ -->
 <div id="screen-level1" class="screen">
-  <div id="level1-info">
-    <div>레벨: <span id="current-level-display">1</span>/10</div>
-    <div>점수: <span id="score-display">0</span></div>
-    <div>광고 클릭: <span id="ad-click-display">0</span>회</div>
-    <div>남은 시간: <span id="timer-display">30</span>s</div>
+  <div id="game-area">
+    <div id="level1-hud">
+      <div class="hud-chip hud-chip-level">
+        <span class="hud-dim">LV&nbsp;</span><b id="current-level-display">1</b><span class="hud-dim">&nbsp;/10</span>
+      </div>
+      <div class="hud-center-label" id="level1-msg">초록 원을 클릭하세요!</div>
+      <div class="hud-right">
+        <div class="hud-chip hud-chip-score">★&thinsp;<b id="score-display">0</b></div>
+        <div class="hud-chip hud-chip-ad">📢&thinsp;<b id="ad-click-display">0</b></div>
+        <div class="hud-chip hud-chip-timer" id="hud-timer-chip">⏱&thinsp;<b id="timer-display">30</b>s</div>
+      </div>
+    </div>
   </div>
-  <p id="level1-msg">초록 원을 클릭하세요! (광고 함정을 조심하세요)</p>
-  <div id="game-area"></div>
 </div>
 
 <!-- 레벨 1 광고 클릭 결과 오버레이 -->
@@ -2756,7 +2814,7 @@ function playRimBounceSound() {
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(freq, now + i * 0.01);
     osc.frequency.exponentialRampToValueAtTime(freq * 0.5, now + i * 0.01 + 0.18);
-    gain.gain.setValueAtTime(0.18, now + i * 0.01);
+    gain.gain.setValueAtTime(0.15, now + i * 0.01);
     gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.01 + 0.2);
     osc.start(now + i * 0.01);
     osc.stop(now + i * 0.01 + 0.22);
@@ -2836,7 +2894,7 @@ function playPoolCueHitSound() {
     const gain = ctx.createGain();
     src.buffer = buf;
     src.connect(gain); gain.connect(ctx.destination);
-    gain.gain.setValueAtTime(0.55, now);
+    gain.gain.setValueAtTime(0.15, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
     src.start(now);
   } catch(e) {}
@@ -2846,7 +2904,7 @@ function playPoolBallCollideSound(intensity) {
   try {
     const ctx = getAudioCtx();
     const now = ctx.currentTime;
-    const vol = Math.min(0.4, 0.08 + intensity * 0.06);
+    const vol = Math.min(0.15, 0.08 + intensity * 0.06);
     const buf = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2.5);
@@ -2871,7 +2929,7 @@ function playCannonFireSound() {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(110, now);
     osc.frequency.exponentialRampToValueAtTime(38, now + 0.28);
-    gain.gain.setValueAtTime(0.65, now);
+    gain.gain.setValueAtTime(0.15, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
     osc.start(now); osc.stop(now + 0.35);
     // 노이즈 버스트 (발사 연기)
@@ -2883,7 +2941,7 @@ function playCannonFireSound() {
     const nGain = ctx.createGain();
     src.buffer = buf;
     src.connect(nGain); nGain.connect(ctx.destination);
-    nGain.gain.setValueAtTime(0.38, now);
+    nGain.gain.setValueAtTime(0.15, now);
     nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
     src.start(now);
   } catch(e) {}
@@ -2902,7 +2960,7 @@ function playBadmintonHitSound() {
     const nGain = ctx.createGain();
     src.buffer = buf;
     src.connect(nGain); nGain.connect(ctx.destination);
-    nGain.gain.setValueAtTime(0.55, now);
+    nGain.gain.setValueAtTime(0.15, now);
     nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
     src.start(now);
     // 짧은 고주파 톤 (현악 탄성)
@@ -2912,7 +2970,7 @@ function playBadmintonHitSound() {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(1800, now);
     osc.frequency.exponentialRampToValueAtTime(900, now + 0.07);
-    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.setValueAtTime(0.15, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
     osc.start(now); osc.stop(now + 0.09);
   } catch(e) {}
@@ -2929,7 +2987,7 @@ function playFortressHitSound() {
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(280, now);
     osc.frequency.exponentialRampToValueAtTime(70, now + 0.22);
-    gain.gain.setValueAtTime(0.45, now);
+    gain.gain.setValueAtTime(0.15, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
     osc.start(now); osc.stop(now + 0.28);
     // 상쾌한 배음 (명중 확인음)
@@ -2939,7 +2997,7 @@ function playFortressHitSound() {
       o.connect(g); g.connect(ctx.destination);
       o.type = 'sine';
       o.frequency.value = freq;
-      g.gain.setValueAtTime(0.18, now + i * 0.05);
+      g.gain.setValueAtTime(0.15, now + i * 0.05);
       g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.3);
       o.start(now + i * 0.05); o.stop(now + i * 0.05 + 0.35);
     });
@@ -3461,6 +3519,17 @@ function updateLevel1UI() {
   document.getElementById('ad-click-display').textContent = totalAdClicks;
   document.getElementById('my-total-clicks').textContent  = totalAdClicks;
 }
+
+// 타이머 숫자 변경 감지 → 10초 이하일 때 urgent 스타일
+(function() {
+  const timerEl = document.getElementById('timer-display');
+  const chipEl  = document.getElementById('hud-timer-chip');
+  if (!timerEl || !chipEl) return;
+  new MutationObserver(() => {
+    const v = parseInt(timerEl.textContent);
+    chipEl.classList.toggle('urgent', !isNaN(v) && v <= 10 && v > 0);
+  }).observe(timerEl, { childList: true, characterData: true, subtree: true });
+})();
 
 
 function endLevelClear() {
