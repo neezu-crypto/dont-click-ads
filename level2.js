@@ -280,7 +280,11 @@ const Level2Module = (() => {
   // ─── 경로 기록 ───
 
   function _startPathRecording() {
-    _pathHistory = [{ x: _ballPos.x, y: _ballPos.y }];
+    // 출발 셀 중심을 첫 점으로 고정 → 광고 반지름(AD_R)이 공보다 커서
+    // 공 위치 기준으로 출발하면 벽에 끼므로, 셀 중심(여백 충분)에서 시작
+    const sx = MAZE_PAD + (_sCell.c + 0.5) * _CELL;
+    const sy = MAZE_PAD + (_sCell.r + 0.5) * _CELL;
+    _pathHistory = [{ x: sx, y: sy }, { x: _ballPos.x, y: _ballPos.y }];
     _pathTimer = setInterval(() => {
       if (!_ended) _pathHistory.push({ x: _ballPos.x, y: _ballPos.y });
     }, PATH_INTERVAL);
