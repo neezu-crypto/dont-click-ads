@@ -710,19 +710,28 @@ const BadmintonModule = (() => {
     _aRacket  = { x: W / 2, y: 72 };
     _flashes.length = 0;
 
-    // 모바일 세로 화면 감지 → 풀스크린 가로 회전 오버레이
-    const isMobilePortrait = ('ontouchstart' in window) && window.innerWidth < window.innerHeight;
+    // 모바일: 전체화면 + 가로 방향 잠금 + 화면 가득 채움
+    const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
-    if (isMobilePortrait) {
+    if (isMobile) {
+      // 전체화면 요청 (user gesture 덕분에 허용됨)
+      const docEl = document.documentElement;
+      if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
+      else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+      // 가로 방향 잠금 시도 (Android Chrome 지원, iOS 무시)
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(() => {});
+      }
+
       const vw = window.innerWidth;
       const vh = window.innerHeight;
+      const isPortrait = vw < vh;
 
       _mobileOverlay = document.createElement('div');
       _mobileOverlay.style.cssText =
         'position:fixed;inset:0;z-index:9999;background:#09111e;' +
         'display:flex;align-items:center;justify-content:center;overflow:hidden;';
 
-      // 닫기 버튼 (물리 화면 기준 좌상단)
       const closeBtn = document.createElement('button');
       closeBtn.textContent = '✕';
       closeBtn.style.cssText =
@@ -734,22 +743,29 @@ const BadmintonModule = (() => {
       });
       _mobileOverlay.appendChild(closeBtn);
 
-      // 내부 컨테이너: 90° CW 회전하여 가로 화면처럼 표시
       const inner = document.createElement('div');
-      inner.style.cssText =
-        `width:${vh}px;height:${vw}px;` +
-        'transform:rotate(90deg);transform-origin:center center;' +
-        'position:relative;overflow:hidden;border-radius:12px;';
+      if (isPortrait) {
+        // 세로 화면 → 90° 회전으로 가로처럼 표시
+        inner.style.cssText =
+          `width:${vh}px;height:${vw}px;` +
+          'transform:rotate(90deg);transform-origin:center center;' +
+          'position:relative;overflow:hidden;border-radius:0;';
+        _isMobileRotated = true;
+      } else {
+        // 가로 화면 → 그대로 전체 채움
+        inner.style.cssText =
+          `width:${vw}px;height:${vh}px;` +
+          'position:relative;overflow:hidden;border-radius:0;';
+        _isMobileRotated = false;
+      }
 
       _mobileOverlay.appendChild(inner);
       document.body.appendChild(_mobileOverlay);
       document.body.style.overflow = 'hidden';
 
-      // 스크롤/줌 방지
       _mobileOverlay.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
       _area = inner;
-      _isMobileRotated = true;
       _wrap = null;
     } else {
       _area = area;
