@@ -536,6 +536,15 @@
       font-size: 1.1rem; color: #88aaff; min-height: 1.4em;
     }
     #ending-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    #ranking-nickname-row { width: 100%; max-width: 340px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    #ranking-nickname-input {
+      width: 100%; padding: 12px 16px; font-size: 1rem;
+      background: #111; border: 1px solid #444; border-radius: 10px;
+      color: #fff; text-align: center; box-sizing: border-box;
+    }
+    #ranking-nickname-input:focus { outline: none; border-color: #2266ff; }
+    #ranking-nickname-input::placeholder { color: #555; }
+    #ranking-nickname-error { font-size: 0.8rem; color: #ff4444; min-height: 1em; margin: 0; }
 
     /* ─── RANKING MODAL ─── */
     #ranking-modal {
@@ -993,6 +1002,10 @@
     </div>
   </div>
   <div id="ending-rank-badge"></div>
+  <div id="ranking-nickname-row">
+    <input id="ranking-nickname-input" type="text" maxlength="16" placeholder="닉네임 (랭킹 등록용, 최대 16자)" />
+    <p id="ranking-nickname-error"></p>
+  </div>
   <div id="ending-actions">
     <button class="btn-primary" id="btn-submit-ranking" onclick="submitRankingOnce()">📤 랭킹 등록하기</button>
     <button class="btn-primary" onclick="showRankingModal()">🏆 전체 순위 보기</button>
@@ -3145,50 +3158,9 @@ function goToNickname() {
   bgmPlay();
   playSuccessSound();
   if (typeof window._removeOpeningCursorAd === 'function') window._removeOpeningCursorAd();
-  showScreen('screen-nickname');
-  document.getElementById('nickname-input').focus();
+  goToTutorial(); // 닉네임 입력 스킵 → 랭킹 등록 시 처리
 }
 window.goToNickname = goToNickname;
-
-/* ════════ NICKNAME ════════ */
-async function submitNickname() {
-  const input = document.getElementById('nickname-input');
-  const error = document.getElementById('nickname-error');
-  const name  = input.value.trim();
-
-  if (!name) {
-    error.textContent = '닉네임을 입력해주세요.';
-    input.focus();
-    return;
-  }
-  playSuccessSound();
-  error.textContent = '';
-  playerNickname = name;
-
-  /* 기존 세션 UID 재사용, 없으면 새 익명 로그인 */
-  if (window._getCurrentUser && window._getCurrentUser()) {
-    playerUid = window._getCurrentUser().uid;
-  } else if (window._signInAnonymously) {
-    try {
-      const cred = await window._signInAnonymously();
-      playerUid = cred.user.uid;
-    } catch (_) {
-      /* 로그인 실패 시 sessionId 폴백 */
-    }
-  }
-
-  /* RTDB에 플레이어 등록 */
-  savePlayerToDb({ nickname: playerNickname, clicks: 0, createdAt: Date.now(), updatedAt: Date.now() });
-
-  document.getElementById('stats-nickname').textContent = playerNickname;
-  goToTutorial();
-}
-window.submitNickname = submitNickname;
-
-/* Enter 키로 닉네임 제출 */
-document.getElementById('nickname-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') submitNickname();
-});
 
 /* ════════ TUTORIAL ════════ */
 function goToTutorial() {
@@ -3841,7 +3813,7 @@ window.onCloseBtnHover = onCloseBtnHover;
 
 /* ── 레벨 광고 클릭 결과 ── */
 function showLevel1AdResult() {
-  document.getElementById('result-nickname-badge').textContent = playerNickname + ' 님';
+  document.getElementById('result-nickname-badge').textContent = playerNickname ? playerNickname + ' 님' : '';
   document.getElementById('result-ad-count').textContent       = totalAdClicks + '회';
   const btn = document.querySelector('#level1-ad-result .btn-restart');
   if (btn) btn.textContent = `레벨 ${currentLevel} 재시작`;
@@ -3893,15 +3865,46 @@ function showEnding() {
   submitBtn.disabled    = false;
   submitBtn.textContent = '📤 랭킹 등록하기';
   submitBtn.style.opacity = '';
+  /* 닉네임 입력 필드 초기화 (이전 값 있으면 유지) */
+  const ni = document.getElementById('ranking-nickname-input');
+  if (ni) { ni.value = playerNickname || ''; ni.disabled = false; }
+  const ne = document.getElementById('ranking-nickname-error');
+  if (ne) ne.textContent = '';
   document.getElementById('screen-ending').classList.add('active');
 }
 
 let _rankingSubmitted = false;
 async function submitRankingOnce() {
   if (_rankingSubmitted) return;
+
+  /* 닉네임 입력 처리 */
+  const nicknameInput = document.getElementById('ranking-nickname-input');
+  const nicknameError = document.getElementById('ranking-nickname-error');
+  const name = nicknameInput ? nicknameInput.value.trim() : playerNickname;
+  if (!name) {
+    if (nicknameError) nicknameError.textContent = '닉네임을 입력해주세요.';
+    if (nicknameInput) nicknameInput.focus();
+    return;
+  }
+  if (nicknameError) nicknameError.textContent = '';
+  playerNickname = name;
+  document.getElementById('stats-nickname').textContent = playerNickname;
+
+  /* 익명 로그인 (세션 재사용 또는 신규) */
+  if (window._getCurrentUser && window._getCurrentUser()) {
+    playerUid = window._getCurrentUser().uid;
+  } else if (window._signInAnonymously) {
+    try {
+      const cred = await window._signInAnonymously();
+      playerUid = cred.user.uid;
+    } catch (_) { /* sessionId 폴백 */ }
+  }
+
   const btn = document.getElementById('btn-submit-ranking');
   btn.disabled    = true;
   btn.textContent = '등록 중…';
+  if (nicknameInput) nicknameInput.disabled = true;
+
   const rank = await saveRanking();
   _rankingSubmitted = true;
   btn.style.opacity = '0.4';
@@ -3984,7 +3987,7 @@ async function saveRanking() {
   if (!window._db) return null;
   const timeSec = Math.round(totalGameTime / 1000);
   if (totalScore < 0 || totalScore > 10000) return null;
-  if (timeSec < 290 || !playerNickname)     return null;
+  if (timeSec < 290)     return null;
   try {
     const path     = window._dbRef(window._db, 'rankings/' + playerUid);
     const existing = await window._dbGet(path);
