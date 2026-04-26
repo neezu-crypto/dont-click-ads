@@ -799,6 +799,27 @@
         border-radius: 12px;
       }
     }
+
+    /* ── 모바일 전체화면 레이아웃 ── */
+    @supports (height: 100dvh) {
+      body { min-height: 100dvh; }
+      .screen { height: 100dvh; }
+    }
+    @media (max-width: 600px) {
+      #game-wrap {
+        width: 100%;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+      }
+      #game-area {
+        flex: 1;
+        height: auto !important;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1177,6 +1198,18 @@
 
 <!-- ════════════════════ GAME LOGIC ════════════════════ -->
 <script>
+/* ════════ 모바일 자동 전체화면 ════════ */
+(function () {
+  if (!('ontouchstart' in window) && navigator.maxTouchPoints === 0) return;
+  function tryFullscreen() {
+    const el = document.documentElement;
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  }
+  document.addEventListener('touchstart', tryFullscreen, { once: true, passive: true });
+})();
+
 /* ════════ OPENING CURSOR AD ════════ */
 (function () {
   const el = document.getElementById('opening-cursor-ad');
