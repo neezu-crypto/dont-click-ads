@@ -32,8 +32,9 @@ const Level2Module = (() => {
 
   // ── 모듈 상태 ──
   let _area, _canvas, _ballEl, _dpad;
-  let _mobileOverlay = null;
-  let _originalArea  = null;
+  let _mobileOverlay    = null;
+  let _originalArea     = null;
+  let _isMobileRotated  = false;
   let _onSuccess, _onFail;
   let _timerInterval = null;
   let _timeLeft = 60;
@@ -462,78 +463,129 @@ const Level2Module = (() => {
     setTimeout(() => { if (_onSuccess) _onSuccess(100); }, 400);
   }
 
-  // ─── 모바일 터치 D-패드 ───
+  // ─── 모바일 조이스틱 ───
 
-  function _createDpad() {
+  function _createJoystick() {
     const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
     if (!isTouchDevice) return null;
+
+    const BASE_R  = 60;
+    const THUMB_R = 24;
+    const DEAD    = 14;
+    const THRESH  = BASE_R * 0.36;
+
+    // _isMobileRotated 시: CSS 90° CW 회전 보정으로 물리 방향 → 시각 방향 매핑
+    // 계산 근거: local(lx,ly) → screen(ly, vh-lx) 변환,
+    //   물리 right(ox+) = 시각 up(game y-) = ArrowUp
+    //   물리 down(oy+)  = 시각 right(game x+) = ArrowRight
+    const pos = _isMobileRotated
+      ? 'bottom:28px;left:28px'    // CSS 회전 시 물리 bottom-right 위치
+      : 'bottom:28px;right:28px';  // 일반 가로 화면
 
     const wrap = document.createElement('div');
     wrap.style.cssText = [
       'position:absolute',
-      'bottom:44px',
-      'right:10px',
-      'display:grid',
-      'grid-template-columns:repeat(3,54px)',
-      'grid-template-rows:repeat(3,54px)',
-      'gap:4px',
+      pos,
+      `width:${BASE_R * 2}px`,
+      `height:${BASE_R * 2}px`,
       'z-index:20',
       'touch-action:none',
       'user-select:none',
+      '-webkit-user-select:none',
     ].join(';');
 
-    const BTN_BASE = [
-      'width:100%',
-      'height:100%',
-      'border:2px solid rgba(30,70,160,0.7)',
-      'border-radius:12px',
-      'background:rgba(10,22,54,0.78)',
-      'color:rgba(100,180,255,0.9)',
-      'font-size:1.4rem',
-      'line-height:1',
-      'cursor:pointer',
-      'touch-action:none',
-      '-webkit-tap-highlight-color:transparent',
-      'backdrop-filter:blur(4px)',
+    const base = document.createElement('div');
+    base.style.cssText = [
+      'position:absolute', 'inset:0',
+      'border-radius:50%',
+      'background:rgba(20,50,120,0.38)',
+      'border:2.5px solid rgba(80,160,255,0.42)',
+      'box-sizing:border-box',
     ].join(';');
+    wrap.appendChild(base);
 
-    // [row][col]: key or null
-    const layout = [
-      [null,          'ArrowUp',    null        ],
-      ['ArrowLeft',   null,         'ArrowRight'],
-      [null,          'ArrowDown',  null        ],
-    ];
-    const labels = { ArrowUp:'▲', ArrowDown:'▼', ArrowLeft:'◀', ArrowRight:'▶' };
+    const thumb = document.createElement('div');
+    thumb.style.cssText = [
+      'position:absolute',
+      `width:${THUMB_R * 2}px`,
+      `height:${THUMB_R * 2}px`,
+      'border-radius:50%',
+      `top:${BASE_R - THUMB_R}px`,
+      `left:${BASE_R - THUMB_R}px`,
+      'background:radial-gradient(circle at 38% 38%,rgba(180,230,255,0.95),rgba(40,130,255,0.82))',
+      'border:2px solid rgba(255,255,255,0.55)',
+      'box-sizing:border-box',
+      'pointer-events:none',
+      'will-change:transform',
+    ].join(';');
+    wrap.appendChild(thumb);
 
-    layout.forEach(row => row.forEach(key => {
-      const cell = document.createElement('div');
-      if (key) {
-        const btn = document.createElement('button');
-        btn.setAttribute('aria-label', key);
-        btn.style.cssText = BTN_BASE;
-        btn.textContent   = labels[key];
+    let _activePtr = null;
 
-        btn.addEventListener('pointerdown', e => {
-          e.preventDefault();
-          btn.setPointerCapture(e.pointerId);
-          if (_ended) return;
-          btn.style.background = 'rgba(20,50,120,0.95)';
-          btn.style.color      = '#00ffaa';
-          _keysDown.add(key);
-          if (!_rafId) _rafId = requestAnimationFrame(_moveTick);
-        });
+    function _applyJoy(ox, oy) {
+      const dist = Math.hypot(ox, oy);
+      const clamp = Math.min(dist, BASE_R - THUMB_R);
+      const r = dist > 0 ? clamp / dist : 0;
+      thumb.style.transform = `translate(${ox * r}px,${oy * r}px)`;
 
-        const release = e => {
-          btn.style.background = 'rgba(10,22,54,0.78)';
-          btn.style.color      = 'rgba(100,180,255,0.9)';
-          _keysDown.delete(key);
-        };
-        btn.addEventListener('pointerup',     release);
-        btn.addEventListener('pointercancel', release);
-        cell.appendChild(btn);
+      _keysDown.delete('ArrowUp');
+      _keysDown.delete('ArrowDown');
+      _keysDown.delete('ArrowLeft');
+      _keysDown.delete('ArrowRight');
+
+      if (dist > DEAD) {
+        if (_isMobileRotated) {
+          // CSS 90° CW 회전: 물리 right→game up, 물리 down→game right
+          if (ox >  THRESH) _keysDown.add('ArrowUp');
+          if (ox < -THRESH) _keysDown.add('ArrowDown');
+          if (oy >  THRESH) _keysDown.add('ArrowRight');
+          if (oy < -THRESH) _keysDown.add('ArrowLeft');
+        } else {
+          if (ox >  THRESH) _keysDown.add('ArrowRight');
+          if (ox < -THRESH) _keysDown.add('ArrowLeft');
+          if (oy >  THRESH) _keysDown.add('ArrowDown');
+          if (oy < -THRESH) _keysDown.add('ArrowUp');
+        }
       }
-      wrap.appendChild(cell);
-    }));
+
+      if (_keysDown.size > 0 && !_rafId) _rafId = requestAnimationFrame(_moveTick);
+    }
+
+    function _resetJoy() {
+      thumb.style.transform = '';
+      _keysDown.delete('ArrowUp');
+      _keysDown.delete('ArrowDown');
+      _keysDown.delete('ArrowLeft');
+      _keysDown.delete('ArrowRight');
+      if (_ballEl) {
+        _ballEl.style.boxShadow = '0 0 12px #00ffaa88, 0 0 24px #00ffaa44';
+        _ballEl.style.transform = '';
+      }
+    }
+
+    wrap.addEventListener('pointerdown', e => {
+      if (_ended) return;
+      e.preventDefault();
+      wrap.setPointerCapture(e.pointerId);
+      _activePtr = e.pointerId;
+      const rect = base.getBoundingClientRect();
+      _applyJoy(e.clientX - (rect.left + BASE_R), e.clientY - (rect.top + BASE_R));
+    });
+
+    wrap.addEventListener('pointermove', e => {
+      if (e.pointerId !== _activePtr) return;
+      e.preventDefault();
+      const rect = base.getBoundingClientRect();
+      _applyJoy(e.clientX - (rect.left + BASE_R), e.clientY - (rect.top + BASE_R));
+    });
+
+    const _endJoy = e => {
+      if (e.pointerId !== _activePtr) return;
+      _activePtr = null;
+      _resetJoy();
+    };
+    wrap.addEventListener('pointerup',     _endJoy);
+    wrap.addEventListener('pointercancel', _endJoy);
 
     return wrap;
   }
@@ -562,7 +614,8 @@ const Level2Module = (() => {
       _originalArea.style.width  = '';
       _originalArea.style.height = '';
     }
-    _originalArea = null;
+    _originalArea    = null;
+    _isMobileRotated = false;
   }
 
   // ─── Public API ───
@@ -627,21 +680,21 @@ const Level2Module = (() => {
 
       const inner = document.createElement('div');
       if (canLockOrientation) {
-        // Android: OS가 가로 회전 → 가로 크기로 inner 설정, CSS 회전 없음
         inner.style.cssText =
           `width:${Math.max(vw, vh)}px;height:${Math.min(vw, vh)}px;` +
           'position:relative;overflow:hidden;border-radius:0;';
+        _isMobileRotated = false;
       } else if (isPortrait) {
-        // iOS 세로 → CSS 90° 회전으로 가로처럼 표시
         inner.style.cssText =
           `width:${vh}px;height:${vw}px;` +
           'transform:rotate(90deg);transform-origin:center center;' +
           'position:relative;overflow:hidden;border-radius:0;';
+        _isMobileRotated = true;
       } else {
-        // iOS 가로 → 그대로 전체 채움
         inner.style.cssText =
           `width:${vw}px;height:${vh}px;` +
           'position:relative;overflow:hidden;border-radius:0;';
+        _isMobileRotated = false;
       }
 
       _mobileOverlay.appendChild(inner);
@@ -661,7 +714,7 @@ const Level2Module = (() => {
     _canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;border-radius:14px;';
     _canvas.width  = CANVAS_W;
     _canvas.height = CANVAS_H;
-    area.appendChild(_canvas);
+    _area.appendChild(_canvas);
 
     _ballEl = document.createElement('div');
     _ballEl.style.cssText = `
@@ -671,18 +724,18 @@ const Level2Module = (() => {
       box-shadow:0 0 12px #00ffaa88, 0 0 24px #00ffaa44;
       z-index:10; transition:box-shadow 0.12s, transform 0.12s;
     `;
-    area.appendChild(_ballEl);
+    _area.appendChild(_ballEl);
 
     const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
     const hint = document.createElement('div');
     hint.style.cssText = 'position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#16203a;font-size:0.74rem;pointer-events:none;user-select:none;';
     hint.textContent   = isTouchDevice
-      ? `[S] 출발 → [G] 도착  |  터치 방향키로 이동  (${_COLS}×${_ROWS} 격자)`
+      ? `[S] 출발 → [G] 도착  |  조이스틱으로 이동  (${_COLS}×${_ROWS} 격자)`
       : `[S] 출발 → [G] 도착  |  ← ↑ ↓ → 방향키로 이동  (${_COLS}×${_ROWS} 격자)`;
-    area.appendChild(hint);
+    _area.appendChild(hint);
 
-    _dpad = _createDpad();
-    if (_dpad) area.appendChild(_dpad);
+    _dpad = _createJoystick();
+    if (_dpad) _area.appendChild(_dpad);
 
     _renderMaze();
     _placeBall();

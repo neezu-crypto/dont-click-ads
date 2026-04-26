@@ -2115,14 +2115,71 @@ const MINI_GAMES = {
     label: '포켓볼! 내 공(초록)을 전부 골인하라!',
     failOnTimeout: true,
     start(area, onScore, onFail, onSuccess) {
-      area.innerHTML = '';
       let ended = false;
 
+      // 모바일: 전체화면 + 가로 방향 잠금 + 화면 가득 채움
+      const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+      let mobileOverlay = null;
+      let gameArea = area;
+
+      if (isMobile) {
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
+        else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const isPortrait = vw < vh;
+        const canLockOrientation = !!(screen.orientation && screen.orientation.lock);
+        if (canLockOrientation) screen.orientation.lock('landscape').catch(() => {});
+
+        mobileOverlay = document.createElement('div');
+        mobileOverlay.style.cssText =
+          'position:fixed;inset:0;z-index:9999;background:#07090f;' +
+          'display:flex;align-items:center;justify-content:center;overflow:hidden;';
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '✕';
+        closeBtn.style.cssText =
+          'position:absolute;top:10px;left:10px;z-index:10000;' +
+          'background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);' +
+          'color:#fff;font-size:1rem;padding:6px 12px;border-radius:8px;cursor:pointer;';
+        closeBtn.addEventListener('click', () => {
+          if (!ended) { ended = true; if (onFail) onFail('quit'); }
+        });
+        mobileOverlay.appendChild(closeBtn);
+
+        const inner = document.createElement('div');
+        if (canLockOrientation) {
+          inner.style.cssText =
+            `width:${Math.max(vw, vh)}px;height:${Math.min(vw, vh)}px;` +
+            'position:relative;overflow:hidden;border-radius:0;';
+        } else if (isPortrait) {
+          inner.style.cssText =
+            `width:${vh}px;height:${vw}px;` +
+            'transform:rotate(90deg);transform-origin:center center;' +
+            'position:relative;overflow:hidden;border-radius:0;';
+        } else {
+          inner.style.cssText =
+            `width:${vw}px;height:${vh}px;` +
+            'position:relative;overflow:hidden;border-radius:0;';
+        }
+
+        mobileOverlay.appendChild(inner);
+        document.body.appendChild(mobileOverlay);
+        document.body.style.overflow = 'hidden';
+        mobileOverlay.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+        gameArea = inner;
+      }
+
+      gameArea.innerHTML = '';
+
       const canvas = document.createElement('canvas');
-      const W = canvas.width  = area.clientWidth  || 480;
-      const H = canvas.height = area.clientHeight || 320;
+      const W = canvas.width  = gameArea.clientWidth  || 480;
+      const H = canvas.height = gameArea.clientHeight || 320;
       canvas.style.cssText = 'position:absolute;left:0;top:0;display:block;touch-action:none';
-      area.appendChild(canvas);
+      gameArea.appendChild(canvas);
       const ctx = canvas.getContext('2d');
 
       const BALL_R   = Math.min(W, H) * 0.042;
@@ -2366,6 +2423,7 @@ const MINI_GAMES = {
         cancelAnimationFrame(raf);
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup',   onUp);
+        if (mobileOverlay) { mobileOverlay.remove(); mobileOverlay = null; document.body.style.overflow = ''; }
       };
     }
   },
