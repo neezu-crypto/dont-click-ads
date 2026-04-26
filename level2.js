@@ -600,13 +600,14 @@ const Level2Module = (() => {
       const docEl = document.documentElement;
       if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
       else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
-      if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock('landscape').catch(() => {});
-      }
 
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const isPortrait = vw < vh;
+      // Android Chrome: orientation.lock API 존재 → OS가 회전 담당, CSS 회전 불필요
+      // iOS: API 없음 → CSS 회전으로 처리
+      const canLockOrientation = !!(screen.orientation && screen.orientation.lock);
+      if (canLockOrientation) screen.orientation.lock('landscape').catch(() => {});
 
       _mobileOverlay = document.createElement('div');
       _mobileOverlay.style.cssText =
@@ -625,12 +626,19 @@ const Level2Module = (() => {
       _mobileOverlay.appendChild(closeBtn);
 
       const inner = document.createElement('div');
-      if (isPortrait) {
+      if (canLockOrientation) {
+        // Android: OS가 가로 회전 → 가로 크기로 inner 설정, CSS 회전 없음
+        inner.style.cssText =
+          `width:${Math.max(vw, vh)}px;height:${Math.min(vw, vh)}px;` +
+          'position:relative;overflow:hidden;border-radius:0;';
+      } else if (isPortrait) {
+        // iOS 세로 → CSS 90° 회전으로 가로처럼 표시
         inner.style.cssText =
           `width:${vh}px;height:${vw}px;` +
           'transform:rotate(90deg);transform-origin:center center;' +
           'position:relative;overflow:hidden;border-radius:0;';
       } else {
+        // iOS 가로 → 그대로 전체 채움
         inner.style.cssText =
           `width:${vw}px;height:${vh}px;` +
           'position:relative;overflow:hidden;border-radius:0;';
