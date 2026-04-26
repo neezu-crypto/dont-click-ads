@@ -736,6 +736,60 @@
       background: #1a1a1a; padding: 4px 14px;
       border-radius: 20px; border: 1px solid #333;
     }
+
+    /* 버튼 그룹 기본 */
+    .modal-btn-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* ── 모바일 게임오버 모달 ── */
+    @media (max-width: 600px) {
+      #level2-timeover, #level2-adcaught, #game-adclick {
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: calc(100vw - 28px);
+        max-width: none;
+        min-width: 0;
+        border-radius: 20px;
+        border: 1px solid #333;
+        padding: 28px 20px 24px;
+        gap: 16px;
+        z-index: 10001;
+      }
+      #level2-timeover h2, #level2-adcaught h2, #game-adclick h2 {
+        font-size: 1.5rem;
+      }
+      #level2-timeover .timeover-icon,
+      #level2-adcaught .timeover-icon,
+      #game-adclick .timeover-icon {
+        font-size: 3rem;
+      }
+      #level2-timeover p, #level2-adcaught p, #game-adclick p {
+        font-size: 0.9rem;
+        max-width: none;
+      }
+      #level2-timeover .nickname-badge,
+      #level2-adcaught .nickname-badge,
+      #game-adclick .nickname-badge {
+        font-size: 0.88rem;
+        padding: 5px 16px;
+      }
+      .modal-btn-group {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+      }
+      .btn-restart, .btn-ad-inquiry {
+        width: 100%;
+        padding: 16px 0;
+        font-size: 1rem;
+        border-radius: 12px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -832,7 +886,7 @@
   <h2>게임 오버!</h2>
   <div class="nickname-badge" id="game-adclick-nickname"></div>
   <p id="game-adclick-msg">시간이 초과되었거나 광고를 클릭했습니다.<br>레벨 1부터 다시 도전해보세요.</p>
-  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+  <div class="modal-btn-group">
     <button class="btn-restart" onclick="restartFromLevel1()">재도전</button>
     <button class="btn-ad-inquiry" onclick="showAdInquiryModal()">광고 문의하기</button>
   </div>
@@ -844,7 +898,7 @@
   <h2>타임 오버!</h2>
   <div class="nickname-badge" id="level2-timeover-nickname"></div>
   <p id="level2-timeover-msg">시간 안에 목표를 달성하지 못했습니다.<br>다시 도전해볼까요?</p>
-  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+  <div class="modal-btn-group">
     <button class="btn-restart" onclick="restartFromLevel1()">레벨 1부터 다시하기</button>
     <button class="btn-ad-inquiry" onclick="showAdInquiryModal()">광고 문의하기</button>
   </div>
@@ -856,7 +910,7 @@
   <h2>광고에 잡혔다!</h2>
   <div class="nickname-badge" id="level2-adcaught-nickname"></div>
   <p>따라오던 광고가 당신을 따라잡았습니다!<br>레벨 1부터 다시 도전해보세요.</p>
-  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+  <div class="modal-btn-group">
     <button class="btn-restart" onclick="restartFromLevel1()">레벨 1부터 다시하기</button>
     <button class="btn-ad-inquiry" onclick="showAdInquiryModal()">광고 문의하기</button>
   </div>
@@ -1276,7 +1330,7 @@ const MINI_GAMES = {
       let cx = window.innerWidth / 2, cy = window.innerHeight / 2;
       let tx = cx, ty = cy;
       let raf = null;
-      const LERP = isMobile ? 0.0525 : 0.0495;
+      const LERP = isMobile ? 0.0368 : 0.0347;  // 기존 대비 30% 감속
 
       function adTick() {
         cx += (tx - cx) * LERP;
