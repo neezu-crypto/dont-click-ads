@@ -805,6 +805,8 @@
       body { min-height: 100dvh; }
       .screen { height: 100dvh; }
     }
+
+    /* ── 세로 모바일 (≤600px 폭) ── */
     @media (max-width: 600px) {
       #game-wrap {
         width: 100%;
@@ -819,6 +821,89 @@
         border-left: none;
         border-right: none;
       }
+    }
+
+    /* ── 가로 모바일 (폰 landscape: height ≤ 500px, 터치 기기) ── */
+    @media (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
+      /* game-wrap / game-area → 화면 가득 */
+      #game-wrap {
+        width: 100%;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+      }
+      #game-area {
+        flex: 1;
+        height: auto !important;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+      }
+
+      /* HUD landscape 최적화 */
+      #level1-hud { padding: 5px 8px 12px; gap: 4px; }
+      .hud-chip { padding: 2px 6px; font-size: 0.68rem; }
+      .hud-chip-level { font-size: 0.7rem; }
+      .hud-chip-level b { font-size: 0.82rem; }
+      .hud-center-label { font-size: 0.65rem; }
+      .hud-chip-timer { min-width: 38px; }
+
+      /* Opening 화면 */
+      #screen-opening { gap: 8px; }
+      #screen-opening h1 { font-size: 1.7rem; }
+      #screen-opening p { font-size: 0.85rem; }
+
+      /* Tutorial 화면 */
+      #tutorial-instruction { top: 30px; font-size: 1rem; }
+
+      /* Tutorial result 오버레이 */
+      #tutorial-result { gap: 14px; padding: 16px; }
+      #tutorial-result h2 { font-size: 1.4rem; }
+      #tutorial-result p  { font-size: 0.9rem; }
+
+      /* Level clear 오버레이 */
+      #level-clear-overlay { gap: 8px; padding: 12px; }
+      #level-clear-overlay h2 { font-size: 1.5rem; }
+
+      /* Ending 화면 */
+      #screen-ending { gap: 10px; padding: 12px 16px; }
+      #screen-ending h1 { font-size: 1.7rem; }
+      #ending-stats { gap: 10px; }
+      .ending-stat { padding: 10px 16px; min-width: 90px; }
+      .ending-stat .stat-value { font-size: 1.5rem; }
+      .ending-stat .stat-label { font-size: 0.75rem; }
+
+      /* 게임오버 모달 → landscape에서도 중앙 + 작게 */
+      #level2-timeover, #level2-adcaught, #game-adclick {
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: min(520px, calc(100vw - 28px));
+        max-width: none;
+        min-width: 0;
+        border-radius: 16px;
+        border: 1px solid #333;
+        padding: 16px 20px;
+        gap: 8px;
+        z-index: 10001;
+        max-height: 90dvh;
+        overflow-y: auto;
+      }
+      #level2-timeover h2, #level2-adcaught h2, #game-adclick h2 { font-size: 1.2rem; }
+      #level2-timeover .timeover-icon,
+      #level2-adcaught .timeover-icon,
+      #game-adclick .timeover-icon { font-size: 1.8rem; }
+      #level2-timeover p, #level2-adcaught p, #game-adclick p { font-size: 0.82rem; }
+      .modal-btn-group { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+      .btn-restart, .btn-ad-inquiry {
+        flex: 1;
+        padding: 10px 0;
+        font-size: 0.88rem;
+        border-radius: 10px;
+      }
+
+      /* 랭킹 모달 landscape */
+      #ranking-inner { max-height: 85dvh; }
     }
   </style>
 </head>
@@ -1198,16 +1283,79 @@
 
 <!-- ════════════════════ GAME LOGIC ════════════════════ -->
 <script>
-/* ════════ 모바일 자동 전체화면 ════════ */
+/* ════════ 모바일 가로화면 안내 & 전체화면 ════════ */
 (function () {
   if (!('ontouchstart' in window) && navigator.maxTouchPoints === 0) return;
-  function tryFullscreen() {
+
+  const canLockOrientation = !!(screen.orientation && screen.orientation.lock);
+
+  /* ── 가로+전체화면 적용 함수 ── */
+  function applyLandscape() {
     const el = document.documentElement;
-    if (document.fullscreenElement || document.webkitFullscreenElement) return;
-    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
-    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    const p = el.requestFullscreen
+      ? el.requestFullscreen().catch(() => {})
+      : el.webkitRequestFullscreen
+        ? (el.webkitRequestFullscreen(), Promise.resolve())
+        : Promise.resolve();
+    if (canLockOrientation) {
+      Promise.resolve(p).then(() => screen.orientation.lock('landscape').catch(() => {}));
+    }
   }
-  document.addEventListener('touchstart', tryFullscreen, { once: true, passive: true });
+
+  /* ── 세로 감지 차단 오버레이 (항상 준비, 안내 확인 후 활성화) ── */
+  const rotateOv = document.createElement('div');
+  rotateOv.id = 'rotate-overlay';
+  rotateOv.style.cssText =
+    'display:none;position:fixed;inset:0;z-index:99999;background:#0a0a0a;' +
+    'flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;';
+  rotateOv.innerHTML =
+    '<div style="font-size:3.5rem;transform:rotate(90deg);display:inline-block">📱</div>' +
+    '<p style="font-size:1.15rem;font-weight:bold;color:#fff;margin:0">가로 방향으로 회전해주세요</p>' +
+    '<p style="font-size:0.85rem;color:#888;margin:0">이 게임은 가로 화면에서만 플레이할 수 있습니다.</p>';
+  document.body.appendChild(rotateOv);
+
+  function _watchOrientation() {
+    function _checkPortrait() {
+      rotateOv.style.display = (window.innerWidth < window.innerHeight) ? 'flex' : 'none';
+    }
+    function _ensureFullscreen() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        if (window.innerWidth >= window.innerHeight) applyLandscape();
+      }
+    }
+    _checkPortrait();
+    window.addEventListener('resize', _checkPortrait);
+    // 가로 상태에서 전체화면이 해제됐을 때 → 다음 터치 시 자동 재진입
+    document.addEventListener('touchstart', _ensureFullscreen, { passive: true });
+  }
+
+  /* ── 최초 안내 모달 ── */
+  const guideOv = document.createElement('div');
+  guideOv.id = 'landscape-guide';
+  guideOv.style.cssText =
+    'position:fixed;inset:0;z-index:99998;background:#0a0a0a;' +
+    'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+    'gap:20px;text-align:center;padding:32px;';
+  guideOv.innerHTML =
+    '<div style="font-size:3.5rem">🎮</div>' +
+    '<h2 style="font-size:1.35rem;font-weight:bold;color:#fff;margin:0">가로 화면 전용 게임</h2>' +
+    '<p style="font-size:0.95rem;color:#aaa;max-width:280px;line-height:1.7;margin:0">' +
+      '이 게임은 <b style="color:#fff">가로 전체화면</b>에서<br>플레이할 수 있습니다.<br>' +
+      '아래 버튼을 누르면 자동으로<br>가로 전체화면으로 전환됩니다.' +
+    '</p>' +
+    '<button id="landscape-confirm-btn" ' +
+      'style="margin-top:8px;padding:16px 44px;font-size:1.1rem;font-weight:bold;' +
+      'background:#2266ff;color:#fff;border:none;border-radius:12px;cursor:pointer;' +
+      'touch-action:manipulation;-webkit-tap-highlight-color:transparent;">' +
+      '전체화면으로 시작하기' +
+    '</button>';
+  document.body.appendChild(guideOv);
+
+  document.getElementById('landscape-confirm-btn').addEventListener('click', function () {
+    guideOv.remove();
+    applyLandscape();
+    _watchOrientation();
+  });
 })();
 
 /* ════════ OPENING CURSOR AD ════════ */
@@ -1332,7 +1480,7 @@ const MINI_GAMES = {
       const tgt = area.querySelector('#target');
       function move() {
         tgt.style.left = Math.random() * (area.clientWidth  - 80) + 'px';
-        tgt.style.top  = Math.random() * (area.clientHeight - 80) + 'px';
+        tgt.style.top  = 32 + Math.random() * (area.clientHeight - 80 - 32) + 'px';
       }
       move();
       tgt.onclick = () => {
@@ -1425,7 +1573,7 @@ const MINI_GAMES = {
         const sz = 44 + Math.random() * 36;
         const d  = document.createElement('div');
         d.className = 'g-rt';
-        d.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:radial-gradient(circle,#00ffaa,#008855);left:${Math.random()*(area.clientWidth-sz)}px;top:${Math.random()*(area.clientHeight-sz)}px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:bold;color:#000;transition:opacity 0.15s;box-shadow:0 0 10px #00ffaa66`;
+        d.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:radial-gradient(circle,#00ffaa,#008855);left:${Math.random()*(area.clientWidth-sz)}px;top:${32+Math.random()*(area.clientHeight-sz-32)}px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:bold;color:#000;transition:opacity 0.15s;box-shadow:0 0 10px #00ffaa66`;
         d.textContent = '+15';
         area.appendChild(d);
         if (isMobile) aimAtTarget(d, sz);
@@ -1663,7 +1811,7 @@ const MINI_GAMES = {
         const placed = [];
         szs.sort(()=>Math.random()-.5).forEach(sz => {
           let x, y, tries=0;
-          do { x=8+Math.random()*(area.clientWidth-sz-16); y=8+Math.random()*(area.clientHeight-sz-16); tries++; }
+          do { x=8+Math.random()*(area.clientWidth-sz-16); y=32+Math.random()*(area.clientHeight-sz-48); tries++; }
           while (tries<40 && placed.some(p=>Math.hypot(p.x+p.s/2-x-sz/2,p.y+p.s/2-y-sz/2)<(p.s+sz)/2+6));
           placed.push({x,y,s:sz});
           const d = document.createElement('div');
@@ -1698,7 +1846,7 @@ const MINI_GAMES = {
           const c  = i===oddIdx ? diff : base;
           const sz = 50+Math.random()*22;
           let x, y, tries=0;
-          do { x=8+Math.random()*(area.clientWidth-sz-16); y=8+Math.random()*(area.clientHeight-sz-16); tries++; }
+          do { x=8+Math.random()*(area.clientWidth-sz-16); y=32+Math.random()*(area.clientHeight-sz-48); tries++; }
           while (tries<40 && placed.some(p=>Math.hypot(p.x+p.s/2-x-sz/2,p.y+p.s/2-y-sz/2)<(p.s+sz)/2+8));
           placed.push({x,y,s:sz});
           const d = document.createElement('div');
@@ -2544,7 +2692,7 @@ const gameStages = [
         let x, y, tries = 0;
         do {
           x = 8 + Math.random() * (area.clientWidth  - SZ - 16);
-          y = 8 + Math.random() * (area.clientHeight - SZ - 16);
+          y = 32 + Math.random() * (area.clientHeight - SZ - 48);
           tries++;
         } while (tries < 30 && exclude.some(p => Math.hypot(p.x - x, p.y - y) < SZ + 12));
         return { x, y };
