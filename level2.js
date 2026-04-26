@@ -32,6 +32,8 @@ const Level2Module = (() => {
 
   // ── 모듈 상태 ──
   let _area, _canvas, _ballEl, _dpad;
+  let _mobileOverlay = null;
+  let _originalArea  = null;
   let _onSuccess, _onFail;
   let _timerInterval = null;
   let _timeLeft = 60;
@@ -552,14 +554,23 @@ const Level2Module = (() => {
     if (_adEl  && _adEl.parentNode)  { _adEl.parentNode.removeChild(_adEl);   _adEl  = null; }
     if (_dpad  && _dpad.parentNode)  { _dpad.parentNode.removeChild(_dpad);   _dpad  = null; }
     _rmListeners();
-    if (_area) { _area.style.width = ''; _area.style.height = ''; }
+    if (_mobileOverlay) {
+      _mobileOverlay.remove();
+      _mobileOverlay = null;
+      document.body.style.overflow = '';
+    } else if (_originalArea) {
+      _originalArea.style.width  = '';
+      _originalArea.style.height = '';
+    }
+    _originalArea = null;
   }
 
   // ─── Public API ───
 
   function start(area, onSuccess, onFail) {
     _cleanup(); // cancel any stale RAF/timers from a previous invocation
-    _area = area; _onSuccess = onSuccess; _onFail = onFail;
+    _originalArea = area;
+    _onSuccess = onSuccess; _onFail = onFail;
     _ended = false; _keysDown.clear();
     _pathHistory = []; _adEl = null; _adPos = { x: 0, y: 0 };
     _adIdxF = 0; _adLastTs = 0; _adLandingUrl = ''; _adTimerStarted = false;
@@ -582,9 +593,61 @@ const Level2Module = (() => {
       y: MAZE_PAD + (_sCell.r + 0.5) * _CELL,
     };
 
-    area.style.width  = `min(${CANVAS_W}px, 96vw)`;
-    area.style.height = `${CANVAS_H}px`;
-    area.innerHTML    = '';
+    // 모바일: 전체화면 + 가로 방향 잠금 + 화면 가득 채움
+    const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+    if (isMobile) {
+      const docEl = document.documentElement;
+      if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
+      else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(() => {});
+      }
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const isPortrait = vw < vh;
+
+      _mobileOverlay = document.createElement('div');
+      _mobileOverlay.style.cssText =
+        'position:fixed;inset:0;z-index:9999;background:#07090f;' +
+        'display:flex;align-items:center;justify-content:center;overflow:hidden;';
+
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = '✕';
+      closeBtn.style.cssText =
+        'position:absolute;top:10px;left:10px;z-index:10000;' +
+        'background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);' +
+        'color:#fff;font-size:1rem;padding:6px 12px;border-radius:8px;cursor:pointer;';
+      closeBtn.addEventListener('click', () => {
+        if (!_ended) { _ended = true; _cleanup(); if (_onFail) _onFail('quit'); }
+      });
+      _mobileOverlay.appendChild(closeBtn);
+
+      const inner = document.createElement('div');
+      if (isPortrait) {
+        inner.style.cssText =
+          `width:${vh}px;height:${vw}px;` +
+          'transform:rotate(90deg);transform-origin:center center;' +
+          'position:relative;overflow:hidden;border-radius:0;';
+      } else {
+        inner.style.cssText =
+          `width:${vw}px;height:${vh}px;` +
+          'position:relative;overflow:hidden;border-radius:0;';
+      }
+
+      _mobileOverlay.appendChild(inner);
+      document.body.appendChild(_mobileOverlay);
+      document.body.style.overflow = 'hidden';
+      _mobileOverlay.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+      _area = inner;
+    } else {
+      _area = area;
+      area.style.width  = `min(${CANVAS_W}px, 96vw)`;
+      area.style.height = `${CANVAS_H}px`;
+      area.innerHTML    = '';
+    }
 
     _canvas = document.createElement('canvas');
     _canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;border-radius:14px;';
