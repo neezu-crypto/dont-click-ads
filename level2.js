@@ -705,7 +705,6 @@ const Level2Module = (() => {
       _area = inner;
     } else {
       _area = area;
-      area.style.width  = `min(${CANVAS_W}px, 96vw)`;
       area.style.height = `${CANVAS_H}px`;
       area.innerHTML    = '';
     }
