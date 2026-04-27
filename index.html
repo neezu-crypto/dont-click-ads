@@ -1314,6 +1314,36 @@
     '<p style="font-size:0.85rem;color:#888;margin:0">이 게임은 가로 화면에서만 플레이할 수 있습니다.</p>';
   document.body.appendChild(rotateOv);
 
+  /* ── 전체화면 복귀 오버레이 (광고 탭 복귀 후 표시) ── */
+  const fsReturnOv = document.createElement('div');
+  fsReturnOv.id = 'fullscreen-return-overlay';
+  fsReturnOv.style.cssText =
+    'display:none;position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,0.82);' +
+    'flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:32px;';
+  fsReturnOv.innerHTML =
+    '<div style="font-size:2.8rem">⛶</div>' +
+    '<p style="font-size:1.1rem;font-weight:bold;color:#fff;margin:0">전체화면이 해제되었습니다</p>' +
+    '<p style="font-size:0.85rem;color:#aaa;margin:0;max-width:260px;line-height:1.6">아래 버튼을 눌러<br>전체화면으로 돌아가세요</p>' +
+    '<button style="margin-top:8px;padding:14px 44px;font-size:1rem;font-weight:bold;' +
+      'background:#2266ff;color:#fff;border:none;border-radius:12px;cursor:pointer;' +
+      'touch-action:manipulation;-webkit-tap-highlight-color:transparent;">' +
+      '⛶ 전체화면으로 돌아가기' +
+    '</button>';
+  document.body.appendChild(fsReturnOv);
+
+  fsReturnOv.addEventListener('click', function () {
+    fsReturnOv.style.display = 'none';
+    applyLandscape();
+  });
+
+  function _hideFsReturn() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      fsReturnOv.style.display = 'none';
+    }
+  }
+  document.addEventListener('fullscreenchange', _hideFsReturn);
+  document.addEventListener('webkitfullscreenchange', _hideFsReturn);
+
   function _watchOrientation() {
     function _checkPortrait() {
       rotateOv.style.display = (window.innerWidth < window.innerHeight) ? 'flex' : 'none';
@@ -1327,6 +1357,20 @@
     window.addEventListener('resize', _checkPortrait);
     // 가로 상태에서 전체화면이 해제됐을 때 → 다음 터치 시 자동 재진입
     document.addEventListener('touchstart', _ensureFullscreen, { passive: true });
+
+    // 광고 탭 복귀 감지 → 전체화면 복귀 버튼 표시
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) {
+        // 약간의 지연 후 체크(iOS에서 fullscreenElement가 즉시 갱신되지 않는 경우 대비)
+        setTimeout(function () {
+          if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            fsReturnOv.style.display = 'flex';
+          }
+        }, 400);
+      } else {
+        fsReturnOv.style.display = 'none';
+      }
+    });
   }
 
   /* ── 최초 안내 모달 ── */
