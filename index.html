@@ -310,7 +310,7 @@
     #ad-popup {
       display: none;
       position: fixed;
-      z-index: 200;
+      z-index: 9999;
       background: #fff;
       border: 3px solid #ff4400;
       border-radius: 8px;
@@ -3796,6 +3796,7 @@ function clearLevel1Timers() {
   if (adPopupTimer) { clearTimeout(adPopupTimer); adPopupTimer = null; }
   if (_activeGameCleanup) { _activeGameCleanup(); _activeGameCleanup = null; }
   isLevel1Running = false;
+  hideAdPopup();
 }
 
 function updateLevel1UI() {
