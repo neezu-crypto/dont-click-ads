@@ -303,6 +303,9 @@ const RacingModule = (() => {
     car.finishRank = _finishRankCounter;
     if (car.isPlayer) {
       _handlePlayerFinish(car.finishRank);
+    } else if (_finishRankCounter >= WIN_POS && !_player.finished && !_ended) {
+      // AI가 WIN_POS등까지 완주 → 플레이어 탈락 확정
+      _handlePlayerFinish(_finishRankCounter + 1);
     }
   }
 
@@ -327,8 +330,7 @@ const RacingModule = (() => {
       // 완주차: 미완주차 최대값(N*1000)보다 크게 설정, 완주 순서 반영
       if (car.finished) return N * 1000 + (N - car.finishRank);
       const wp = car.wpTarget;
-      const wpPrev = (wp - 1 + N) % N;
-      const dist = Math.hypot(car.x - WAYPOINTS[wpPrev].x, car.y - WAYPOINTS[wpPrev].y);
+      const dist = Math.hypot(car.x - WAYPOINTS[wp].x, car.y - WAYPOINTS[wp].y);
       return wp * 1000 - dist;
     };
     const sorted = [...allCars].sort((a, b) => progress(b) - progress(a));
