@@ -42,6 +42,8 @@ const TetrisModule = (() => {
   let _isMobileRotated = false;
   let _originalArea    = null;
 
+  let _waitingStart = false; // 인트로 화면 대기 중
+
   // 드래그 / 클릭 구분용
   let _pointerDown = false;
   let _dragStartX  = 0;
@@ -283,6 +285,108 @@ const TetrisModule = (() => {
     ctx.globalAlpha = 1;
   }
 
+  // ── 인트로 화면 ──
+  function _drawIntro() {
+    if (!_ctx || !_canvas) return;
+    const ctx = _ctx;
+    const cw = _canvas.width, ch = _canvas.height;
+    const sx = cw / LW, sy = ch / LH;
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.save();
+    ctx.scale(sx, sy);
+
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, LW, LH);
+
+    // 타이틀
+    ctx.font = 'bold 40px monospace';
+    ctx.fillStyle = '#00ffaa';
+    ctx.textAlign = 'center';
+    ctx.fillText('TETRIS', LW / 2, 72);
+
+    ctx.strokeStyle = '#334466';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(20, 88); ctx.lineTo(LW - 20, 88); ctx.stroke();
+
+    // 조작법
+    ctx.font = 'bold 13px monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText('조작법', LW / 2, 112);
+
+    const controls = [
+      ['드래그', '블록 좌/우 이동'],
+      ['탭 (터치)', '블록 회전'],
+    ];
+    controls.forEach(([key, desc], i) => {
+      const y = 132 + i * 24;
+      ctx.font = '12px monospace';
+      ctx.fillStyle = '#00f0f0';
+      ctx.textAlign = 'right';
+      ctx.fillText(key, LW / 2 - 10, y);
+      ctx.fillStyle = '#ffffffcc';
+      ctx.textAlign = 'left';
+      ctx.fillText(desc, LW / 2 + 10, y);
+    });
+
+    ctx.strokeStyle = '#334466';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(20, 192); ctx.lineTo(LW - 20, 192); ctx.stroke();
+
+    // 규칙
+    ctx.font = 'bold 13px monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText('규칙', LW / 2, 214);
+
+    const rules = [
+      `가로줄 ${TARGET_LINES}줄 클리어 → 승리 🎉`,
+      '블록이 맨 위까지 차면 → 패배',
+      '블록이 쌓일수록 속도 증가',
+    ];
+    ctx.font = '11px monospace';
+    ctx.fillStyle = '#ffffffbb';
+    rules.forEach((rule, i) => {
+      ctx.textAlign = 'center';
+      ctx.fillText('• ' + rule, LW / 2, 238 + i * 22);
+    });
+
+    // 미리보기 테트로미노 장식
+    const previewPieces = [
+      { shape: [[1,1,1,1]], color: '#00f0f0', x: 30, y: 330 },
+      { shape: [[1,1],[1,1]], color: '#f0f000', x: 130, y: 330 },
+      { shape: [[1,1,1],[0,1,0]], color: '#a000f0', x: 210, y: 330 },
+    ];
+    previewPieces.forEach(({ shape, color, x, y }) => {
+      shape.forEach((row, dr) =>
+        row.forEach((v, dc) => {
+          if (!v) return;
+          const cs = 14;
+          ctx.fillStyle = color;
+          ctx.fillRect(x + dc * cs, y + dr * cs, cs - 2, cs - 2);
+          ctx.fillStyle = '#ffffff44';
+          ctx.fillRect(x + dc * cs, y + dr * cs, cs - 2, 3);
+        })
+      );
+    });
+
+    // 시작 안내
+    ctx.font = 'bold 15px monospace';
+    ctx.fillStyle = '#ffff00';
+    ctx.textAlign = 'center';
+    ctx.fillText('화면을 터치하여 시작', LW / 2, LH - 50);
+
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#ffffff55';
+    ctx.fillText('tap / click anywhere', LW / 2, LH - 30);
+
+    ctx.strokeStyle = BORDER;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, LW, LH);
+
+    ctx.restore();
+  }
+
   // ── 메인 루프 ──
   function _tick(ts) {
     _rafId = null;
@@ -329,7 +433,7 @@ const TetrisModule = (() => {
   }
 
   function _onPointerMove(e) {
-    if (!_pointerDown || _ended) return;
+    if (!_pointerDown || _ended || _waitingStart) return;
     e.preventDefault();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const lx = _clientToLogicalX(clientX);
@@ -348,6 +452,13 @@ const TetrisModule = (() => {
   }
 
   function _onPointerUp(e) {
+    if (_waitingStart) {
+      _pointerDown  = false;
+      _waitingStart = false;
+      _lastDrop     = performance.now();
+      _rafId        = requestAnimationFrame(_tick);
+      return;
+    }
     if (!_pointerDown || _ended) { _pointerDown = false; return; }
     e.preventDefault();
     if (!_moved) _rotate(); // 이동 없이 놓으면 회전
@@ -394,6 +505,7 @@ const TetrisModule = (() => {
     if (_wrap) { _wrap.style.width = ''; _wrap = null; }
     _isMobileRotated = false;
     _originalArea    = null;
+    _waitingStart    = false;
     _canvas = null;
     _ctx    = null;
   }
@@ -507,9 +619,8 @@ const TetrisModule = (() => {
       _addListeners(_canvas);
     }
 
-    _lastDrop = performance.now();
-    _render();
-    _rafId = requestAnimationFrame(_tick);
+    _waitingStart = true;
+    _drawIntro();
 
     return _cleanup;
   }
