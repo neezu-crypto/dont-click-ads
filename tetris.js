@@ -11,7 +11,7 @@ const TetrisModule = (() => {
 
   // ── 낙하 속도 ──
   const DROP_BASE  = 800;  // ms (초기 한 칸 낙하 주기)
-  const DROP_MIN   = 80;   // ms (최소)
+  const DROP_MIN   = 400;  // ms (최소)
   const DROP_STEP  = 30;   // 블록 1개 쌓을 때마다 단축 ms
 
   // ── 테트로미노 정의 (SRS 배치) ──
@@ -26,7 +26,7 @@ const TetrisModule = (() => {
   ];
 
   // ── 상태 ──
-  let _area, _canvas, _ctx;
+  let _area, _wrap, _canvas, _ctx;
   let _onScore, _onSuccess, _onFail;
   let _ended = false, _rafId = null;
 
@@ -389,7 +389,9 @@ const TetrisModule = (() => {
       _originalArea.style.width       = '';
       _originalArea.style.height      = '';
       _originalArea.style.aspectRatio = '';
+      _originalArea.style.position    = '';
     }
+    if (_wrap) { _wrap.style.width = ''; _wrap = null; }
     _isMobileRotated = false;
     _originalArea    = null;
     _canvas = null;
@@ -485,8 +487,8 @@ const TetrisModule = (() => {
     } else {
       // PC
       _area = area;
-      const wrap = area.parentElement;
-      if (wrap) wrap.style.width = `min(${LW}px, 100%)`;
+      _wrap = area.parentElement;
+      if (_wrap) _wrap.style.width = `min(${LW}px, 100%)`;
       area.style.width       = '100%';
       area.style.height      = 'auto';
       area.style.aspectRatio = `${LW} / ${LH}`;
