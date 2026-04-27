@@ -183,7 +183,7 @@ const RacingModule = (() => {
       }
       car.wpTarget = next;
     }
-    const targetAngle = Math.atan2(dy, dx) - Math.PI / 2;
+    const targetAngle = Math.atan2(dx, -dy);
     let diff = targetAngle - car.angle;
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
@@ -277,15 +277,22 @@ const RacingModule = (() => {
       const wp = WAYPOINTS[car.wpTarget];
       const dist = Math.hypot(car.x - wp.x, car.y - wp.y);
       if (dist < 55) {
-        // wpTarget 갱신 전에 passedHalf 체크
-        if (car.wpTarget > WAYPOINTS.length / 2) car.passedHalf = true;
-        const next = (car.wpTarget + 1) % WAYPOINTS.length;
-        if (next === 0 && car.lapsComplete === 0 && car.passedHalf) {
-          car.lapsComplete = 1;
-          car.finished = true;
-          _registerFinish(car);
+        // 역주행 방지: 차량 진행방향과 트랙 방향의 내적이 양수일 때만 통과 인정
+        const wpN = WAYPOINTS[(car.wpTarget + 1) % WAYPOINTS.length];
+        const tdx = wpN.x - wp.x, tdy = wpN.y - wp.y;
+        const vx = Math.sin(car.angle), vy = -Math.cos(car.angle);
+        const dot = vx * tdx + vy * tdy;
+        if (dot > 0) {
+          // wpTarget 갱신 전에 passedHalf 체크
+          if (car.wpTarget > WAYPOINTS.length / 2) car.passedHalf = true;
+          const next = (car.wpTarget + 1) % WAYPOINTS.length;
+          if (next === 0 && car.lapsComplete === 0 && car.passedHalf) {
+            car.lapsComplete = 1;
+            car.finished = true;
+            _registerFinish(car);
+          }
+          car.wpTarget = next;
         }
-        car.wpTarget = next;
       }
     }
   }
