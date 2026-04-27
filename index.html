@@ -2719,6 +2719,7 @@ const gameStages = [
       let seqTimer    = null;
       let timeLeft    = 30;
       let ended       = false;
+      const isMobile  = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
       let adConvertedCount = 0; // 라운드당 변환 횟수
       let adConvertLimit   = 1; // 20회 클릭 이전: 1, 이후: 2
 
@@ -2786,6 +2787,42 @@ const gameStages = [
               setTimeout(spawn, 350);
             } else {
               checkAutoConvert();
+              if (isMobile && Math.random() < 0.25) {
+                const mobileTarget = nextNum;
+                setTimeout(() => {
+                  if (ended || !isLevel1Running) return;
+                  const btn = [...area.querySelectorAll('[data-seq]')]
+                    .find(el => parseInt(el.dataset.seq) === mobileTarget);
+                  if (!btn) return;
+                  const ad = (typeof randomAd === 'function') ? (randomAd('level1') || randomAd('all')) : null;
+                  if (!ad) return;
+                  const bx = parseFloat(btn.style.left), by = parseFloat(btn.style.top);
+                  delete btn.dataset.seq;
+                  btn.dataset.adbait = '1';
+                  btn.style.background = ad.imgUrl ? `url(${ad.imgUrl}) center/cover` : 'radial-gradient(circle,#ff8844,#cc3300)';
+                  btn.style.boxShadow = '0 0 14px #ff440088';
+                  btn.style.border    = '2px solid #ff4400';
+                  btn.style.fontSize  = '0';
+                  btn.textContent     = '';
+                  btn.onclick         = null;
+                  btn.onmouseenter    = null;
+                  const _adTap = () => {
+                    if (!isLevel1Running || ended) return;
+                    ended = true;
+                    clearInterval(seqTimer);
+                    window.open(ad.landingUrl, '_blank');
+                    if (typeof recordAdClick === 'function') recordAdClick();
+                    if (typeof playAdSound   === 'function') playAdSound();
+                    isLevel1Running = false;
+                    onFail('ad-click');
+                  };
+                  btn.onmousedown = _adTap;
+                  btn.addEventListener('touchstart', e => { e.preventDefault(); _adTap(); }, { passive: false });
+                  const exclude = allOccupied();
+                  exclude.push({ x: bx, y: by });
+                  area.appendChild(makeBtn(mobileTarget, randPos(exclude)));
+                }, 250);
+              }
             }
           } else {
             d.style.background = 'radial-gradient(circle,#ff4444,#cc0000)';
