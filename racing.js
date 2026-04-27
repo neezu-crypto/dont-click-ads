@@ -204,7 +204,7 @@ const RacingModule = (() => {
     const dx = scrX - canvas.width / 2;
     const dy = scrY - canvas.height / 2;
     if (Math.hypot(dx, dy) < 10) return; // 화면 중심 근처는 무시
-    const targetAngle = Math.atan2(dy, dx) - Math.PI / 2;
+    const targetAngle = Math.atan2(dx, -dy); // canvas 좌표계 보정: 위=0, 오른쪽=π/2
     let diff = targetAngle - car.angle;
     while (diff > Math.PI)  diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
