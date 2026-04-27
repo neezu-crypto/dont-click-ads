@@ -88,7 +88,7 @@ const RacingModule = (() => {
       const dx = wpN.x - wp.x, dy = wpN.y - wp.y;
       const len = Math.hypot(dx, dy);
       const perpX = -dy / len, perpY = dx / len; // 트랙 중심선의 법선
-      const angle = Math.atan2(dy, dx) - Math.PI / 2;
+      const angle = Math.atan2(dx, -dy);
       for (let col = 0; col < 2; col++) {
         const side = col === 0 ? -1 : 1;
         positions.push({
