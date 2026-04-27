@@ -787,8 +787,8 @@ const BadmintonModule = (() => {
     _area.innerHTML = '';
 
     _canvas = document.createElement('canvas');
-    _canvas.width  = W;
-    _canvas.height = H;
+    _canvas.width  = _area.clientWidth  || W;
+    _canvas.height = _area.clientHeight || H;
     _canvas.style.cssText =
       'position:absolute;inset:0;width:100%;height:100%;' +
       'touch-action:none;border-radius:12px;cursor:grab;display:block;';
