@@ -813,6 +813,9 @@ const RacingModule = (() => {
 
   // ── 공개 API ──
   function start(area, onScore, onSuccess, onFail) {
+    // 이전 게임 루프가 남아있으면 즉시 취소 (재도전 시 이중 루프 방지)
+    if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+
     _area = area;
     _onScore = onScore;
     _onSuccess = onSuccess;
