@@ -5,6 +5,8 @@ const RacingModule = (() => {
   // ── 트랙 상수 ──
   const TRACK_W = 1200, TRACK_H = 1200;
   const ROAD_W  = 180;  // 도로 폭
+  const ROAD_HALF = ROAD_W * 0.50;          // 아스팔트 반폭 (90px)
+  const RAIL_LIMIT = ROAD_HALF - 15;        // 가드레일 충돌 경계 (차 반폭 고려)
   const CAR_W   = 28, CAR_H = 48;
   const NUM_AI  = 7;
   const WIN_POS = 3; // 3등 이내 → 클리어
@@ -114,7 +116,6 @@ const RacingModule = (() => {
         finished: false,
         finishRank: 0,
         isPlayer: false,
-        offTrack: false,
         driftFx: 0,
         prevSide: null,
         passedHalf: false,
@@ -133,25 +134,36 @@ const RacingModule = (() => {
       finished: false,
       finishRank: 0,
       isPlayer: true,
-      offTrack: false,
       driftFx: 0,
       prevSide: null,
       passedHalf: false,
     };
   }
 
-  // ── 트랙 위 여부 판단 ──
-  function _nearestWpDist(x, y) {
+  // ── 중심선 최근접 정보 ──
+  // returns { signedDist, perpX, perpY }
+  //   signedDist > 0 → 외측(왼쪽) 벽 방향, < 0 → 내측(오른쪽) 벽 방향
+  function _closestCenterlineInfo(x, y) {
+    const N = WAYPOINTS.length;
     let minDist = Infinity;
-    for (const wp of WAYPOINTS) {
-      const d = Math.hypot(x - wp.x, y - wp.y);
-      if (d < minDist) minDist = d;
+    let bestSignedDist = 0, bestPerpX = 1, bestPerpY = 0;
+    for (let i = 0; i < N; i++) {
+      const wp = WAYPOINTS[i], wpN = WAYPOINTS[(i + 1) % N];
+      const dx = wpN.x - wp.x, dy = wpN.y - wp.y;
+      const len2 = dx * dx + dy * dy;
+      if (len2 === 0) continue;
+      const t = Math.max(0, Math.min(1, ((x - wp.x) * dx + (y - wp.y) * dy) / len2));
+      const cx = wp.x + t * dx, cy = wp.y + t * dy;
+      const dist = Math.hypot(x - cx, y - cy);
+      if (dist < minDist) {
+        minDist = dist;
+        const len = Math.sqrt(len2);
+        const perpX = -dy / len, perpY = dx / len; // 왼쪽 법선
+        bestPerpX = perpX; bestPerpY = perpY;
+        bestSignedDist = (x - cx) * perpX + (y - cy) * perpY;
+      }
     }
-    return minDist;
-  }
-
-  function _isOnTrack(x, y) {
-    return _nearestWpDist(x, y) < ROAD_W * 0.65;
+    return { signedDist: bestSignedDist, perpX: bestPerpX, perpY: bestPerpY };
   }
 
   // ── AI 조향 ──
@@ -161,17 +173,16 @@ const RacingModule = (() => {
     const dx = wp.x - car.x, dy = wp.y - car.y;
     const dist = Math.hypot(dx, dy);
     if (dist < 55) {
+      // wpTarget 갱신 전에 passedHalf 체크 (업데이트 후 0이 되면 조건 오동작)
+      if (car.wpTarget > WAYPOINTS.length / 2) car.passedHalf = true;
       const next = (car.wpTarget + 1) % WAYPOINTS.length;
       if (next === 0 && car.lapsComplete === 0 && car.passedHalf) {
-        // 한 바퀴 완주
         car.lapsComplete = 1;
         car.finished = true;
         _registerFinish(car);
       }
       car.wpTarget = next;
     }
-    // 절반 이상 진행했을 때 플래그 세팅 (역주행 방지)
-    if (car.wpTarget > WAYPOINTS.length / 2) car.passedHalf = true;
     const targetAngle = Math.atan2(dy, dx) - Math.PI / 2;
     let diff = targetAngle - car.angle;
     while (diff > Math.PI) diff -= Math.PI * 2;
@@ -181,20 +192,21 @@ const RacingModule = (() => {
 
   // ── 플레이어 조향 ──
   function _steerPlayer(car) {
-    if (!_inputDown || !_racing || car.finished) return;
+    if (!_racing || car.finished) return;
+    if (!_inputDown) { car.steer = 0; return; }
     const canvas = _canvas;
     const rect = canvas.getBoundingClientRect();
-    // 화면 좌표 → 월드 좌표
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const scrX = (_inputX - rect.left) * scaleX;
     const scrY = (_inputY - rect.top) * scaleY;
-    const worldX = scrX + _camX - canvas.width / 2;
-    const worldY = scrY + _camY - canvas.height / 2;
-    const dx = worldX - car.x, dy = worldY - car.y;
+    // 화면 중심 기준 방향 → 카메라 지연과 무관하게 터치 방향 = 조향 방향
+    const dx = scrX - canvas.width / 2;
+    const dy = scrY - canvas.height / 2;
+    if (Math.hypot(dx, dy) < 10) return; // 화면 중심 근처는 무시
     const targetAngle = Math.atan2(dy, dx) - Math.PI / 2;
     let diff = targetAngle - car.angle;
-    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff > Math.PI)  diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
     car.steer = Math.max(-1, Math.min(1, diff * 3));
   }
@@ -205,22 +217,17 @@ const RacingModule = (() => {
       car.speed *= (1 - dt * 2);
       return;
     }
-    const onTrack = _isOnTrack(car.x, car.y);
-    car.offTrack = !onTrack;
-    const friction = onTrack ? 0.015 : 0.06;
-    const speedMulti = onTrack ? 1 : 0.5;
 
     if (car.isPlayer) {
       if (_inputDown && _racing) {
-        car.speed = Math.min(car.maxSpeed * speedMulti, car.speed + car.accel * dt);
+        car.speed = Math.min(car.maxSpeed, car.speed + car.accel * dt);
       } else {
         car.speed = Math.max(0, car.speed - car.accel * dt * 0.8);
       }
-      _steerPlayer(car);
+      _steerPlayer(car); // 정지·감속 중에도 조향 가능
     } else {
       if (_racing) {
-        const targetSpeed = car.maxSpeed * speedMulti;
-        car.speed = Math.min(targetSpeed, car.speed + car.accel * dt);
+        car.speed = Math.min(car.maxSpeed, car.speed + car.accel * dt);
       }
       _steerAI(car, dt);
     }
@@ -238,15 +245,31 @@ const RacingModule = (() => {
     car.angle += car.steer * steerRate * dt;
 
     // 이동
-    const prevX = car.x, prevY = car.y;
     car.x += Math.sin(car.angle) * car.speed * dt;
     car.y -= Math.cos(car.angle) * car.speed * dt;
 
-    // 벽 충돌 (트랙 밖 → 속도 감소 + 반발)
-    if (!_isOnTrack(car.x, car.y)) {
-      car.x = prevX;
-      car.y = prevY;
-      car.speed *= 0.45;
+    // ── 가드레일 충돌 (벽 슬라이딩) ──
+    const { signedDist, perpX, perpY } = _closestCenterlineInfo(car.x, car.y);
+    if (Math.abs(signedDist) > RAIL_LIMIT) {
+      const sign = signedDist > 0 ? 1 : -1;    // 1=외벽, -1=내벽
+      const wallNX = sign * perpX, wallNY = sign * perpY; // 벽 방향(바깥)
+
+      // 차를 경계 안으로 밀어냄
+      const overflow = Math.abs(signedDist) - RAIL_LIMIT;
+      car.x -= wallNX * overflow;
+      car.y -= wallNY * overflow;
+
+      // 속도 벡터에서 벽 관통 성분 제거 → 슬라이딩
+      const velX = Math.sin(car.angle) * car.speed;
+      const velY = -Math.cos(car.angle) * car.speed;
+      const vIntoWall = velX * wallNX + velY * wallNY;
+      if (vIntoWall > 0) {
+        const slide = 0.78; // 슬라이딩 마찰 (0=완전정지, 1=마찰없음)
+        const newVX = (velX - vIntoWall * wallNX) * slide;
+        const newVY = (velY - vIntoWall * wallNY) * slide;
+        car.speed = Math.hypot(newVX, newVY);
+        if (car.speed > 1) car.angle = Math.atan2(newVX, -newVY);
+      }
     }
 
     // 플레이어 결승선 통과 감지 (wpTarget 기반)
@@ -254,6 +277,8 @@ const RacingModule = (() => {
       const wp = WAYPOINTS[car.wpTarget];
       const dist = Math.hypot(car.x - wp.x, car.y - wp.y);
       if (dist < 55) {
+        // wpTarget 갱신 전에 passedHalf 체크
+        if (car.wpTarget > WAYPOINTS.length / 2) car.passedHalf = true;
         const next = (car.wpTarget + 1) % WAYPOINTS.length;
         if (next === 0 && car.lapsComplete === 0 && car.passedHalf) {
           car.lapsComplete = 1;
@@ -262,7 +287,6 @@ const RacingModule = (() => {
         }
         car.wpTarget = next;
       }
-      if (car.wpTarget > WAYPOINTS.length / 2) car.passedHalf = true;
     }
   }
 
@@ -290,14 +314,14 @@ const RacingModule = (() => {
   // ── 순위 계산 ──
   function _getRank() {
     if (_player.finished) return _player.finishRank;
+    const N = WAYPOINTS.length;
     const allCars = [_player, ..._aiCars];
-    // 미완주 차량은 웨이포인트 진행도로 비교
     const progress = (car) => {
-      if (car.finished) return 999 + car.finishRank * -1;
+      // 완주차: 미완주차 최대값(N*1000)보다 크게 설정, 완주 순서 반영
+      if (car.finished) return N * 1000 + (N - car.finishRank);
       const wp = car.wpTarget;
-      const wpPrev = (wp - 1 + WAYPOINTS.length) % WAYPOINTS.length;
-      const wpPos = WAYPOINTS[wpPrev];
-      const dist = Math.hypot(car.x - wpPos.x, car.y - wpPos.y);
+      const wpPrev = (wp - 1 + N) % N;
+      const dist = Math.hypot(car.x - WAYPOINTS[wpPrev].x, car.y - WAYPOINTS[wpPrev].y);
       return wp * 1000 - dist;
     };
     const sorted = [...allCars].sort((a, b) => progress(b) - progress(a));
@@ -398,6 +422,33 @@ const RacingModule = (() => {
     ctx.closePath();
     ctx.stroke();
     ctx.restore();
+
+    // ── 가드레일 (외측·내측, 빨강/흰색 교대) ──
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'butt';
+    for (const side of [1, -1]) {
+      for (let i = 0; i < N; i++) {
+        const wp  = WAYPOINTS[i];
+        const wpN = WAYPOINTS[(i + 1) % N];
+        const dx = wpN.x - wp.x, dy = wpN.y - wp.y;
+        const len = Math.hypot(dx, dy);
+        const nx = -dy / len, ny = dx / len;
+        const ax = wp.x  + nx * side * ROAD_HALF;
+        const ay = wp.y  + ny * side * ROAD_HALF;
+        const bx = wpN.x + nx * side * ROAD_HALF;
+        const by = wpN.y + ny * side * ROAD_HALF;
+        const sa = toScreen(ax, ay), sb = toScreen(bx, by);
+        // 화면 밖이면 스킵
+        if (sa.sx < -20 && sb.sx < -20) continue;
+        if (sa.sx > W + 20 && sb.sx > W + 20) continue;
+        ctx.strokeStyle = i % 2 === 0 ? '#e8e8e8' : '#cc1111';
+        ctx.beginPath();
+        ctx.moveTo(sa.sx, sa.sy);
+        ctx.lineTo(sb.sx, sb.sy);
+        ctx.stroke();
+      }
+    }
+    ctx.setLineDash([]);
 
     // 결승선
     const fl = FINISH_LINE;
