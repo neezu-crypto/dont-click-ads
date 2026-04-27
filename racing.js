@@ -28,8 +28,8 @@ const RacingModule = (() => {
 
   // ── 결승선 (wp0 위치 기준) ──
   const FINISH_LINE = (() => {
-    const wp0 = WAYPOINTS[START_WP];
-    const wp1 = WAYPOINTS[START_WP + 1];
+    const wp0 = WAYPOINTS[0];
+    const wp1 = WAYPOINTS[1];
     const dx = wp1.x - wp0.x, dy = wp1.y - wp0.y;
     const len = Math.hypot(dx, dy);
     const nx = -dy / len, ny = dx / len; // 법선
