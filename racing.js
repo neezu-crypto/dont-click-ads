@@ -26,8 +26,7 @@ const RacingModule = (() => {
     return pts;
   })();
 
-  // ── 시작/결승선 ──
-  const START_WP = 0;
+  // ── 결승선 (wp0 위치 기준) ──
   const FINISH_LINE = (() => {
     const wp0 = WAYPOINTS[START_WP];
     const wp1 = WAYPOINTS[START_WP + 1];
@@ -72,67 +71,45 @@ const RacingModule = (() => {
   let _posEl = null;
   let _lapEl = null;
 
-  // ── 차량 생성 ──
-  function _createCar(color, wpIdx, laneOffset, isPlayer) {
-    const wp = WAYPOINTS[wpIdx % WAYPOINTS.length];
-    const wpNext = WAYPOINTS[(wpIdx + 1) % WAYPOINTS.length];
-    const dx = wpNext.x - wp.x, dy = wpNext.y - wp.y;
-    const angle = Math.atan2(dy, dx) - Math.PI / 2;
-    const nx = -dy / Math.hypot(dx, dy);
-    const ny = dx / Math.hypot(dx, dy);
-    return {
-      x: wp.x + nx * laneOffset,
-      y: wp.y + ny * laneOffset,
-      angle,
-      speed: 0,
-      maxSpeed: isPlayer ? 320 : 260 + Math.random() * 60,
-      accel: isPlayer ? 220 : 160 + Math.random() * 60,
-      steer: 0,
-      color,
-      wpTarget: (wpIdx + 2) % WAYPOINTS.length,
-      lapsComplete: 0,
-      finished: false,
-      finishRank: 0,
-      isPlayer,
-      offTrack: false,
-      driftFx: 0,
-      // 결승선 통과 감지용
-      prevSide: null,
-    };
-  }
-
   function _initCars() {
-    // 출발 위치: 4열 2줄, 8등→1등 순서로 배치 (플레이어=8등 = 마지막)
-    const startAngle = Math.atan2(
-      WAYPOINTS[1].y - WAYPOINTS[0].y,
-      WAYPOINTS[1].x - WAYPOINTS[0].x
-    );
-    const fwdX = Math.cos(startAngle), fwdY = Math.sin(startAngle);
-    const perpX = -fwdY, perpY = fwdX;
-    const wp0 = WAYPOINTS[0];
+    const N = WAYPOINTS.length;
+    const LANE_OFF = 42; // 트랙 중심선에서 좌우 오프셋(px)
 
+    // wp0(결승선) 직후 wp1~wp7 위에 그리드 배치
+    // row 0(1·2등) = wp1, row 1(3·4등) = wp3, row 2(5·6등) = wp5, row 3(7·8등) = wp7
+    // 각 row를 짝수/홀수 col로 좌우 엇갈림 배치
     const positions = [];
     for (let row = 0; row < 4; row++) {
+      const wpIdx = 1 + row * 2;
+      const wp    = WAYPOINTS[wpIdx % N];
+      const wpN   = WAYPOINTS[(wpIdx + 1) % N];
+      const dx = wpN.x - wp.x, dy = wpN.y - wp.y;
+      const len = Math.hypot(dx, dy);
+      const perpX = -dy / len, perpY = dx / len; // 트랙 중심선의 법선
+      const angle = Math.atan2(dy, dx) - Math.PI / 2;
       for (let col = 0; col < 2; col++) {
+        const side = col === 0 ? -1 : 1;
         positions.push({
-          x: wp0.x + perpX * ((col - 0.5) * 70) - fwdX * (row * 90 + 60),
-          y: wp0.y + perpY * ((col - 0.5) * 70) - fwdY * (row * 90 + 60),
-          angle: startAngle - Math.PI / 2,
+          x: wp.x + perpX * side * LANE_OFF,
+          y: wp.y + perpY * side * LANE_OFF,
+          angle,
+          wpTarget: wpIdx + 1,
         });
       }
     }
-    // 0번 = 1등 위치, 7번 = 8등(플레이어)
+
+    // positions[0,1]=1·2등(AI), positions[6,7]=7·8등(player=8등)
     _aiCars = [];
     for (let i = 0; i < NUM_AI; i++) {
       const pos = positions[i];
-      const car = {
+      _aiCars.push({
         x: pos.x, y: pos.y,
         angle: pos.angle,
         speed: 0, maxSpeed: 240 + Math.random() * 60,
         accel: 150 + Math.random() * 60,
         steer: 0,
         color: CAR_COLORS[i + 1],
-        wpTarget: 1,
+        wpTarget: pos.wpTarget,
         lapsComplete: 0,
         finished: false,
         finishRank: 0,
@@ -141,8 +118,7 @@ const RacingModule = (() => {
         driftFx: 0,
         prevSide: null,
         passedHalf: false,
-      };
-      _aiCars.push(car);
+      });
     }
     const pPos = positions[7];
     _player = {
@@ -152,7 +128,7 @@ const RacingModule = (() => {
       accel: 240,
       steer: 0,
       color: PLAYER_COLOR,
-      wpTarget: 1,
+      wpTarget: pPos.wpTarget,
       lapsComplete: 0,
       finished: false,
       finishRank: 0,
