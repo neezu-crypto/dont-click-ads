@@ -26,9 +26,9 @@ const Level2Module = (() => {
   }
 
   // 색상
-  const COL_BG    = '#07090f';
-  const COL_FLOOR = '#0d1428';
-  const COL_EDGE  = '#15203a';
+  const COL_BG    = '#050608';
+  const COL_FLOOR = '#1c2e52';
+  const COL_EDGE  = '#2e4570';
 
   // ── 모듈 상태 ──
   let _area, _canvas, _ballEl, _dpad;
