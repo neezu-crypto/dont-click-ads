@@ -82,7 +82,7 @@ const RacingModule = (() => {
     // 각 row를 짝수/홀수 col로 좌우 엇갈림 배치
     const positions = [];
     for (let row = 0; row < 4; row++) {
-      const wpIdx = 1 + row * 2;
+      const wpIdx = 7 - row * 2; // row 0 = wp7(1위) → row 3 = wp1(8위=플레이어)
       const wp    = WAYPOINTS[wpIdx % N];
       const wpN   = WAYPOINTS[(wpIdx + 1) % N];
       const dx = wpN.x - wp.x, dy = wpN.y - wp.y;
@@ -462,7 +462,7 @@ const RacingModule = (() => {
     const flS = toScreen(fl.x, fl.y);
     ctx.save();
     ctx.translate(flS.sx, flS.sy);
-    ctx.rotate(Math.atan2(fl.ny, fl.nx) + Math.PI / 2);
+    ctx.rotate(Math.atan2(fl.ny, fl.nx));
     const fLen = ROAD_W * 0.9;
     const sqSize = 12;
     const cols = Math.ceil(fLen / sqSize);
