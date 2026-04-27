@@ -52,6 +52,9 @@ const RacingModule = (() => {
   // 카메라
   let _camX = 0, _camY = 0;
 
+  // 광고 장애물
+  let _adObstacle = null;
+
   // 플레이어
   let _player = null;
 
@@ -138,6 +141,108 @@ const RacingModule = (() => {
       prevSide: null,
       passedHalf: false,
     };
+  }
+
+  // ── 광고 장애물 초기화 ──
+  function _initAdObstacle() {
+    // wp15~wp55 사이 랜덤 위치 (출발/결승 구간 회피)
+    const minWp = 15, maxWp = 55;
+    const wpIdx = Math.floor(Math.random() * (maxWp - minWp + 1)) + minWp;
+    const wp    = WAYPOINTS[wpIdx];
+    const wpN   = WAYPOINTS[(wpIdx + 1) % WAYPOINTS.length];
+    const dx = wpN.x - wp.x, dy = wpN.y - wp.y;
+    const len = Math.hypot(dx, dy);
+    const perpX = -dy / len, perpY = dx / len;
+    // 좌우 랜덤 오프셋 (도로 안쪽에 놓이도록 ±20px 이내)
+    const side   = Math.random() < 0.5 ? -1 : 1;
+    const offset = (Math.random() * 20 + 5) * side;
+    const ad = (typeof randomAd === 'function') ? randomAd() : null;
+    _adObstacle = {
+      x: wp.x + perpX * offset,
+      y: wp.y + perpY * offset,
+      radius: 28,
+      ad,
+      pulse: 0,
+    };
+  }
+
+  // ── 광고 장애물 충돌 체크 (플레이어만) ──
+  function _checkAdObstacleCollision() {
+    if (!_adObstacle || _ended || !_racing || _player.finished) return;
+    const dist = Math.hypot(_player.x - _adObstacle.x, _player.y - _adObstacle.y);
+    if (dist < _adObstacle.radius + CAR_W * 0.55) {
+      _ended = true;
+      if (_adObstacle.ad && _adObstacle.ad.landingUrl) {
+        window.open(_adObstacle.ad.landingUrl, '_blank');
+      }
+      if (typeof recordAdClick === 'function') recordAdClick();
+      if (typeof playAdSound   === 'function') playAdSound();
+      _onFail('ad-click');
+    }
+  }
+
+  // ── 광고 장애물 그리기 ──
+  function _drawAdObstacle(ctx, camX, camY, W, H) {
+    if (!_adObstacle) return;
+    const sx = _adObstacle.x - camX + W / 2;
+    const sy = _adObstacle.y - camY + H / 2;
+    if (sx < -100 || sx > W + 100 || sy < -100 || sy > H + 100) return;
+
+    _adObstacle.pulse = (_adObstacle.pulse + 0.06) % (Math.PI * 2);
+    const blink = Math.sin(_adObstacle.pulse) > 0;
+    const bw = 60, bh = 46;
+
+    ctx.save();
+    ctx.translate(sx, sy);
+
+    // 지지대 기둥
+    ctx.fillStyle = '#888';
+    ctx.fillRect(-4, bh * 0.35, 8, 24);
+
+    // 보드 그림자
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-bw / 2 + 3, -bh / 2 + 3, bw, bh);
+    ctx.globalAlpha = 1;
+
+    // 보드 배경
+    ctx.fillStyle = blink ? '#fffbe6' : '#fff5f5';
+    ctx.fillRect(-bw / 2, -bh / 2, bw, bh);
+
+    // 테두리 (점멸)
+    ctx.strokeStyle = blink ? '#ff2200' : '#ff8800';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-bw / 2, -bh / 2, bw, bh);
+
+    // 헤더 바
+    ctx.fillStyle = blink ? '#ff2200' : '#ff6600';
+    ctx.fillRect(-bw / 2, -bh / 2, bw, 14);
+
+    // "AD" 헤더 텍스트
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('📢 AD', 0, -bh / 2 + 10);
+
+    // 본문
+    ctx.fillStyle = '#cc2200';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('광고 클릭', 0, -bh / 2 + 25);
+    ctx.fillStyle = '#555';
+    ctx.font = '8px sans-serif';
+    ctx.fillText('피하세요!', 0, -bh / 2 + 37);
+
+    // 외곽 경고 링 (맥동)
+    const pulseR = _adObstacle.radius + Math.sin(_adObstacle.pulse) * 4;
+    ctx.globalAlpha = 0.25 + Math.sin(_adObstacle.pulse) * 0.1;
+    ctx.strokeStyle = '#ff3300';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, pulseR, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
   }
 
   // ── 중심선 최근접 정보 ──
@@ -590,6 +695,7 @@ const RacingModule = (() => {
     if (_racing) {
       _updateCar(_player, dt);
       for (const ai of _aiCars) _updateCar(ai, dt);
+      _checkAdObstacleCollision();
     }
 
     // 카메라 추적
@@ -600,6 +706,9 @@ const RacingModule = (() => {
     const W = _canvas.width, H = _canvas.height;
     _ctx.clearRect(0, 0, W, H);
     _drawTrack(_ctx, _camX, _camY, W, H);
+
+    // 광고 장애물 (트랙 위, 차량 아래)
+    _drawAdObstacle(_ctx, _camX, _camY, W, H);
 
     // AI 차량 먼저, 플레이어는 위에
     for (const ai of _aiCars) _drawCar(_ctx, ai, _camX, _camY, W, H);
@@ -715,6 +824,7 @@ const RacingModule = (() => {
     _lastTime = 0;
     _finishRankCounter = 0;
     _inputDown = false;
+    _adObstacle = null;
 
     area.innerHTML = '';
     area.style.position = 'relative';
@@ -815,6 +925,7 @@ const RacingModule = (() => {
 
     // 차량 & 트랙 초기화
     _initCars();
+    _initAdObstacle();
     _camX = _player.x;
     _camY = _player.y;
 
