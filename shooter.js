@@ -477,7 +477,7 @@ const ShooterModule = (() => {
     _ended = true;
     cancelAnimationFrame(_rafId);
     _playBeep(160, 0.4, 0.25, 'sawtooth');
-    setTimeout(() => { if (_onFail) _onFail('hit'); }, 400);
+    setTimeout(() => { if (_onFail) _onFail('lost'); }, 400);
   }
 
   function _failByAdClick(adObj) {
@@ -488,7 +488,7 @@ const ShooterModule = (() => {
     if (adObj && adObj.ad && adObj.ad.landingUrl) {
       window.open(adObj.ad.landingUrl, '_blank');
     }
-    setTimeout(() => { if (_onFail) _onFail('adclick'); }, 400);
+    setTimeout(() => { if (_onFail) _onFail('ad-click'); }, 400);
   }
 
   // ── 정리 ──
