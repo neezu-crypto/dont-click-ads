@@ -271,13 +271,29 @@ const RacingModule = (() => {
     return { signedDist: bestSignedDist, perpX: bestPerpX, perpY: bestPerpY };
   }
 
+  // 차량이 다음 wp를 "통과"했는지 판정.
+  // 이전 wp(A) → 다음 wp(B) 선분 위에 차량을 투영하여 t >= 1 이면 통과.
+  // 이렇게 하면 차량이 도로 바깥쪽 차선으로 달려 wp에 55px 안으로 못 들어와도
+  // wpTarget이 정상적으로 갱신됨.
+  function _hasPassedWp(car) {
+    const N = WAYPOINTS.length;
+    const A = WAYPOINTS[(car.wpTarget - 1 + N) % N];
+    const B = WAYPOINTS[car.wpTarget];
+    const segDx = B.x - A.x, segDy = B.y - A.y;
+    const segLen2 = segDx * segDx + segDy * segDy;
+    const relX = car.x - A.x, relY = car.y - A.y;
+    const t = (relX * segDx + relY * segDy) / segLen2;
+    return t >= 1.0;
+  }
+
   // ── AI 조향 ──
   function _steerAI(car, dt) {
     if (car.finished) return;
     const wp = WAYPOINTS[car.wpTarget];
     const dx = wp.x - car.x, dy = wp.y - car.y;
     const dist = Math.hypot(dx, dy);
-    if (dist < 55) {
+    // 통과 판정: 거리 55px 이내 OR 선분 투영으로 이미 지나친 경우
+    if (dist < 55 || _hasPassedWp(car)) {
       // wpTarget 갱신 전에 passedHalf 체크 (업데이트 후 0이 되면 조건 오동작)
       if (car.wpTarget > WAYPOINTS.length / 2) car.passedHalf = true;
       const next = (car.wpTarget + 1) % WAYPOINTS.length;
@@ -381,7 +397,8 @@ const RacingModule = (() => {
     if (car.isPlayer) {
       const wp = WAYPOINTS[car.wpTarget];
       const dist = Math.hypot(car.x - wp.x, car.y - wp.y);
-      if (dist < 55) {
+      // 거리 55px 이내 OR 투영상 이미 wp를 지나친 경우 갱신
+      if (dist < 55 || _hasPassedWp(car)) {
         if (car.wpTarget > WAYPOINTS.length / 2) car.passedHalf = true;
         const next = (car.wpTarget + 1) % WAYPOINTS.length;
         if (next === 0 && car.lapsComplete === 0 && car.passedHalf) {
@@ -432,16 +449,26 @@ const RacingModule = (() => {
     if (_player.finished) return _player.finishRank;
     const N = WAYPOINTS.length;
     const allCars = [_player, ..._aiCars];
+    // 차량의 트랙 진행도(0 ~ N)를 정밀하게 계산.
+    // wpTarget(=다음 목표 wp)이 같은 두 차량은 "이전 wp → 다음 wp 구간을 얼마나 진행했나"로 비교.
+    // 단순 직선거리(dist)만 쓰면 차선/인코스 차이로 추월이 반영되지 않음.
     const progress = (car) => {
-      // 완주차: 미완주차 최대값(N*1000)보다 크게 설정, 완주 순서 반영
-      if (car.finished) return N * 1000 + (N - car.finishRank);
-      const wp = car.wpTarget;
-      const dist = Math.hypot(car.x - WAYPOINTS[wp].x, car.y - WAYPOINTS[wp].y);
-      // wpTarget이 0 = wp_{N-1}을 지나 결승선(wp0)으로 향하는 마지막 구간.
-      // 단순히 wp*1000을 쓰면 진행도가 폭락해 선두 차량의 순위가 갑자기 떨어짐.
-      // 마지막 구간을 N*1000으로 환산하여 자연스러운 진행도로 보정.
-      const wpProgress = (wp === 0 && car.passedHalf) ? N : wp;
-      return wpProgress * 1000 - dist;
+      if (car.finished) return N * 10000 + (N - car.finishRank);
+      const wpNext = car.wpTarget;
+      // wpTarget=0이면서 passedHalf면 마지막 구간(wp_{N-1} → wp0): 환산값 N
+      const wpNextEff = (wpNext === 0 && car.passedHalf) ? N : wpNext;
+      const wpPrevIdx = (wpNext - 1 + N) % N;
+      const A = WAYPOINTS[wpPrevIdx]; // 이전 통과 wp
+      const B = WAYPOINTS[wpNext];    // 다음 목표 wp
+      // 차량 위치를 A→B 선분에 투영해 진행 비율(0~1)을 구함
+      const segDx = B.x - A.x, segDy = B.y - A.y;
+      const segLen2 = segDx * segDx + segDy * segDy;
+      const relX = car.x - A.x, relY = car.y - A.y;
+      let t = (relX * segDx + relY * segDy) / segLen2;
+      if (t < 0) t = 0;
+      if (t > 1) t = 1;
+      // 진행도 = (이전 wp 인덱스 + 구간 내 비율) × 단위
+      return (wpNextEff - 1 + t) * 10000;
     };
     const sorted = [...allCars].sort((a, b) => progress(b) - progress(a));
     return sorted.findIndex(c => c.isPlayer) + 1;
