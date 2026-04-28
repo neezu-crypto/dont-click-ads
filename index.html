@@ -1292,6 +1292,9 @@
 <!-- ════════════════════ RACING MODULE ════════════════════ -->
 <script src="racing.js"></script>
 
+<!-- ════════════════════ SHOOTER MODULE ════════════════════ -->
+<script src="shooter.js"></script>
+
 <!-- ════════════════════ GAME LOGIC ════════════════════ -->
 <script>
 /* ════════ 모바일 가로화면 안내 & 전체화면 ════════ */
@@ -3186,6 +3189,18 @@ const gameStages = [
     usesAdSystem: false,
     init(area, { onScore, onSuccess, onFail }) {
       const cleanupFn = RacingModule.start(area, onScore, onSuccess, onFail);
+      return { cleanup() { cleanupFn && cleanupFn(); } };
+    }
+  },
+
+  // ── 탄막 슈팅 디펜스 ──
+  {
+    id: 'shooter',
+    label: '탄막 디펜스! 20초간 적 탄막을 막아라! 광고는 절대 쏘지 마세요!',
+    timerDuration: 0,
+    usesAdSystem: false,
+    init(area, { onScore, onSuccess, onFail }) {
+      const cleanupFn = ShooterModule.start(area, onScore, onSuccess, onFail);
       return { cleanup() { cleanupFn && cleanupFn(); } };
     }
   },
