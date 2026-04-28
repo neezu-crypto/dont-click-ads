@@ -437,7 +437,11 @@ const RacingModule = (() => {
       if (car.finished) return N * 1000 + (N - car.finishRank);
       const wp = car.wpTarget;
       const dist = Math.hypot(car.x - WAYPOINTS[wp].x, car.y - WAYPOINTS[wp].y);
-      return wp * 1000 - dist;
+      // wpTarget이 0 = wp_{N-1}을 지나 결승선(wp0)으로 향하는 마지막 구간.
+      // 단순히 wp*1000을 쓰면 진행도가 폭락해 선두 차량의 순위가 갑자기 떨어짐.
+      // 마지막 구간을 N*1000으로 환산하여 자연스러운 진행도로 보정.
+      const wpProgress = (wp === 0 && car.passedHalf) ? N : wp;
+      return wpProgress * 1000 - dist;
     };
     const sorted = [...allCars].sort((a, b) => progress(b) - progress(a));
     return sorted.findIndex(c => c.isPlayer) + 1;
