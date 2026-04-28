@@ -66,6 +66,42 @@ const RacingModule = (() => {
   let _countdownTimer = 0;
   let _racing = false;
 
+  // 사운드 (Web Audio API로 비프음 합성)
+  let _audioCtx = null;
+  function _getAudioCtx() {
+    if (_audioCtx) return _audioCtx;
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      _audioCtx = new Ctx();
+    } catch (e) {
+      return null;
+    }
+    return _audioCtx;
+  }
+  // freq=주파수(Hz), dur=재생시간(s), vol=볼륨(0~1), type=파형
+  function _playBeep(freq, dur, vol, type) {
+    const ctx = _getAudioCtx();
+    if (!ctx) return;
+    // 일부 브라우저는 사용자 입력 후에만 재생 허용 → 일시 정지된 컨텍스트 깨우기
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    // 부드러운 어택/릴리즈로 클릭 노이즈 방지
+    const now = ctx.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(vol, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + dur);
+  }
+
   // 터치/마우스 입력
   let _inputDown = false;
   let _inputX = 0, _inputY = 0;
@@ -716,9 +752,13 @@ const RacingModule = (() => {
         if (_countdown <= 0) {
           _racing = true;
           _showCountdown('GO!');
+          // 출발 신호: 높은 톤으로 길게
+          _playBeep(880, 0.5, 0.25, 'square');
           setTimeout(() => { if (_countdownEl) _countdownEl.style.display = 'none'; }, 700);
         } else {
           _showCountdown(String(_countdown));
+          // 카운트다운 비프: 낮은 톤으로 짧게
+          _playBeep(440, 0.18, 0.2, 'square');
         }
       }
     }
@@ -898,6 +938,8 @@ const RacingModule = (() => {
     `;
     _countdownEl.textContent = '3';
     _uiOverlay.appendChild(_countdownEl);
+    // 첫 카운트다운 비프 (이후 매초마다 _playBeep이 호출됨)
+    _playBeep(440, 0.18, 0.2, 'square');
 
     // 순위 표시
     _posEl = document.createElement('div');
