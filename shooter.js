@@ -134,8 +134,30 @@ const ShooterModule = (() => {
   function _spawnAd() {
     const x = 80 + Math.random() * (W - 160);
     const y = -30;
-    const tx = _player.x + (Math.random() - 0.5) * 200;
-    const ty = _player.y;
+    // 광고는 플레이어를 직접 노리지 않음 — 플레이어를 빗겨가는 좌/우 경로로 진행.
+    // 화면 하단 좌우 끝(플레이어 X에서 안전 거리 이상 떨어진 지점)을 목표로 설정.
+    const SAFE_GAP = PLAYER_R + AD_RADIUS + 60; // 플레이어와 닿지 않는 최소 가로 간격
+    // 좌/우 둘 중 가능한 쪽 선택 (가능하면 더 멀리 빗겨가는 쪽)
+    const leftTargetMax  = _player.x - SAFE_GAP;
+    const rightTargetMin = _player.x + SAFE_GAP;
+    let tx;
+    if (leftTargetMax < 0 && rightTargetMin > W) {
+      // 둘 다 불가능한 극단적 경우 (플레이어가 화면 가운데 있고 화면이 너무 좁을 때) — 그냥 가장 먼 쪽
+      tx = _player.x < W / 2 ? W + 50 : -50;
+    } else if (leftTargetMax < 0) {
+      // 왼쪽 빗기기 불가 → 무조건 오른쪽
+      tx = rightTargetMin + Math.random() * (W - rightTargetMin + 80);
+    } else if (rightTargetMin > W) {
+      // 오른쪽 빗기기 불가 → 무조건 왼쪽
+      tx = -80 + Math.random() * (leftTargetMax + 80);
+    } else {
+      // 양쪽 다 가능 → 스폰 X와 가까운 쪽으로 비스듬히
+      const goLeft = (x < _player.x) ? Math.random() < 0.7 : Math.random() < 0.3;
+      tx = goLeft
+        ? -80 + Math.random() * (leftTargetMax + 80)
+        : rightTargetMin + Math.random() * (W - rightTargetMin + 80);
+    }
+    const ty = H + 50; // 화면 아래로 빠져나감
     const dx = tx - x, dy = ty - y;
     const len = Math.hypot(dx, dy);
     const speed = AD_SPEED_MIN + Math.random() * (AD_SPEED_MAX - AD_SPEED_MIN);
@@ -247,17 +269,10 @@ const ShooterModule = (() => {
       }
     }
 
-    // 충돌 체크: 적/광고 vs 플레이어
+    // 충돌 체크: 적 vs 플레이어 (광고는 플레이어와 충돌해도 무시 — 빗겨가는 경로로 스폰됨)
     for (const e of _enemies) {
       const dx = e.x - _player.x, dy = e.y - _player.y;
       if (dx * dx + dy * dy < (e.r + PLAYER_R) * (e.r + PLAYER_R)) {
-        _failByHit();
-        return;
-      }
-    }
-    for (const a of _ads) {
-      const dx = a.x - _player.x, dy = a.y - _player.y;
-      if (dx * dx + dy * dy < (a.r + PLAYER_R) * (a.r + PLAYER_R)) {
         _failByHit();
         return;
       }
