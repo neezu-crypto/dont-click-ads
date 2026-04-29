@@ -3188,7 +3188,7 @@ const gameStages = [
   // ── 탑뷰 레이싱 ──
   {
     id: 'racing',
-    label: '탑뷰 레이싱! 8등에서 출발, 3등 이내로 결승선을 통과하라!',
+    label: '탑뷰 레이싱! 8등에서 출발, 1등으로 결승선을 통과하라!',
     timerDuration: 0,
     usesAdSystem: false,
     init(area, { onScore, onSuccess, onFail }) {
@@ -3241,7 +3241,7 @@ function _handleStageFail(reason) {
   if (reason === 'ad-caught')  showLevel2AdCaught();
   if (reason === 'ad-click')   showAdClickGameOver(_lastStageId === 'basketball' ? '농구공을 골인하지 못했습니다!' : _lastStageId === 'pool' ? '광고볼을 골인했습니다!' : _lastStageId === 'fortress' ? '광고 타겟을 맞혔습니다!<br>레벨 1부터 다시 도전해보세요.' : _lastStageId === 'shooter' ? '광고 탄막을 쏴서 광고 페이지가 열렸습니다!<br>레벨 1부터 다시 도전해보세요.' : null);
   if (reason === 'quiz-wrong') showAdClickGameOver('오답입니다.<br>레벨 1부터 다시 도전해보세요.');
-  if (reason === 'lost')       showAdClickGameOver(_lastStageId === 'tetris' ? '블록이 넘쳤습니다!<br>레벨 1부터 다시 도전해보세요.' : _lastStageId === 'racing' ? '4등 이하로 결승선을 통과했습니다!<br>레벨 1부터 다시 도전해보세요.' : _lastStageId === 'shooter' ? '적 탄막에 맞았습니다!<br>레벨 1부터 다시 도전해보세요.' : _lastStageId === 'sequence-tap' ? '잘못된 순서로 클릭했습니다!<br>레벨 1부터 다시 도전해보세요.' : '배드민턴에서 패배했습니다!<br>레벨 1부터 다시 도전해보세요.');
+  if (reason === 'lost')       showAdClickGameOver(_lastStageId === 'tetris' ? '블록이 넘쳤습니다!<br>레벨 1부터 다시 도전해보세요.' : _lastStageId === 'racing' ? '2등 이하로 결승선을 통과했습니다!<br>레벨 1부터 다시 도전해보세요.' : _lastStageId === 'shooter' ? '적 탄막에 맞았습니다!<br>레벨 1부터 다시 도전해보세요.' : _lastStageId === 'sequence-tap' ? '잘못된 순서로 클릭했습니다!<br>레벨 1부터 다시 도전해보세요.' : '배드민턴에서 패배했습니다!<br>레벨 1부터 다시 도전해보세요.');
   if (reason === 'quit')       showLevel2TimeOver('게임을 종료했습니다.<br>다시 도전해볼까요?');
 }
 

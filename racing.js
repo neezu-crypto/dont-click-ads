@@ -9,7 +9,7 @@ const RacingModule = (() => {
   const RAIL_LIMIT = ROAD_HALF - 15;        // 가드레일 충돌 경계 (차 반폭 고려)
   const CAR_W   = 28, CAR_H = 48;
   const NUM_AI  = 7;
-  const WIN_POS = 3; // 3등 이내 → 클리어
+  const WIN_POS = 1; // 1등으로 완주해야 클리어
 
   // ── 트랙 웨이포인트 (폐곡선) ──
   // 중심선 좌표. 충분한 웨이포인트로 타원+굴곡 트랙을 표현
@@ -981,7 +981,7 @@ const RacingModule = (() => {
       text-shadow:0 0 8px #ffdd4488;text-align:right;
       pointer-events:none;user-select:none;
     `;
-    goal.innerHTML = '🏁 3등 이내로 결승선 통과!';
+    goal.innerHTML = '🏁 1등으로 결승선 통과!';
     _uiOverlay.appendChild(goal);
 
     // 속도계
