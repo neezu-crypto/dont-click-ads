@@ -3,7 +3,9 @@ const DodgeModule = (() => {
   'use strict';
 
   // ── 상수 ──
-  const W = 720, H = 1000;             // 논리적 캔버스 크기
+  // W, H는 캔버스 실제 픽셀 크기 — game-area의 실제 비율에 맞춰 시작 시 동적 설정
+  // (고정 720×1000으로 두면 가로 긴 game-area에 늘어나면서 화면이 찌그러져 보임)
+  let W = 720, H = 1000;
   const SURVIVE_SEC = 20;
   const PLAYER_R = 22;
   const PLAYER_SPEED = 460;            // px/s — 자연스러운 일정 속도
@@ -429,6 +431,23 @@ const DodgeModule = (() => {
     setTimeout(() => { if (_onFail) _onFail('ad-click'); }, 400);
   }
 
+  // 리사이즈 핸들러 (기기 회전, 풀스크린 진입 등 대응)
+  function _onResize() {
+    if (!_area || !_canvas) return;
+    const newW = Math.max(200, _area.clientWidth || W);
+    const newH = Math.max(200, _area.clientHeight || H);
+    if (newW === W && newH === H) return;
+    // 플레이어/탄막 위치를 비율 유지하며 보정
+    const sx = newW / W, sy = newH / H;
+    if (_player) { _player.x *= sx; _player.y *= sy; }
+    if (_dragTarget) { _dragTarget.x *= sx; _dragTarget.y *= sy; }
+    for (const e of _enemies) { e.x *= sx; e.y *= sy; }
+    for (const a of _ads)     { a.x *= sx; a.y *= sy; }
+    W = newW; H = newH;
+    _canvas.width = W;
+    _canvas.height = H;
+  }
+
   // ── 정리 ──
   function _cleanup() {
     _ended = true;
@@ -441,6 +460,7 @@ const DodgeModule = (() => {
     }
     window.removeEventListener('mouseup', _onPointerUp);
     window.removeEventListener('touchend', _onPointerUp);
+    window.removeEventListener('resize', _onResize);
     if (_area) _area.innerHTML = '';
     _enemies = []; _ads = [];
     _dragTarget = null;
@@ -467,17 +487,22 @@ const DodgeModule = (() => {
     _countdownTimer = 0;
     _started = false;
 
-    _player = { x: W / 2, y: H / 2 };
-
     area.innerHTML = '';
     area.style.position = 'relative';
     area.style.overflow = 'hidden';
     area.style.background = '#0a0a14';
 
+    // 캔버스 크기를 game-area 실제 픽셀에 맞춰 설정 (찌그러짐 방지)
+    W = Math.max(200, area.clientWidth || 720);
+    H = Math.max(200, area.clientHeight || 1000);
+
+    _player = { x: W / 2, y: H / 2 };
+
     // 캔버스
     _canvas = document.createElement('canvas');
     _canvas.width = W;
     _canvas.height = H;
+    // CSS도 같은 픽셀 크기로 맞춤 (1:1 비율) → 화면 늘어짐 없음
     _canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;display:block;';
     area.appendChild(_canvas);
     _ctx = _canvas.getContext('2d');
@@ -526,6 +551,7 @@ const DodgeModule = (() => {
     _canvas.addEventListener('touchmove', _onPointerMove, { passive: false });
     window.addEventListener('mouseup', _onPointerUp);
     window.addEventListener('touchend', _onPointerUp);
+    window.addEventListener('resize', _onResize);
 
     _rafId = requestAnimationFrame(_tick);
     return _cleanup;
