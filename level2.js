@@ -727,7 +727,7 @@ const Level2Module = (() => {
 
     const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
     const hint = document.createElement('div');
-    hint.style.cssText = 'position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#16203a;font-size:0.74rem;pointer-events:none;user-select:none;';
+    hint.style.cssText = 'position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#ffffff;font-size:0.74rem;pointer-events:none;user-select:none;';
     hint.textContent   = isTouchDevice
       ? `[S] 출발 → [G] 도착  |  조이스틱으로 이동  (${_COLS}×${_ROWS} 격자)`
       : `[S] 출발 → [G] 도착  |  ← ↑ ↓ → 방향키로 이동  (${_COLS}×${_ROWS} 격자)`;
