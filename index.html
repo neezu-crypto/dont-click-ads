@@ -4029,6 +4029,14 @@ function showAdPopup() {
     if (ov < bestOv) { bestOv = ov; bestL = l; bestT = t; }
     if (ov < halfTarget) break;
   }
+  // ── viewport 안으로 강제 클램프 ──
+  // 모바일 가로 fullscreen 진입 직후 game-area의 getBoundingClientRect()가
+  // 실제 viewport와 어긋나는 경우가 있어, 팝업이 화면 밖으로 튀어 안 보이는 현상 발생.
+  // 항상 viewport 안에 들어오도록 좌표를 보정.
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  bestL = Math.max(0, Math.min(bestL, vw - PW));
+  bestT = Math.max(0, Math.min(bestT, vh - PH));
   popup.style.left = bestL + 'px';
   popup.style.top  = bestT + 'px';
   popup.classList.add('active');
