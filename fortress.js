@@ -31,6 +31,7 @@ const FortressModule = (() => {
   let _onScore, _onSuccess, _onFail;
   let _ended = false;
   let _raf   = null;
+  let _lastTime = 0;
 
   // 모바일 세로→가로 회전 오버레이
   let _mobileOverlay  = null;
@@ -317,7 +318,7 @@ const FortressModule = (() => {
     ctx.restore();
   }
 
-  function _drawExplosion() {
+  function _drawExplosion(f) {
     if (!_explosion) return;
     const { x, y, t, maxT } = _explosion;
     const frac  = t / maxT;
@@ -337,11 +338,11 @@ const FortressModule = (() => {
     ctx.fillStyle = `rgba(255,240,80,${alpha * 0.6})`;
     ctx.fill();
     ctx.restore();
-    _explosion.t++;
+    _explosion.t += f;
     if (_explosion.t >= maxT) _explosion = null;
   }
 
-  function _drawMuzzleFlash() {
+  function _drawMuzzleFlash(f) {
     if (!_muzzleFlash) return;
     const { x, y, t } = _muzzleFlash;
     const alpha = 1 - t / 7;
@@ -355,7 +356,7 @@ const FortressModule = (() => {
     ctx.shadowBlur  = 22;
     ctx.fill();
     ctx.restore();
-    _muzzleFlash.t++;
+    _muzzleFlash.t += f;
     if (_muzzleFlash.t >= 7) _muzzleFlash = null;
   }
 
@@ -424,30 +425,39 @@ const FortressModule = (() => {
     _dragging = false;
   }
 
-  function _stepBullet() {
+  function _stepBullet(f) {
     if (!_bullet) return;
-    _bullet.vy += GRAVITY;
-    _bullet.x  += _bullet.vx;
-    _bullet.y  += _bullet.vy;
+    // 가변 dt를 작은 고정 스텝(=60Hz 1프레임)으로 분할.
+    // 큰 dt(저주사율, 탭 백그라운드 복귀 등)에서 충돌 누락을 막고,
+    // 한편 60Hz에선 정확히 1번 실행되어 기존 동작과 동일.
+    let remaining = f;
+    while (remaining > 0) {
+      const step = Math.min(remaining, 1);
+      remaining -= step;
 
-    // 지형 충돌
-    if (_bullet.y >= _terrainY(_bullet.x)) {
-      _explosion = { x: _bullet.x, y: _terrainY(_bullet.x), t: 0, maxT: 18 };
-      _endFlight(null);
-      return;
-    }
-    // 화면 밖
-    if (_bullet.x < 0 || _bullet.x > WORLD_W || _bullet.y > WORLD_H) {
-      _endFlight(null);
-      return;
-    }
-    // 타겟 충돌
-    for (const t of _targets) {
-      if (t.hit) continue;
-      if (Math.hypot(_bullet.x - t.x, _bullet.y - t.cy) < t.r + BULLET_R) {
-        _explosion = { x: t.x, y: t.cy, t: 0, maxT: 22 };
-        _endFlight(t);
+      _bullet.vy += GRAVITY * step;
+      _bullet.x  += _bullet.vx * step;
+      _bullet.y  += _bullet.vy * step;
+
+      // 지형 충돌
+      if (_bullet.y >= _terrainY(_bullet.x)) {
+        _explosion = { x: _bullet.x, y: _terrainY(_bullet.x), t: 0, maxT: 18 };
+        _endFlight(null);
         return;
+      }
+      // 화면 밖
+      if (_bullet.x < 0 || _bullet.x > WORLD_W || _bullet.y > WORLD_H) {
+        _endFlight(null);
+        return;
+      }
+      // 타겟 충돌
+      for (const t of _targets) {
+        if (t.hit) continue;
+        if (Math.hypot(_bullet.x - t.x, _bullet.y - t.cy) < t.r + BULLET_R) {
+          _explosion = { x: t.x, y: t.cy, t: 0, maxT: 22 };
+          _endFlight(t);
+          return;
+        }
       }
     }
   }
@@ -496,7 +506,7 @@ const FortressModule = (() => {
 
   // ── 카메라 ────────────────────────────────────────────────
 
-  function _updateCamera() {
+  function _updateCamera(f) {
     let tx;
     if (_phase === 'flight' && _bullet) {
       tx = _bullet.x - VIEW_W / 2;
@@ -504,7 +514,10 @@ const FortressModule = (() => {
       tx = TURRET_X - VIEW_W * 0.25;
     }
     tx = Math.max(0, Math.min(WORLD_W - VIEW_W, tx));
-    _camX += (tx - _camX) * 0.07;
+    // 60Hz에서 프레임당 7% 따라잡기를 다른 주사율에서도 같은 부드러움으로.
+    // 단순히 0.07*f를 쓰면 큰 f에서 1을 넘을 수 있어 지수 감쇠 공식 사용.
+    const lerp = 1 - Math.pow(1 - 0.07, f);
+    _camX += (tx - _camX) * lerp;
   }
 
   // ── 좌표 변환 ─────────────────────────────────────────────
@@ -593,12 +606,18 @@ const FortressModule = (() => {
 
   // ── 메인 루프 ─────────────────────────────────────────────
 
-  function _loop() {
+  function _loop(ts) {
     if (_ended) return;
 
-    _updateCamera();
+    // dt 계산 → 60Hz 프레임 비율(f)로 환산.
+    // 60Hz에선 f=1이라 기존 코드와 동일, 120Hz에선 f≈0.5로 한 프레임에 절반씩 진행.
+    // 첫 프레임은 1로 가정 (ts=0일 때 큰 점프 방지).
+    const f = _lastTime ? Math.min((ts - _lastTime) / (1000 / 60), 3) : 1;
+    _lastTime = ts;
+
+    _updateCamera(f);
     _updateTargetStates();
-    if (_phase === 'flight') _stepBullet();
+    if (_phase === 'flight') _stepBullet(f);
 
     const ctx = _ctx;
     _drawSky();
@@ -612,8 +631,8 @@ const FortressModule = (() => {
     _drawTurret();
     _drawTrajectoryPreview();
     if (_bullet) _drawBullet();
-    _drawExplosion();
-    _drawMuzzleFlash();
+    _drawExplosion(f);
+    _drawMuzzleFlash(f);
 
     ctx.restore();
 
@@ -664,6 +683,7 @@ const FortressModule = (() => {
     _phaseMsg     = '';
     _aimAngle     = -Math.PI / 4;
     _camX         = 0;
+    _lastTime     = 0;
 
     _genTerrain();
     _turretCY = _terrainY(TURRET_X) - TURRET_R;
