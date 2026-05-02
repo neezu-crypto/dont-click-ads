@@ -40,6 +40,7 @@ const Level2Module = (() => {
   let _timeLeft = 60;
   let _keysDown = new Set(); // 현재 눌린 방향키
   let _rafId    = null;      // requestAnimationFrame ID
+  let _moveLastTs = 0;       // _moveTick의 직전 타임스탬프 (주사율 독립)
   let _ballPos  = { x: 0, y: 0 };
   let _ended    = false;
 
@@ -395,9 +396,17 @@ const Level2Module = (() => {
     }
   }
 
-  function _moveTick() {
+  function _moveTick(ts) {
     _rafId = null;
-    if (_ended || _keysDown.size === 0) return;
+    if (_ended || _keysDown.size === 0) {
+      _moveLastTs = 0; // 키 떼면 리셋
+      return;
+    }
+
+    // 60Hz 프레임 비율 f. 첫 프레임이거나 키가 새로 눌린 경우 f=1.
+    // 백그라운드 복귀 등 큰 점프는 3으로 클램프.
+    const f = _moveLastTs ? Math.min((ts - _moveLastTs) / (1000 / 60), 3) : 1;
+    _moveLastTs = ts;
 
     let dx = 0, dy = 0;
     if (_keysDown.has('ArrowRight')) dx += MOVE_SPEED;
@@ -410,8 +419,18 @@ const Level2Module = (() => {
       dy *= Math.SQRT1_2;
     }
 
-    const pos = _tryMove(_ballPos.x, _ballPos.y, _ballPos.x + dx, _ballPos.y + dy);
-    _ballPos.x = pos.x; _ballPos.y = pos.y;
+    // f를 작은 스텝으로 분할해서 _tryMove를 여러 번 호출.
+    // 60Hz에선 step=1로 정확히 1번 → 기존 동작과 동일.
+    // 120Hz에선 step=0.5로 작게 움직여 벽 통과 위험 더 감소.
+    let remainingF = f;
+    while (remainingF > 0 && !_ended) {
+      const step = Math.min(remainingF, 1);
+      remainingF -= step;
+      const stepDx = dx * step;
+      const stepDy = dy * step;
+      const pos = _tryMove(_ballPos.x, _ballPos.y, _ballPos.x + stepDx, _ballPos.y + stepDy);
+      _ballPos.x = pos.x; _ballPos.y = pos.y;
+    }
     _placeBall();
 
     if (_ballEl) {
@@ -625,6 +644,7 @@ const Level2Module = (() => {
     _originalArea = area;
     _onSuccess = onSuccess; _onFail = onFail;
     _ended = false; _keysDown.clear();
+    _moveLastTs = 0;
     _pathHistory = []; _adEl = null; _adPos = { x: 0, y: 0 };
     _adIdxF = 0; _adLastTs = 0; _adLandingUrl = ''; _adTimerStarted = false;
 

@@ -28,6 +28,7 @@ const BadmintonModule = (() => {
   let _area, _wrap, _canvas, _ctx;
   let _onScore, _onSuccess, _onFail;
   let _ended = false, _rafId = null;
+  let _lastTime = 0;
 
   // 모바일 세로→가로 회전 오버레이
   let _mobileOverlay = null;
@@ -193,7 +194,7 @@ const BadmintonModule = (() => {
 
   // ── AI 이동 ──
 
-  function _updateAI() {
+  function _updateAI(f) {
     if (_phase === 'idle') return;
 
     if (_sY >= NET_Y) return; // 셔틀이 플레이어 쪽 → 제자리 대기
@@ -206,7 +207,8 @@ const BadmintonModule = (() => {
     const dy = ty - _aRacket.y;
     const d  = Math.hypot(dx, dy);
     if (d > 0.5) {
-      const spd = Math.min(aiSpd, d);
+      // 한 프레임에 이동 가능한 거리 = aiSpd * f, 단 d를 넘기지 않음
+      const spd = Math.min(aiSpd * f, d);
       _aRacket.x += (dx / d) * spd;
       _aRacket.y += (dy / d) * spd;
     }
@@ -219,69 +221,84 @@ const BadmintonModule = (() => {
   function _flashHit(x, y, color) {
     _flashes.push({ x, y, color, r: 0, alpha: 0.8, maxR: P_HIT_R + 10 });
   }
-  function _updateFlashes() {
+  function _updateFlashes(f) {
     for (let i = _flashes.length - 1; i >= 0; i--) {
-      const f = _flashes[i];
-      f.r     += 3;
-      f.alpha -= 0.07;
-      if (f.alpha <= 0) _flashes.splice(i, 1);
+      const fl = _flashes[i];
+      fl.r     += 3 * f;
+      fl.alpha -= 0.07 * f;
+      if (fl.alpha <= 0) _flashes.splice(i, 1);
     }
   }
 
   // ── 메인 틱 ──
 
-  function _tick() {
+  function _tick(ts) {
     _rafId = null;
     if (_ended) return;
 
-    if (_pHitCd > 0) _pHitCd--;
-    if (_aHitCd > 0) _aHitCd--;
+    // 60Hz 프레임 비율 f. 60Hz에선 1, 120Hz에선 ≈0.5.
+    const f = _lastTime ? Math.min((ts - _lastTime) / (1000 / 60), 3) : 1;
+    _lastTime = ts;
+
+    // 히트 쿨다운 — f 차감 (정수 비교는 <=0으로 변경)
+    if (_pHitCd > 0) _pHitCd = Math.max(0, _pHitCd - f);
+    if (_aHitCd > 0) _aHitCd = Math.max(0, _aHitCd - f);
 
 
     if (_sActive) {
       if (_phase === 'rally') {
-        // 중력: 각 진영 백벽 쪽으로
-        _sVY += _sY > NET_Y ? GRAVITY : -GRAVITY;
+        // 셔틀 물리 — 작은 스텝으로 분할해 벽 반사/판정/히트 누락 방지.
+        // 60Hz에선 step=1로 정확히 1번 실행되어 기존과 동일.
+        let remainingF = f;
+        let pointAwarded = false;
+        let hitOccurred = false;
+        while (remainingF > 0 && !pointAwarded && !hitOccurred && _sActive && _phase === 'rally') {
+          const step = Math.min(remainingF, 1);
+          remainingF -= step;
 
-        // 감속
-        _sVX *= DECEL;
-        _sVY *= DECEL;
+          // 중력: 각 진영 백벽 쪽으로
+          _sVY += (_sY > NET_Y ? GRAVITY : -GRAVITY) * step;
 
-        _sX += _sVX;
-        _sY += _sVY;
+          // 감속 (곱셈은 지수 형태로 변환)
+          const decay = Math.pow(DECEL, step);
+          _sVX *= decay;
+          _sVY *= decay;
 
-        // 좌우 벽 반사
-        if (_sX - SHUTTLE_R < PAD) {
-          _sX = PAD + SHUTTLE_R;
-          _sVX = Math.abs(_sVX) * 0.65;
-        }
-        if (_sX + SHUTTLE_R > W - PAD) {
-          _sX = W - PAD - SHUTTLE_R;
-          _sVX = -Math.abs(_sVX) * 0.65;
-        }
+          _sX += _sVX * step;
+          _sY += _sVY * step;
 
-        // 아웃 판정
-        if (_sY > H + 12) { _awardPoint('ai'); }
-        else if (_sY < -12) { _awardPoint('player'); }
+          // 좌우 벽 반사
+          if (_sX - SHUTTLE_R < PAD) {
+            _sX = PAD + SHUTTLE_R;
+            _sVX = Math.abs(_sVX) * 0.65;
+          }
+          if (_sX + SHUTTLE_R > W - PAD) {
+            _sX = W - PAD - SHUTTLE_R;
+            _sVX = -Math.abs(_sVX) * 0.65;
+          }
 
-        // 네트 통과 후 역방향으로 돌아오는 셔틀 아웃 처리
-        // 플레이어가 쳤는데 다시 플레이어 쪽으로 내려오면 → 네트 안친 것
-        else if (_lastHitter === 'player' && _sY > NET_Y + 5 && _sVY > 0) {
-          _awardPoint('ai');
-        } else if (_lastHitter === 'ai' && _sY < NET_Y - 5 && _sVY < 0) {
-          _awardPoint('player');
-        }
+          // 아웃 판정
+          if (_sY > H + 12)        { _awardPoint('ai');     pointAwarded = true; break; }
+          else if (_sY < -12)      { _awardPoint('player'); pointAwarded = true; break; }
 
-        // 플레이어 히트 판정
-        if (_sY > NET_Y && _pHitCd === 0 && _dragging) {
-          const dp = Math.hypot(_sX - _pRacket.x, _sY - _pRacket.y);
-          if (dp < P_HIT_R) _playerHit();
-        }
+          // 네트 통과 후 역방향으로 돌아오는 셔틀 아웃 처리
+          else if (_lastHitter === 'player' && _sY > NET_Y + 5 && _sVY > 0) {
+            _awardPoint('ai');     pointAwarded = true; break;
+          } else if (_lastHitter === 'ai' && _sY < NET_Y - 5 && _sVY < 0) {
+            _awardPoint('player'); pointAwarded = true; break;
+          }
 
-        // AI 히트 판정
-        if (_sY < NET_Y && _aHitCd === 0) {
-          const da = Math.hypot(_sX - _aRacket.x, _sY - _aRacket.y);
-          if (da < A_HIT_R) _aiHit();
+          // 플레이어 히트 판정
+          if (_sY > NET_Y && _pHitCd <= 0 && _dragging) {
+            const dp = Math.hypot(_sX - _pRacket.x, _sY - _pRacket.y);
+            if (dp < P_HIT_R) { _playerHit(); hitOccurred = true; break; }
+          }
+
+          // AI 히트 판정
+          if (_sY < NET_Y && _aHitCd <= 0) {
+            const da = Math.hypot(_sX - _aRacket.x, _sY - _aRacket.y);
+            if (da < A_HIT_R) { _aiHit(); hitOccurred = true; break; }
+          }
         }
 
       } else if (_phase === 'serve_wait' && _serving === 'player') {
@@ -293,9 +310,9 @@ const BadmintonModule = (() => {
       }
     }
 
-    _updateAI();
-    _updateFlashes();
-    _updateMsgAlpha();
+    _updateAI(f);
+    _updateFlashes(f);
+    _updateMsgAlpha(f);
     _render();
 
     _rafId = requestAnimationFrame(_tick);
@@ -359,8 +376,8 @@ const BadmintonModule = (() => {
   function _showMsg(text) {
     _msg = text; _msgAlpha = 1.0;
   }
-  function _updateMsgAlpha() {
-    if (_msgAlpha > 0) _msgAlpha = Math.max(0, _msgAlpha - 0.018);
+  function _updateMsgAlpha(f) {
+    if (_msgAlpha > 0) _msgAlpha = Math.max(0, _msgAlpha - 0.018 * f);
   }
 
   // ── 렌더링 ──
@@ -706,6 +723,7 @@ const BadmintonModule = (() => {
     _pHitCd  = 0; _aHitCd = 0;
     _lastHitter = null;
     _dragging = false; _pvx = 0; _pvy = 0;
+    _lastTime = 0;
     _pRacket  = { x: W / 2, y: H - 72 };
     _aRacket  = { x: W / 2, y: 72 };
     _flashes.length = 0;
