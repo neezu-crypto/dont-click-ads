@@ -264,12 +264,10 @@ exports.deleteRanking = onCall(async (request) => {
 
 /* ════════════════════════════════════════
    checkQuizAnswer — 퀴즈 정답 확인 (플레이어용, 정답 비공개)
+   - 익명 사용자도 호출 가능. 정답은 함수 내부에서만 비교하고
+     맞을 때는 정답을 반환하지 않아 클라이언트로 노출되지 않음.
 ════════════════════════════════════════ */
 exports.checkQuizAnswer = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
-  }
-
   const { answer } = request.data;
   if (typeof answer !== 'string' || !answer.trim()) {
     throw new HttpsError('invalid-argument', '정답을 입력해주세요.');
