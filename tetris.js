@@ -10,7 +10,7 @@ const TetrisModule = (() => {
   const TARGET_LINES = 10;   // 승리 조건
 
   // ── 낙하 속도 ──
-  const DROP_BASE  = 800;  // ms (초기 한 칸 낙하 주기)
+  const DROP_BASE  = 400;  // ms (초기 한 칸 낙하 주기)
   const DROP_MIN   = 400;  // ms (최소)
   const DROP_STEP  = 30;   // 블록 1개 쌓을 때마다 단축 ms
 
