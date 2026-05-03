@@ -467,23 +467,25 @@ const TetrisModule = (() => {
   }
 
   function _addListeners(target) {
-    target.addEventListener('mousedown',  _onPointerDown, { passive: false });
-    target.addEventListener('mousemove',  _onPointerMove, { passive: false });
-    target.addEventListener('mouseup',    _onPointerUp,   { passive: false });
-    target.addEventListener('touchstart', _onPointerDown, { passive: false });
-    target.addEventListener('touchmove',  _onPointerMove, { passive: false });
-    target.addEventListener('touchend',   _onPointerUp,   { passive: false });
-    target.addEventListener('touchcancel',_onPointerUp,   { passive: false });
+    // mousedown은 캔버스에서만 시작, mousemove/mouseup은 document에 등록해
+    // 드래그 중 마우스가 캔버스 밖으로 나가도 블록 이동이 계속 동작하도록 함.
+    target.addEventListener('mousedown',     _onPointerDown, { passive: false });
+    document.addEventListener('mousemove',   _onPointerMove, { passive: false });
+    document.addEventListener('mouseup',     _onPointerUp,   { passive: false });
+    target.addEventListener('touchstart',    _onPointerDown, { passive: false });
+    target.addEventListener('touchmove',     _onPointerMove, { passive: false });
+    target.addEventListener('touchend',      _onPointerUp,   { passive: false });
+    target.addEventListener('touchcancel',   _onPointerUp,   { passive: false });
   }
 
   function _removeListeners(target) {
-    target.removeEventListener('mousedown',  _onPointerDown);
-    target.removeEventListener('mousemove',  _onPointerMove);
-    target.removeEventListener('mouseup',    _onPointerUp);
-    target.removeEventListener('touchstart', _onPointerDown);
-    target.removeEventListener('touchmove',  _onPointerMove);
-    target.removeEventListener('touchend',   _onPointerUp);
-    target.removeEventListener('touchcancel',_onPointerUp);
+    target.removeEventListener('mousedown',    _onPointerDown);
+    document.removeEventListener('mousemove',  _onPointerMove);
+    document.removeEventListener('mouseup',    _onPointerUp);
+    target.removeEventListener('touchstart',   _onPointerDown);
+    target.removeEventListener('touchmove',    _onPointerMove);
+    target.removeEventListener('touchend',     _onPointerUp);
+    target.removeEventListener('touchcancel',  _onPointerUp);
   }
 
   // ── 정리 ──
