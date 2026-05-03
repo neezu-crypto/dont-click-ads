@@ -1427,15 +1427,20 @@
   let tx = x, ty = y;
   let raf = null;
   let running = false;
+  let lastTs = 0;
   const LERP = 0.055;
 
   /* 마우스 위치는 광고 로드 전부터 추적 */
   function onMove(e) { tx = e.clientX; ty = e.clientY; }
   document.addEventListener('mousemove', onMove);
 
-  function tick() {
-    x += (tx - x) * LERP;
-    y += (ty - y) * LERP;
+  function tick(ts) {
+    // 60Hz 프레임 비율 f. 지수 감쇠로 주사율에 무관한 추적 속도 유지.
+    const f = lastTs ? Math.min((ts - lastTs) / (1000 / 60), 3) : 1;
+    lastTs = ts;
+    const lerp = 1 - Math.pow(1 - LERP, f);
+    x += (tx - x) * lerp;
+    y += (ty - y) * lerp;
     el.style.left = x + 'px';
     el.style.top  = y + 'px';
     if (running) raf = requestAnimationFrame(tick);
@@ -1585,11 +1590,15 @@ const MINI_GAMES = {
       let cx = window.innerWidth / 2, cy = window.innerHeight / 2;
       let tx = cx, ty = cy;
       let raf = null;
+      let adLastTs = 0;
       const LERP = isMobile ? 0.0368 : 0.0347;  // 기존 대비 30% 감속
 
-      function adTick() {
-        cx += (tx - cx) * LERP;
-        cy += (ty - cy) * LERP;
+      function adTick(ts) {
+        const f = adLastTs ? Math.min((ts - adLastTs) / (1000 / 60), 3) : 1;
+        adLastTs = ts;
+        const lerp = 1 - Math.pow(1 - LERP, f);
+        cx += (tx - cx) * lerp;
+        cy += (ty - cy) * lerp;
         cursorAd.style.left = cx + 'px';
         cursorAd.style.top  = cy + 'px';
         if (!ended) raf = requestAnimationFrame(adTick);
