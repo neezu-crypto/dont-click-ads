@@ -231,17 +231,28 @@ const TetrisModule = (() => {
     ctx.lineWidth   = 2;
     ctx.strokeRect(0, 0, LW, LH);
 
-    // HUD: 진행도
-    const barW = 80;
+    // HUD: 진행도 — 좌측 중앙 (NEXT 미리보기 아래), 세로 게이지
     const ratio = Math.min(_linesCleared / TARGET_LINES, 1);
+    const gaugeX = 8;                  // 좌측 여백
+    const gaugeY = 62;                 // NEXT 미리보기(4+52) 아래
+    const gaugeW = 14;                 // 게이지 가로 폭
+    const gaugeH = LH / 2 - gaugeY;   // 세로 길이 (중앙까지)
+    // 배경
     ctx.fillStyle = '#ffffff15';
-    ctx.fillRect(LW - barW - 6, 6, barW, 10);
+    ctx.fillRect(gaugeX, gaugeY, gaugeW, gaugeH);
+    // 채워진 부분 (아래에서 위로 차오름)
+    const filledH = gaugeH * ratio;
     ctx.fillStyle = '#00ffaa';
-    ctx.fillRect(LW - barW - 6, 6, barW * ratio, 10);
-    ctx.font = '10px monospace';
+    ctx.fillRect(gaugeX, gaugeY + gaugeH - filledH, gaugeW, filledH);
+    // 테두리
+    ctx.strokeStyle = '#ffffff33';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(gaugeX, gaugeY, gaugeW, gaugeH);
+    // 라벨
+    ctx.font = '9px monospace';
     ctx.fillStyle = '#ffffffbb';
-    ctx.textAlign = 'right';
-    ctx.fillText(`${_linesCleared}/${TARGET_LINES} 줄`, LW - 6, 28);
+    ctx.textAlign = 'center';
+    ctx.fillText(`${_linesCleared}/${TARGET_LINES}`, gaugeX + gaugeW / 2, gaugeY + gaugeH + 12);
     ctx.textAlign = 'left';
 
     // 다음 피스 미리보기
