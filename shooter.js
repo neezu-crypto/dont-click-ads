@@ -8,7 +8,7 @@ const ShooterModule = (() => {
   const PLAYER_Y = H - 110;            // 플레이어 Y 위치
   const PLAYER_R = 22;                 // 플레이어 충돌 반경
   const AIM_RANGE = Math.PI * 80 / 180;  // 조준 가능 범위 ±80°
-  const FIRE_INTERVAL = 0.25;          // 자동 발사 주기 (초)
+  const FIRE_INTERVAL = 0.4;          // 자동 발사 주기 (초)
   const BULLET_SPEED = 720;            // 플레이어 총알 속도 (px/s)
   const ENEMY_SPEED_MIN = 140;         // 적 탄막 속도 최소
   const ENEMY_SPEED_MAX = 220;         // 적 탄막 속도 최대
