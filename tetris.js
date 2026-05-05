@@ -41,6 +41,7 @@ const TetrisModule = (() => {
   let _mobileOverlay   = null;
   let _isMobileRotated = false;
   let _originalArea    = null;
+  let _hardDropBtn     = null;  // 즉시 내리기 버튼
 
   let _waitingStart = false; // 인트로 화면 대기 중
 
@@ -167,6 +168,13 @@ const TetrisModule = (() => {
     }
   }
 
+  // ── 즉시 낙하(하드 드롭) — 바닥까지 한 번에 ──
+  function _hardDrop() {
+    if (_ended || _waitingStart || !_cur) return;
+    _cur.r = _ghostRow();
+    _lock();
+  }
+
   // ── 그림자(Ghost) 위치 ──
   function _ghostRow() {
     let gr = _cur.r;
@@ -233,22 +241,18 @@ const TetrisModule = (() => {
 
     // HUD: 진행도 — 좌측 중앙 (NEXT 미리보기 아래), 세로 게이지
     const ratio = Math.min(_linesCleared / TARGET_LINES, 1);
-    const gaugeX = 8;                  // 좌측 여백
-    const gaugeY = 62;                 // NEXT 미리보기(4+52) 아래
-    const gaugeW = 14;                 // 게이지 가로 폭
-    const gaugeH = LH / 2 - gaugeY;   // 세로 길이 (중앙까지)
-    // 배경
+    const gaugeX = 8;
+    const gaugeY = 62;
+    const gaugeW = 14;
+    const gaugeH = LH / 2 - gaugeY;
     ctx.fillStyle = '#ffffff15';
     ctx.fillRect(gaugeX, gaugeY, gaugeW, gaugeH);
-    // 채워진 부분 (아래에서 위로 차오름)
     const filledH = gaugeH * ratio;
     ctx.fillStyle = '#00ffaa';
     ctx.fillRect(gaugeX, gaugeY + gaugeH - filledH, gaugeW, filledH);
-    // 테두리
     ctx.strokeStyle = '#ffffff33';
     ctx.lineWidth = 1;
     ctx.strokeRect(gaugeX, gaugeY, gaugeW, gaugeH);
-    // 라벨
     ctx.font = '9px monospace';
     ctx.fillStyle = '#ffffffbb';
     ctx.textAlign = 'center';
@@ -478,8 +482,6 @@ const TetrisModule = (() => {
   }
 
   function _addListeners(target) {
-    // mousedown은 캔버스에서만 시작, mousemove/mouseup은 document에 등록해
-    // 드래그 중 마우스가 캔버스 밖으로 나가도 블록 이동이 계속 동작하도록 함.
     target.addEventListener('mousedown',     _onPointerDown, { passive: false });
     document.addEventListener('mousemove',   _onPointerMove, { passive: false });
     document.addEventListener('mouseup',     _onPointerUp,   { passive: false });
@@ -499,6 +501,23 @@ const TetrisModule = (() => {
     target.removeEventListener('touchcancel',  _onPointerUp);
   }
 
+  // ── 즉시 내리기 버튼 생성 ──
+  function _createHardDropBtn() {
+    const btn = document.createElement('button');
+    btn.textContent = '⬇ 즉시 내리기';
+    btn.style.cssText =
+      'display:block;margin:6px auto 0;padding:10px 0;' +
+      'background:#1a2233;color:#00ffaadd;border:2px solid #00ffaa55;' +
+      'border-radius:6px;font-size:1rem;font-weight:700;' +
+      'cursor:pointer;user-select:none;touch-action:manipulation;' +
+      'transition:background 0.1s;';
+    btn.addEventListener('mouseenter', () => { btn.style.background = '#223344'; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = '#1a2233'; });
+    btn.addEventListener('click',      (e) => { e.preventDefault(); _hardDrop(); });
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); _hardDrop(); }, { passive: false });
+    return btn;
+  }
+
   // ── 정리 ──
   function _cleanup() {
     _ended = true;
@@ -516,6 +535,7 @@ const TetrisModule = (() => {
       _originalArea.style.position    = '';
     }
     if (_wrap) { _wrap.style.width = ''; _wrap = null; }
+    if (_hardDropBtn) { _hardDropBtn.remove(); _hardDropBtn = null; }
     _isMobileRotated = false;
     _originalArea    = null;
     _waitingStart    = false;
@@ -607,6 +627,11 @@ const TetrisModule = (() => {
       inner.appendChild(_canvas);
       _ctx = _canvas.getContext('2d');
 
+      // 하드드롭 버튼 (캔버스 아래)
+      _hardDropBtn = _createHardDropBtn();
+      _hardDropBtn.style.width = cw + 'px';
+      inner.appendChild(_hardDropBtn);
+
       _addListeners(_mobileOverlay);
       _area = inner;
     } else {
@@ -628,6 +653,13 @@ const TetrisModule = (() => {
         'touch-action:none;cursor:pointer;display:block;user-select:none;';
       area.appendChild(_canvas);
       _ctx = _canvas.getContext('2d');
+
+      // 하드드롭 버튼 (캔버스 아래, area 밖)
+      _hardDropBtn = _createHardDropBtn();
+      _hardDropBtn.style.width = '100%';
+      _hardDropBtn.style.maxWidth = LW + 'px';
+      if (_wrap) _wrap.appendChild(_hardDropBtn);
+      else area.parentElement && area.parentElement.appendChild(_hardDropBtn);
 
       _addListeners(_canvas);
     }
