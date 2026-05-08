@@ -27,7 +27,7 @@
       ".read": "auth != null && auth.token.email === 'skftodwocks2@gmail.com'",
       "$key": {
         ".write": "!data.exists()",
-        ".validate": "newData.hasChildren(['nickname','soopId','days','totalStarBalloons','createdAt']) && newData.child('nickname').isString() && newData.child('nickname').val().length >= 1 && newData.child('nickname').val().length <= 20 && newData.child('soopId').isString() && newData.child('soopId').val().length >= 1 && newData.child('soopId').val().length <= 30 && newData.child('days').isNumber() && newData.child('days').val() >= 1 && newData.child('days').val() <= 30 && newData.child('totalStarBalloons').isNumber() && newData.child('createdAt').isNumber()"
+        ".validate": "newData.hasChildren(['nickname','soopId','days','totalStarBalloons','createdAt']) && newData.child('nickname').isString() && newData.child('nickname').val().length >= 1 && newData.child('nickname').val().length <= 20 && newData.child('soopId').isString() && newData.child('soopId').val().length >= 1 && newData.child('soopId').val().length <= 30 && newData.child('days').isNumber() && newData.child('days').val() >= 1 && newData.child('days').val() <= 30 && newData.child('totalStarBalloons').isNumber() && newData.child('createdAt').isNumber() && (!newData.hasChild('type') || (newData.child('type').isString() && (newData.child('type').val() === 'banner' || newData.child('type').val() === 'general'))) && (!newData.hasChild('imgUrl') || (newData.child('imgUrl').isString() && newData.child('imgUrl').val().length >= 1 && newData.child('imgUrl').val().length <= 500))"
       }
     },
 

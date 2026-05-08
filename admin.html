@@ -242,6 +242,10 @@
     .badge-approved { background: #0a1a0a; color: #44cc66; border: 1px solid #1a4a22; }
     .badge-rejected { background: #1a0808; color: #ff5555; border: 1px solid #5a1111; }
 
+    .badge-banner   { background: #1a1500; color: #ffcc00; border: 1px solid #4a3a00; font-size: 0.7rem; padding: 2px 7px; border-radius: 4px; }
+    .badge-general  { background: #0a0f1a; color: #6699cc; border: 1px solid #1a3355; font-size: 0.7rem; padding: 2px 7px; border-radius: 4px; }
+    .inq-banner-preview { width: 100%; max-width: 180px; border-radius: 4px; border: 1px solid #333; margin-top: 4px; }
+
     .btn-approve { background: #0a1e12; color: #44cc66; padding: 5px 12px; border: 1px solid #1a4a22; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600; transition: background 0.15s; }
     .btn-reject  { background: #1a0808; color: #ff8888; padding: 5px 12px; border: 1px solid #5a1111; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600; transition: background 0.15s; }
     .btn-approve:hover { background: #1a4a22; }
@@ -604,6 +608,7 @@
           <th>프로필</th>
           <th>닉네임</th>
           <th>수프 ID</th>
+          <th>유형</th>
           <th>기간 / 별풍선</th>
           <th>신청일</th>
           <th>상태</th>
@@ -611,7 +616,7 @@
         </tr>
       </thead>
       <tbody id="inquiries-tbody">
-        <tr class="empty-row"><td colspan="7">로그인 후 신청 목록이 표시됩니다.</td></tr>
+        <tr class="empty-row"><td colspan="8">로그인 후 신청 목록이 표시됩니다.</td></tr>
       </tbody>
     </table>
   </div>
@@ -1128,7 +1133,7 @@ window._renderInquiries = function (data) {
 
   const tbody = document.getElementById('inquiries-tbody');
   if (!filtered.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">신청 내역이 없습니다.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">신청 내역이 없습니다.</td></tr>`;
     return;
   }
 
@@ -1141,6 +1146,13 @@ window._renderInquiries = function (data) {
     const imgSrc = soopImgUrl(inq.soopId);
     const approveDisabled = !isPending ? 'disabled' : '';
     const rejectDisabled  = !isPending ? 'disabled' : '';
+    const isBanner = inq.type === 'banner';
+    const typeBadge = isBanner
+      ? '<span class="badge-banner">📺 배너</span>'
+      : '<span class="badge-general">🔵 일반</span>';
+    const bannerPreview = (isBanner && inq.imgUrl)
+      ? `<br><img class="inq-banner-preview" src="${esc(inq.imgUrl)}" onerror="this.style.display='none'" title="배너 미리보기" />`
+      : '';
 
     return `<tr>
       <td data-label="프로필">
@@ -1148,9 +1160,10 @@ window._renderInquiries = function (data) {
       </td>
       <td data-label="닉네임">${esc(inq.nickname || '—')}</td>
       <td data-label="수프ID" class="url-cell">${inq.soopId ? `<a href="${esc(soopLandingUrl(inq.soopId))}" target="_blank" rel="noopener noreferrer" style="color:#ff8833;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(inq.soopId)}</a>` : '—'}</td>
+      <td data-label="유형">${typeBadge}${bannerPreview}</td>
       <td data-label="기간/별풍선">
         <span>${esc(String(inq.days || '?'))}일</span><br>
-        <span class="inq-star">★ ${esc(String(inq.totalStarBalloons || (inq.days * 20) || '?'))}개</span>
+        <span class="inq-star">★ ${esc(String(inq.totalStarBalloons || '?'))}개</span>
       </td>
       <td data-label="신청일" class="inq-meta">${dateStr}</td>
       <td data-label="상태">${inqStatusBadge(status)}${inq.reason ? `<br><span class="inq-meta" title="${esc(inq.reason)}">${esc(inq.reason.slice(0, 20))}${inq.reason.length > 20 ? '…' : ''}</span>` : ''}</td>
