@@ -472,6 +472,95 @@
       min-height: 1em;
     }
 
+    /* ─── 하단 배너 광고 신청 버튼 (게임오버 모달 안) ─── */
+    .banner-ad-cta {
+      margin-top: 10px;
+      padding: 14px 16px;
+      border: 2px dashed #ffcc0066;
+      border-radius: 10px;
+      background: transparent;
+      color: #ffcc00cc;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.2s, color 0.2s;
+      user-select: none;
+      max-width: 420px;
+      width: 100%;
+    }
+    .banner-ad-cta:hover {
+      border-color: #ffcc00;
+      color: #ffcc00;
+    }
+
+    /* ─── 배너 광고 신청 모달 ─── */
+    #banner-ad-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 10001;
+      align-items: center;
+      justify-content: center;
+    }
+    #banner-ad-modal.active { display: flex; }
+    #banner-ad-modal .modal-box {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 14px;
+      padding: 36px 32px;
+      width: 420px;
+      max-width: 92vw;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      color: #fff;
+    }
+    #banner-ad-modal h3 { margin: 0; font-size: 1.3rem; color: #ffcc00; }
+    #banner-ad-modal p  { margin: 0; font-size: 0.85rem; color: #aaa; line-height: 1.5; }
+    #banner-ad-modal input {
+      width: 100%;
+      padding: 10px 14px;
+      background: #111;
+      border: 1px solid #444;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    #banner-ad-modal input:focus { outline: none; border-color: #ffcc00; }
+    #banner-ad-modal input[type=number]::-webkit-inner-spin-button,
+    #banner-ad-modal input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    #banner-ad-modal input[type=number] { -moz-appearance: textfield; }
+    #banner-ad-modal .modal-buttons { display: flex; gap: 10px; }
+    #banner-ad-modal .banner-preview {
+      width: 100%;
+      aspect-ratio: 720 / 150;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #banner-ad-modal .banner-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+    #banner-ad-modal .banner-preview .placeholder {
+      font-size: 0.8rem;
+      color: #555;
+    }
+    #banner-ad-error {
+      font-size: 0.82rem;
+      color: #ff6644;
+      min-height: 1em;
+    }
+
     /* ─── OPENING CURSOR AD ─── */
     #opening-cursor-ad {
       display: none;
@@ -983,6 +1072,7 @@
   <div class="result-score" id="result-ad-count"></div>
   <p>지금까지 광고를 이렇게나 클릭했어요.<br>다시 도전해볼까요?</p>
   <button class="btn-restart" onclick="restartFromLevel1()">레벨 1부터 다시하기</button>
+  <button class="banner-ad-cta" onclick="showBannerAdModal()">📺 여기에 방송국 홍보하기!</button>
 </div>
 
 <!-- ════════════════════ AD POPUP ════════════════════ -->
@@ -1010,6 +1100,7 @@
     <button class="btn-restart" onclick="restartFromLevel1()">재도전</button>
     <button class="btn-ad-inquiry" onclick="showAdInquiryModal()">광고 문의하기</button>
   </div>
+  <button class="banner-ad-cta" onclick="showBannerAdModal()">📺 여기에 방송국 홍보하기!</button>
 </div>
 
 <!-- 레벨 2 타임오버 오버레이 -->
@@ -1022,6 +1113,7 @@
     <button class="btn-restart" onclick="restartFromLevel1()">레벨 1부터 다시하기</button>
     <button class="btn-ad-inquiry" onclick="showAdInquiryModal()">광고 문의하기</button>
   </div>
+  <button class="banner-ad-cta" onclick="showBannerAdModal()">📺 여기에 방송국 홍보하기!</button>
 </div>
 
 <!-- 광고 추적자에 잡혔을 때 실패 오버레이 -->
@@ -1034,6 +1126,7 @@
     <button class="btn-restart" onclick="restartFromLevel1()">레벨 1부터 다시하기</button>
     <button class="btn-ad-inquiry" onclick="showAdInquiryModal()">광고 문의하기</button>
   </div>
+  <button class="banner-ad-cta" onclick="showBannerAdModal()">📺 여기에 방송국 홍보하기!</button>
 </div>
 
 <!-- 광고 문의 모달 -->
@@ -1071,6 +1164,49 @@
     <div class="modal-buttons">
       <button class="btn-primary" style="flex:1" onclick="submitAdInquiry()">신청하기</button>
       <button class="btn-secondary" onclick="closeAdInquiryModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 레벨 플레이스홀더 (admin 레벨 카운터용) -->
+
+<!-- 배너 광고 신청 모달 -->
+<div id="banner-ad-modal">
+  <div class="modal-box">
+    <h3>📺 하단 배너 광고 신청</h3>
+    <p>게임오버 화면 하단에 방송국을 단독 홍보할 수 있습니다.<br>이미지 규격: <b>720 × 150px</b></p>
+    <input id="banner-soop-id" type="text" maxlength="30" placeholder="SOOP ID" oninput="onBannerIdInput(this.value)" />
+    <div id="banner-profile-preview" style="display:none;margin-top:-6px;display:flex;align-items:center;gap:10px;display:none">
+      <img id="banner-profile-img" src="" alt="프로필" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #ffcc00;background:#222" onerror="this.style.display='none'" onload="this.style.display='block'" />
+      <span id="banner-profile-id" style="font-size:0.85rem;color:#ffcc00"></span>
+    </div>
+    <input id="banner-img-url" type="text" placeholder="배너 이미지 URL (720×150px)" oninput="onBannerImgInput(this.value)" />
+    <div class="banner-preview">
+      <img id="banner-preview-img" src="" alt="배너 미리보기" onerror="this.style.display='none'" onload="this.style.display='block'" />
+      <span class="placeholder" id="banner-preview-placeholder">이미지 미리보기</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <input id="banner-days" type="number" min="1" max="30" placeholder="광고 기간 (1~30일)" oninput="onBannerDaysInput(this.value)" style="flex:1" />
+      <span style="font-size:0.82rem;color:#aaa;white-space:nowrap">일</span>
+    </div>
+    <div id="banner-price-display" style="display:none;background:#111;border:1px solid #333;border-radius:8px;padding:10px 14px;font-size:0.9rem;line-height:1.7">
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#aaa">단가</span>
+        <span style="color:#fff">별풍선 30개 / 1일</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#aaa">광고 기간</span>
+        <span id="banner-days-display" style="color:#fff"></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid #333;margin-top:6px;padding-top:6px">
+        <span style="color:#ffcc00;font-weight:bold">총 후원단가</span>
+        <span id="banner-total-display" style="color:#ffcc00;font-weight:bold"></span>
+      </div>
+    </div>
+    <p id="banner-ad-error"></p>
+    <div class="modal-buttons">
+      <button class="btn-primary" style="flex:1" onclick="submitBannerAd()">신청하기</button>
+      <button class="btn-secondary" onclick="closeBannerAdModal()">닫기</button>
     </div>
   </div>
 </div>
@@ -1435,7 +1571,6 @@
   document.addEventListener('mousemove', onMove);
 
   function tick(ts) {
-    // 60Hz 프레임 비율 f. 지수 감쇠로 주사율에 무관한 추적 속도 유지.
     const f = lastTs ? Math.min((ts - lastTs) / (1000 / 60), 3) : 1;
     lastTs = ts;
     const lerp = 1 - Math.pow(1 - LERP, f);
@@ -3989,6 +4124,125 @@ function submitAdInquiry() {
   });
 }
 window.submitAdInquiry = submitAdInquiry;
+
+/* ════════════════════ 하단 배너 광고 신청 ════════════════════ */
+let _bannerSubmitted = false;
+
+function showBannerAdModal() {
+  _bannerSubmitted = false;
+  document.getElementById('banner-soop-id').value = '';
+  document.getElementById('banner-img-url').value = '';
+  document.getElementById('banner-days').value = '';
+  document.getElementById('banner-ad-error').textContent = '';
+  document.getElementById('banner-price-display').style.display = 'none';
+  document.getElementById('banner-profile-preview').style.display = 'none';
+  document.getElementById('banner-preview-img').style.display = 'none';
+  document.getElementById('banner-preview-placeholder').style.display = '';
+  document.getElementById('banner-soop-id').disabled = false;
+  document.getElementById('banner-img-url').disabled = false;
+  document.getElementById('banner-days').disabled = false;
+  const btn = document.getElementById('banner-ad-modal').querySelector('.btn-primary');
+  if (btn) { btn.disabled = false; btn.textContent = '신청하기'; }
+  document.getElementById('banner-ad-modal').classList.add('active');
+}
+window.showBannerAdModal = showBannerAdModal;
+
+function closeBannerAdModal() {
+  if (_bannerSubmitted) return;
+  document.getElementById('banner-ad-modal').classList.remove('active');
+}
+window.closeBannerAdModal = closeBannerAdModal;
+
+function onBannerIdInput(val) {
+  const preview = document.getElementById('banner-profile-preview');
+  const img     = document.getElementById('banner-profile-img');
+  const idSpan  = document.getElementById('banner-profile-id');
+  if (val.trim().length >= 2) {
+    const id = val.trim().toLowerCase();
+    img.src = `https://stimg.sooplive.com/LOGO/${id.slice(0,2)}/${id}/${id}.jpg`;
+    idSpan.textContent = id;
+    preview.style.display = 'flex';
+  } else {
+    preview.style.display = 'none';
+  }
+}
+window.onBannerIdInput = onBannerIdInput;
+
+function onBannerImgInput(val) {
+  const img = document.getElementById('banner-preview-img');
+  const ph  = document.getElementById('banner-preview-placeholder');
+  if (val.trim()) {
+    img.src = val.trim();
+    ph.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    ph.style.display = '';
+  }
+}
+window.onBannerImgInput = onBannerImgInput;
+
+function onBannerDaysInput(val) {
+  const days = parseInt(val, 10);
+  const priceEl = document.getElementById('banner-price-display');
+  if (days >= 1 && days <= 30) {
+    document.getElementById('banner-days-display').textContent = `${days}일`;
+    document.getElementById('banner-total-display').textContent = `별풍선 ${days * 30}개`;
+    priceEl.style.display = 'block';
+  } else {
+    priceEl.style.display = 'none';
+  }
+}
+window.onBannerDaysInput = onBannerDaysInput;
+
+function submitBannerAd() {
+  const soopId  = document.getElementById('banner-soop-id').value.trim();
+  const imgUrl  = document.getElementById('banner-img-url').value.trim();
+  const days    = parseInt(document.getElementById('banner-days').value, 10);
+  const errEl   = document.getElementById('banner-ad-error');
+  errEl.style.color = '';
+
+  if (!soopId) { errEl.textContent = 'SOOP ID를 입력해주세요.'; return; }
+  if (!imgUrl) { errEl.textContent = '배너 이미지 URL을 입력해주세요.'; return; }
+  if (!days || days < 1 || days > 30) { errEl.textContent = '광고 기간을 1~30일 사이로 입력해주세요.'; return; }
+
+  errEl.textContent = '';
+  document.getElementById('banner-soop-id').disabled = true;
+  document.getElementById('banner-img-url').disabled = true;
+  document.getElementById('banner-days').disabled = true;
+  const submitBtn = document.getElementById('banner-ad-modal').querySelector('.btn-primary');
+  submitBtn.disabled = true;
+  submitBtn.textContent = '신청 중…';
+
+  const save = (window._db && window._dbSet && window._dbRef)
+    ? (() => { const key = Date.now(); return window._dbSet(window._dbRef(window._db, `adInquiries/${key}`), { nickname: soopId, soopId, imgUrl, days, totalStarBalloons: days * 30, type: 'banner', createdAt: key }); })()
+    : Promise.resolve();
+
+  save.then(() => {
+    if (typeof playSuccessSound === 'function') playSuccessSound();
+    _bannerSubmitted = true;
+    submitBtn.textContent = '신청 완료 ✓';
+    errEl.style.color = '#44cc88';
+    errEl.textContent = '신청이 접수되었습니다. 후원 페이지로 이동합니다.';
+    window.open(
+      'https://st.sooplive.com/app/gift_starballoon.php?szBjId=skftodwocks2&szWork=BJ_STATION&sys_type=web&location=station',
+      '_blank'
+    );
+  }).catch(() => {
+    errEl.style.color = '';
+    errEl.textContent = '신청 중 오류가 발생했습니다. 다시 시도해주세요.';
+    document.getElementById('banner-soop-id').disabled = false;
+    document.getElementById('banner-img-url').disabled = false;
+    document.getElementById('banner-days').disabled = false;
+    submitBtn.disabled = false;
+    submitBtn.textContent = '신청하기';
+  });
+}
+window.submitBannerAd = submitBannerAd;
+
+/* 배너 모달 외부 클릭 닫기 */
+document.getElementById('banner-ad-modal').addEventListener('click', function(e) {
+  if (e.target === this && !_bannerSubmitted) closeBannerAdModal();
+});
 
 /* 모달 외부 클릭 시 닫기 (신청 완료 후에는 닫히지 않음) */
 document.getElementById('ad-inquiry-modal').addEventListener('click', function(e) {
