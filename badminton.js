@@ -1,14 +1,14 @@
-// Badminton mini-game module
+//  Badminton mini-game module
 const BadmintonModule = (() => {
   'use strict';
 
-  // ── 논리 해상도 ──
+  //  ── 논리 해상도 ──
   const W = 640, H = 420;
   const NET_Y   = H / 2;       // 210
   const PAD     = 18;          // 코트 테두리 여백
   const TARGET  = 5;           // 선취 점수
 
-  // 라켓
+  //  라켓
   const P_HIT_R    = 34;   // 플레이어 히트 판정 반지름
   const A_HIT_R    = 30;   // AI 히트 판정 반지름
   const RACKET_VR  = 21;   // 시각적 라켓 반지름
@@ -24,13 +24,13 @@ const BadmintonModule = (() => {
   const AI_MISS_PROB = 0.06;  // 히트 실수 확률
   const AI_DIFFICULTY = 1.3;  // 난이도 배율 (0.7=쉬움 / 1.0=보통 / 1.3=어려움)
 
-  // 상태
+  //  상태
   let _area, _wrap, _canvas, _ctx;
   let _onScore, _onSuccess, _onFail;
   let _ended = false, _rafId = null;
   let _lastTime = 0;
 
-  // 모바일 세로→가로 회전 오버레이
+  //  모바일 세로→가로 회전 오버레이
   let _mobileOverlay = null;
   let _isMobileRotated = false;
   let _originalArea = null;
@@ -39,7 +39,7 @@ const BadmintonModule = (() => {
   let _serving = 'player';              // 'player' | 'ai'
   let _phase   = 'idle';                // 'idle' | 'serve_wait' | 'rally' | 'point_pause'
 
-  // 플레이어 라켓
+  //  플레이어 라켓
   let _pRacket  = { x: W / 2, y: H - 72 };
   let _dragging = false;
   let _dragOX = 0, _dragOY = 0;
@@ -51,7 +51,7 @@ const BadmintonModule = (() => {
   let _aRacket      = { x: W / 2, y: 72 };
   let _aHitCd       = 0;
 
-  // 셔틀콕
+  //  셔틀콕
   let _sX = W / 2, _sY = NET_Y + 60;
   let _sVX = 0, _sVY = 0;
   let _sActive = false;
@@ -68,7 +68,7 @@ const BadmintonModule = (() => {
   let _timerEl  = null;
   let _timerIv  = null;
 
-  // ── 스케일 ──
+  //  ── 스케일 ──
 
   function _scale() {
     if (!_area) return { x: 1, y: 1 };
@@ -86,7 +86,7 @@ const BadmintonModule = (() => {
       const cy = rect.top  + rect.height / 2;
       const sxr = clientX - cx;
       const syr = clientY - cy;
-      // 90° CW 역변환 = 90° CCW: (sx,sy) → (-sy, sx)
+      //  90° CW 역변환 = 90° CCW: (sx,sy) → (-sy, sx)
       const ex = _area.offsetWidth  / 2 + (-syr);
       const ey = _area.offsetHeight / 2 + sxr;
       return { x: ex / s.x, y: ey / s.y };
@@ -122,7 +122,7 @@ const BadmintonModule = (() => {
     }
   }
 
-  // ── 서브 준비 ──
+  //  ── 서브 준비 ──
 
   function _prepareServe(delay) {
     _phase   = 'idle';
@@ -192,7 +192,7 @@ const BadmintonModule = (() => {
     _flashHit(_aRacket.x, _aRacket.y, '#ff6655');
   }
 
-  // ── AI 이동 ──
+  //  ── AI 이동 ──
 
   function _updateAI(f) {
     if (_phase === 'idle') return;
@@ -207,7 +207,7 @@ const BadmintonModule = (() => {
     const dy = ty - _aRacket.y;
     const d  = Math.hypot(dx, dy);
     if (d > 0.5) {
-      // 한 프레임에 이동 가능한 거리 = aiSpd * f, 단 d를 넘기지 않음
+      //  한 프레임에 이동 가능한 거리 = aiSpd * f, 단 d를 넘기지 않음
       const spd = Math.min(aiSpd * f, d);
       _aRacket.x += (dx / d) * spd;
       _aRacket.y += (dy / d) * spd;
@@ -230,7 +230,7 @@ const BadmintonModule = (() => {
     }
   }
 
-  // ── 메인 틱 ──
+  //  ── 메인 틱 ──
 
   function _tick(ts) {
     _rafId = null;
@@ -247,8 +247,8 @@ const BadmintonModule = (() => {
 
     if (_sActive) {
       if (_phase === 'rally') {
-        // 셔틀 물리 — 작은 스텝으로 분할해 벽 반사/판정/히트 누락 방지.
-        // 60Hz에선 step=1로 정확히 1번 실행되어 기존과 동일.
+        //  셔틀 물리 — 작은 스텝으로 분할해 벽 반사/판정/히트 누락 방지.
+        //  60Hz에선 step=1로 정확히 1번 실행되어 기존과 동일.
         let remainingF = f;
         let pointAwarded = false;
         let hitOccurred = false;
@@ -267,7 +267,7 @@ const BadmintonModule = (() => {
           _sX += _sVX * step;
           _sY += _sVY * step;
 
-          // 좌우 벽 반사
+          //  좌우 벽 반사
           if (_sX - SHUTTLE_R < PAD) {
             _sX = PAD + SHUTTLE_R;
             _sVX = Math.abs(_sVX) * 0.65;
@@ -277,11 +277,11 @@ const BadmintonModule = (() => {
             _sVX = -Math.abs(_sVX) * 0.65;
           }
 
-          // 아웃 판정
+          //  아웃 판정
           if (_sY > H + 12)        { _awardPoint('ai');     pointAwarded = true; break; }
           else if (_sY < -12)      { _awardPoint('player'); pointAwarded = true; break; }
 
-          // 네트 통과 후 역방향으로 돌아오는 셔틀 아웃 처리
+          //  네트 통과 후 역방향으로 돌아오는 셔틀 아웃 처리
           else if (_lastHitter === 'player' && _sY > NET_Y + 5 && _sVY > 0) {
             _awardPoint('ai');     pointAwarded = true; break;
           } else if (_lastHitter === 'ai' && _sY < NET_Y - 5 && _sVY < 0) {
@@ -380,7 +380,7 @@ const BadmintonModule = (() => {
     if (_msgAlpha > 0) _msgAlpha = Math.max(0, _msgAlpha - 0.018 * f);
   }
 
-  // ── 렌더링 ──
+  //  ── 렌더링 ──
 
   const C_BG     = '#09111e';
   const C_COURT_P = '#0c1e38';
@@ -395,7 +395,7 @@ const BadmintonModule = (() => {
     ctx.save();
     ctx.scale(s.x, s.y);
 
-    // 배경
+    //  배경
     ctx.fillStyle = C_BG;
     ctx.fillRect(0, 0, W, H);
 
@@ -403,16 +403,16 @@ const BadmintonModule = (() => {
     ctx.fillStyle = C_COURT_A;
     ctx.fillRect(PAD, PAD, W - PAD * 2, NET_Y - PAD);
 
-    // 코트 — 플레이어쪽 (아래)
+    //  코트 — 플레이어쪽 (아래)
     ctx.fillStyle = C_COURT_P;
     ctx.fillRect(PAD, NET_Y, W - PAD * 2, H / 2 - PAD);
 
-    // 코트 테두리
+    //  코트 테두리
     ctx.strokeStyle = '#ffffff28';
     ctx.lineWidth   = 1.5;
     ctx.strokeRect(PAD, PAD, W - PAD * 2, H - PAD * 2);
 
-    // 중앙선
+    //  중앙선
     ctx.strokeStyle = C_LINE;
     ctx.lineWidth   = 1;
     ctx.setLineDash([6, 8]);
@@ -495,10 +495,10 @@ const BadmintonModule = (() => {
       ctx.globalAlpha = 1;
     });
 
-    // AI 라켓
+    //  AI 라켓
     _drawRacket(ctx, _aRacket.x, _aRacket.y, false);
 
-    // 플레이어 라켓
+    //  플레이어 라켓
     _drawRacket(ctx, _pRacket.x, _pRacket.y, true);
 
     // 셔틀콕
@@ -543,7 +543,7 @@ const BadmintonModule = (() => {
     ctx.ellipse(x, y - hy * 2, RACKET_VR, Math.round(RACKET_VR * 0.82), 0, 0, Math.PI * 2);
     ctx.stroke();
 
-    // 줄
+    //  줄
     ctx.strokeStyle = col + '44';
     ctx.lineWidth   = 1;
     [-7, 0, 7].forEach(ox => {
@@ -681,7 +681,7 @@ const BadmintonModule = (() => {
     _canvas.removeEventListener('touchcancel', _onUp);
   }
 
-  // ── 정리 ──
+  //  ── 정리 ──
 
   function _cleanup() {
     _ended = true;
@@ -732,7 +732,7 @@ const BadmintonModule = (() => {
     const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
     if (isMobile) {
-      // 전체화면 요청 (user gesture 덕분에 허용됨)
+      //  전체화면 요청 (user gesture 덕분에 허용됨)
       const docEl = document.documentElement;
       if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
       else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
@@ -763,20 +763,20 @@ const BadmintonModule = (() => {
 
       const inner = document.createElement('div');
       if (canLockOrientation) {
-        // Android: OS가 가로 회전 → 가로 크기로 inner 설정, CSS 회전 없음
+        //  Android: OS가 가로 회전 → 가로 크기로 inner 설정, CSS 회전 없음
         inner.style.cssText =
           `width:${Math.max(vw, vh)}px;height:${Math.min(vw, vh)}px;` +
           'position:relative;overflow:hidden;border-radius:0;';
         _isMobileRotated = false;
       } else if (isPortrait) {
-        // iOS 세로 → CSS 90° 회전으로 가로처럼 표시
+        //  iOS 세로 → CSS 90° 회전으로 가로처럼 표시
         inner.style.cssText =
           `width:${vh}px;height:${vw}px;` +
           'transform:rotate(90deg);transform-origin:center center;' +
           'position:relative;overflow:hidden;border-radius:0;';
         _isMobileRotated = true;
       } else {
-        // iOS 가로 → 그대로 전체 채움
+        //  iOS 가로 → 그대로 전체 채움
         inner.style.cssText =
           `width:${vw}px;height:${vh}px;` +
           'position:relative;overflow:hidden;border-radius:0;';

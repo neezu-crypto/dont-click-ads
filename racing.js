@@ -1,8 +1,8 @@
-// Top-down Racing mini-game module
+//  Top-down Racing mini-game module
 const RacingModule = (() => {
   'use strict';
 
-  // ── 트랙 상수 ──
+  //  ── 트랙 상수 ──
   const TRACK_W = 1200, TRACK_H = 1200;
   const ROAD_W  = 180;  // 도로 폭
   const ROAD_HALF = ROAD_W * 0.50;          // 아스팔트 반폭 (90px)
@@ -11,7 +11,7 @@ const RacingModule = (() => {
   const NUM_AI  = 7;
   const WIN_POS = 1; // 1등으로 완주해야 클리어
 
-  // ── 트랙 웨이포인트 (폐곡선) ──
+  //  ── 트랙 웨이포인트 (폐곡선) ──
   // 중심선 좌표. 충분한 웨이포인트로 타원+굴곡 트랙을 표현
   const WAYPOINTS = (() => {
     const pts = [];
@@ -20,7 +20,7 @@ const RacingModule = (() => {
     const N = 64;
     for (let i = 0; i < N; i++) {
       const a = (i / N) * Math.PI * 2;
-      // 외부 타원 rx=440 ry=380, 내부 굴곡 추가
+      //  외부 타원 rx=440 ry=380, 내부 굴곡 추가
       const rx = 440 + Math.sin(a * 2) * 60 + Math.cos(a * 3) * 40;
       const ry = 380 + Math.cos(a * 2) * 60 + Math.sin(a * 3) * 30;
       pts.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry });
@@ -28,7 +28,7 @@ const RacingModule = (() => {
     return pts;
   })();
 
-  // ── 결승선 (wp0 위치 기준) ──
+  //  ── 결승선 (wp0 위치 기준) ──
   const FINISH_LINE = (() => {
     const wp0 = WAYPOINTS[0];
     const wp1 = WAYPOINTS[1];
@@ -38,7 +38,7 @@ const RacingModule = (() => {
     return { x: wp0.x, y: wp0.y, nx, ny };
   })();
 
-  // ── 차량 색상 ──
+  //  ── 차량 색상 ──
   const CAR_COLORS = ['#e8ff00', '#ff4444', '#4488ff', '#00ffaa', '#ff8800', '#cc44ff', '#44ffff', '#ff66aa'];
   const PLAYER_COLOR = CAR_COLORS[0];
 
@@ -49,7 +49,7 @@ const RacingModule = (() => {
   let _rafId = null;
   let _lastTime = 0;
 
-  // 카메라
+  //  카메라
   let _camX = 0, _camY = 0;
 
   // 광고 장애물
@@ -58,7 +58,7 @@ const RacingModule = (() => {
   // 플레이어
   let _player = null;
 
-  // AI 차량
+  //  AI 차량
   let _aiCars = [];
 
   // 카운트다운
@@ -83,7 +83,7 @@ const RacingModule = (() => {
   function _playBeep(freq, dur, vol, type) {
     const ctx = _getAudioCtx();
     if (!ctx) return;
-    // 일부 브라우저는 사용자 입력 후에만 재생 허용 → 일시 정지된 컨텍스트 깨우기
+    //  일부 브라우저는 사용자 입력 후에만 재생 허용 → 일시 정지된 컨텍스트 깨우기
     if (ctx.state === 'suspended') {
       ctx.resume().catch(() => {});
     }
@@ -102,7 +102,7 @@ const RacingModule = (() => {
     osc.stop(now + dur);
   }
 
-  // 터치/마우스 입력
+  //  터치/마우스 입력
   let _inputDown = false;
   let _inputX = 0, _inputY = 0;
 
@@ -139,7 +139,7 @@ const RacingModule = (() => {
       }
     }
 
-    // positions[0,1]=1·2등(AI), positions[6,7]=7·8등(player=8등)
+    //  positions[0,1]=1·2등(AI), positions[6,7]=7·8등(player=8등)
     _aiCars = [];
     for (let i = 0; i < NUM_AI; i++) {
       const pos = positions[i];
@@ -181,7 +181,7 @@ const RacingModule = (() => {
 
   // ── 광고 장애물 초기화 ──
   function _initAdObstacle() {
-    // wp15~wp55 사이 랜덤 위치 (출발/결승 구간 회피)
+    //  wp15~wp55 사이 랜덤 위치 (출발/결승 구간 회피)
     const minWp = 15, maxWp = 55;
     const wpIdx = Math.floor(Math.random() * (maxWp - minWp + 1)) + minWp;
     const wp    = WAYPOINTS[wpIdx];
@@ -202,7 +202,7 @@ const RacingModule = (() => {
     };
   }
 
-  // ── 광고 장애물 충돌 체크 (플레이어만) ──
+  //  ── 광고 장애물 충돌 체크 (플레이어만) ──
   function _checkAdObstacleCollision() {
     if (!_adObstacle || _ended || !_racing || _player.finished) return;
     const dist = Math.hypot(_player.x - _adObstacle.x, _player.y - _adObstacle.y);
@@ -235,13 +235,13 @@ const RacingModule = (() => {
     ctx.fillStyle = '#888';
     ctx.fillRect(-4, bh * 0.35, 8, 24);
 
-    // 보드 그림자
+    //  보드 그림자
     ctx.globalAlpha = 0.3;
     ctx.fillStyle = '#000';
     ctx.fillRect(-bw / 2 + 3, -bh / 2 + 3, bw, bh);
     ctx.globalAlpha = 1;
 
-    // 보드 배경
+    //  보드 배경
     ctx.fillStyle = blink ? '#fffbe6' : '#fff5f5';
     ctx.fillRect(-bw / 2, -bh / 2, bw, bh);
 
@@ -254,13 +254,13 @@ const RacingModule = (() => {
     ctx.fillStyle = blink ? '#ff2200' : '#ff6600';
     ctx.fillRect(-bw / 2, -bh / 2, bw, 14);
 
-    // "AD" 헤더 텍스트
+    //  "AD" 헤더 텍스트
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 9px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('📢 AD', 0, -bh / 2 + 10);
 
-    // 본문
+    //  본문
     ctx.fillStyle = '#cc2200';
     ctx.font = 'bold 10px sans-serif';
     ctx.fillText('광고 클릭', 0, -bh / 2 + 25);
@@ -268,7 +268,7 @@ const RacingModule = (() => {
     ctx.font = '8px sans-serif';
     ctx.fillText('피하세요!', 0, -bh / 2 + 37);
 
-    // 외곽 경고 링 (맥동)
+    //  외곽 경고 링 (맥동)
     const pulseR = _adObstacle.radius + Math.sin(_adObstacle.pulse) * 4;
     ctx.globalAlpha = 0.25 + Math.sin(_adObstacle.pulse) * 0.1;
     ctx.strokeStyle = '#ff3300';
@@ -310,7 +310,7 @@ const RacingModule = (() => {
   // 차량이 다음 wp를 "통과"했는지 판정.
   // 이전 wp(A) → 다음 wp(B) 선분 위에 차량을 투영하여 t >= 1 이면 통과.
   // 이렇게 하면 차량이 도로 바깥쪽 차선으로 달려 wp에 55px 안으로 못 들어와도
-  // wpTarget이 정상적으로 갱신됨.
+  //  wpTarget이 정상적으로 갱신됨.
   function _hasPassedWp(car) {
     const N = WAYPOINTS.length;
     const A = WAYPOINTS[(car.wpTarget - 1 + N) % N];
@@ -322,7 +322,7 @@ const RacingModule = (() => {
     return t >= 1.0;
   }
 
-  // ── AI 조향 ──
+  //  ── AI 조향 ──
   function _steerAI(car, dt) {
     if (car.finished) return;
     const wp = WAYPOINTS[car.wpTarget];
@@ -330,7 +330,7 @@ const RacingModule = (() => {
     const dist = Math.hypot(dx, dy);
     // 통과 판정: 거리 55px 이내 OR 선분 투영으로 이미 지나친 경우
     if (dist < 55 || _hasPassedWp(car)) {
-      // wpTarget 갱신 전에 passedHalf 체크 (업데이트 후 0이 되면 조건 오동작)
+      //  wpTarget 갱신 전에 passedHalf 체크 (업데이트 후 0이 되면 조건 오동작)
       if (car.wpTarget > WAYPOINTS.length / 2) car.passedHalf = true;
       const next = (car.wpTarget + 1) % WAYPOINTS.length;
       if (next === 0 && car.lapsComplete === 0 && car.passedHalf) {
@@ -347,7 +347,7 @@ const RacingModule = (() => {
     car.steer = Math.max(-1, Math.min(1, diff * 2));
   }
 
-  // ── 플레이어 조향 ──
+  //  ── 플레이어 조향 ──
   function _steerPlayer(car) {
     if (!_racing || car.finished) return;
     if (!_inputDown) { car.steer = 0; return; }
@@ -357,7 +357,7 @@ const RacingModule = (() => {
     const scaleY = canvas.height / rect.height;
     const scrX = (_inputX - rect.left) * scaleX;
     const scrY = (_inputY - rect.top) * scaleY;
-    // 화면 중심 기준 방향 → 카메라 지연과 무관하게 터치 방향 = 조향 방향
+    //  화면 중심 기준 방향 → 카메라 지연과 무관하게 터치 방향 = 조향 방향
     const dx = scrX - canvas.width / 2;
     const dy = scrY - canvas.height / 2;
     if (Math.hypot(dx, dy) < 10) return; // 화면 중심 근처는 무시
@@ -416,7 +416,7 @@ const RacingModule = (() => {
       car.x -= wallNX * overflow;
       car.y -= wallNY * overflow;
 
-      // 속도 벡터에서 벽 관통 성분 제거 → 슬라이딩
+      //  속도 벡터에서 벽 관통 성분 제거 → 슬라이딩
       const velX = Math.sin(car.angle) * car.speed;
       const velY = -Math.cos(car.angle) * car.speed;
       const vIntoWall = velX * wallNX + velY * wallNY;
@@ -429,7 +429,7 @@ const RacingModule = (() => {
       }
     }
 
-    // 플레이어 결승선 통과 감지 (wpTarget 기반)
+    //  플레이어 결승선 통과 감지 (wpTarget 기반)
     if (car.isPlayer) {
       const wp = WAYPOINTS[car.wpTarget];
       const dist = Math.hypot(car.x - wp.x, car.y - wp.y);
@@ -485,7 +485,7 @@ const RacingModule = (() => {
     if (_player.finished) return _player.finishRank;
     const N = WAYPOINTS.length;
     const allCars = [_player, ..._aiCars];
-    // 차량의 트랙 진행도(0 ~ N)를 정밀하게 계산.
+    //  차량의 트랙 진행도(0 ~ N)를 정밀하게 계산.
     // wpTarget(=다음 목표 wp)이 같은 두 차량은 "이전 wp → 다음 wp 구간을 얼마나 진행했나"로 비교.
     // 단순 직선거리(dist)만 쓰면 차선/인코스 차이로 추월이 반영되지 않음.
     const progress = (car) => {
@@ -519,7 +519,7 @@ const RacingModule = (() => {
     ctx.fillStyle = '#2d5a1b';
     ctx.fillRect(0, 0, W, H);
 
-    // 도로 (외부 → 내부 순서로 그리기)
+    //  도로 (외부 → 내부 순서로 그리기)
     const toScreen = (wx, wy) => ({ sx: wx + offX, sy: wy + offY });
 
     // 도로 경계 외곽 (흰 선 포함)
@@ -589,7 +589,7 @@ const RacingModule = (() => {
     ctx.fill();
     ctx.restore();
 
-    // 중앙선 (점선)
+    //  중앙선 (점선)
     ctx.save();
     ctx.setLineDash([20, 20]);
     ctx.strokeStyle = '#ffff0066';
@@ -632,7 +632,7 @@ const RacingModule = (() => {
     }
     ctx.setLineDash([]);
 
-    // 결승선
+    //  결승선
     const fl = FINISH_LINE;
     const flS = toScreen(fl.x, fl.y);
     ctx.save();
@@ -649,7 +649,7 @@ const RacingModule = (() => {
     }
     ctx.restore();
 
-    // 나무/장식물
+    //  나무/장식물
     const trees = [
       { wx: 600, wy: 600 }, { wx: 400, wy: 350 }, { wx: 800, wy: 350 },
       { wx: 300, wy: 700 }, { wx: 900, wy: 700 }, { wx: 600, wy: 900 },
@@ -669,7 +669,7 @@ const RacingModule = (() => {
     }
   }
 
-  // ── 그리기: 차량 ──
+  //  ── 그리기: 차량 ──
   function _drawCar(ctx, car, camX, camY, W, H) {
     const sx = car.x - camX + W / 2;
     const sy = car.y - camY + H / 2;
@@ -694,7 +694,7 @@ const RacingModule = (() => {
     ctx.fillRect(-CAR_W / 2 + 3, -CAR_H / 2 + 3, CAR_W, CAR_H);
     ctx.globalAlpha = 1;
 
-    // 차체
+    //  차체
     const grad = ctx.createLinearGradient(-CAR_W / 2, -CAR_H / 2, CAR_W / 2, CAR_H / 2);
     grad.addColorStop(0, car.color);
     grad.addColorStop(1, _darken(car.color, 0.55));
@@ -703,11 +703,11 @@ const RacingModule = (() => {
     ctx.rect(-CAR_W / 2, -CAR_H / 2, CAR_W, CAR_H);
     ctx.fill();
 
-    // 앞유리
+    //  앞유리
     ctx.fillStyle = 'rgba(160,220,255,0.7)';
     ctx.fillRect(-CAR_W / 2 + 4, -CAR_H / 2 + 6, CAR_W - 8, CAR_H * 0.28);
 
-    // 헤드라이트
+    //  헤드라이트
     ctx.fillStyle = '#ffffcc';
     ctx.fillRect(-CAR_W / 2 + 3, -CAR_H / 2 + 2, 7, 4);
     ctx.fillRect(CAR_W / 2 - 10, -CAR_H / 2 + 2, 7, 4);
@@ -717,7 +717,7 @@ const RacingModule = (() => {
     ctx.fillRect(-CAR_W / 2 + 3, CAR_H / 2 - 6, 7, 4);
     ctx.fillRect(CAR_W / 2 - 10, CAR_H / 2 - 6, 7, 4);
 
-    // 플레이어 표시
+    //  플레이어 표시
     if (car.isPlayer) {
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 11px sans-serif';
@@ -752,7 +752,7 @@ const RacingModule = (() => {
         if (_countdown <= 0) {
           _racing = true;
           _showCountdown('GO!');
-          // 출발 신호: 높은 톤으로 길게
+          //  출발 신호: 높은 톤으로 길게
           _playBeep(880, 0.5, 0.25, 'square');
           setTimeout(() => { if (_countdownEl) _countdownEl.style.display = 'none'; }, 700);
         } else {
@@ -774,7 +774,7 @@ const RacingModule = (() => {
     _camX += (_player.x - _camX) * Math.min(1, dt * 8);
     _camY += (_player.y - _camY) * Math.min(1, dt * 8);
 
-    // 그리기
+    //  그리기
     const W = _canvas.width, H = _canvas.height;
     _ctx.clearRect(0, 0, W, H);
     _drawTrack(_ctx, _camX, _camY, W, H);
@@ -782,7 +782,7 @@ const RacingModule = (() => {
     // 광고 장애물 (트랙 위, 차량 아래)
     _drawAdObstacle(_ctx, _camX, _camY, W, H);
 
-    // AI 차량 먼저, 플레이어는 위에
+    //  AI 차량 먼저, 플레이어는 위에
     for (const ai of _aiCars) _drawCar(_ctx, ai, _camX, _camY, W, H);
     _drawCar(_ctx, _player, _camX, _camY, W, H);
 
@@ -863,7 +863,7 @@ const RacingModule = (() => {
     }
   }
 
-  // ── 입력 이벤트 ──
+  //  ── 입력 이벤트 ──
   function _onPointerDown(e) {
     e.preventDefault();
     _inputDown = true;
@@ -885,7 +885,7 @@ const RacingModule = (() => {
 
   // ── 공개 API ──
   function start(area, onScore, onSuccess, onFail) {
-    // 이전 게임 루프가 남아있으면 즉시 취소 (재도전 시 이중 루프 방지)
+    //  이전 게임 루프가 남아있으면 즉시 취소 (재도전 시 이중 루프 방지)
     if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
 
     _area = area;
@@ -920,7 +920,7 @@ const RacingModule = (() => {
     const resizeObs = new ResizeObserver(_resize);
     resizeObs.observe(area);
 
-    // UI 오버레이
+    //  UI 오버레이
     _uiOverlay = document.createElement('div');
     _uiOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;';
     area.appendChild(_uiOverlay);
@@ -941,7 +941,7 @@ const RacingModule = (() => {
     // 첫 카운트다운 비프 (이후 매초마다 _playBeep이 호출됨)
     _playBeep(440, 0.18, 0.2, 'square');
 
-    // 순위 표시
+    //  순위 표시
     _posEl = document.createElement('div');
     _posEl.style.cssText = `
       position:absolute;top:14px;left:14px;
@@ -951,7 +951,7 @@ const RacingModule = (() => {
     `;
     _uiOverlay.appendChild(_posEl);
 
-    // 랩 표시
+    //  랩 표시
     _lapEl = document.createElement('div');
     _lapEl.style.cssText = `
       position:absolute;top:58px;left:14px;
@@ -984,7 +984,7 @@ const RacingModule = (() => {
     goal.innerHTML = '🏁 1등으로 결승선 통과!';
     _uiOverlay.appendChild(goal);
 
-    // 속도계
+    //  속도계
     const speedBar = document.createElement('div');
     speedBar.id = 'racing-speedbar';
     speedBar.style.cssText = `
@@ -1000,13 +1000,13 @@ const RacingModule = (() => {
     `;
     _uiOverlay.appendChild(speedBar);
 
-    // 차량 & 트랙 초기화
+    //  차량 & 트랙 초기화
     _initCars();
     _initAdObstacle();
     _camX = _player.x;
     _camY = _player.y;
 
-    // 입력
+    //  입력
     _canvas.addEventListener('pointerdown', _onPointerDown, { passive: false });
     _canvas.addEventListener('pointermove', _onPointerMove, { passive: false });
     _canvas.addEventListener('pointerup', _onPointerUp, { passive: false });
